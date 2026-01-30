@@ -81,6 +81,8 @@ export function UserManagement() {
     // Only allow fetching if user is loaded and authenticated
     if (!isUserLoading && user) {
         setCanFetch(true);
+    } else {
+        setCanFetch(false);
     }
   }, [isUserLoading, user]);
   
@@ -437,3 +439,5 @@ export function UserManagement() {
     </Card>
   );
 }
+
+    
