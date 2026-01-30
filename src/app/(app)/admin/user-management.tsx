@@ -30,7 +30,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     AlertDialog,
@@ -44,7 +43,6 @@ import {
     AlertDialogTrigger,
   } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Form,
   FormControl,
@@ -54,9 +52,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Pencil, Plus, Trash, Database } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash, Database, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { seedWarga } from '@/lib/seed-data';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+
 
 const wargaSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
@@ -67,6 +68,8 @@ const wargaSchema = z.object({
 });
 
 type WargaFormValues = z.infer<typeof wargaSchema>;
+
+const ITEMS_PER_PAGE = 10;
 
 export function UserManagement() {
   const firestore = useFirestore();
@@ -81,6 +84,8 @@ export function UserManagement() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Warga | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const isLoading = isUserLoading || isUsersLoading;
 
@@ -95,6 +100,21 @@ export function UserManagement() {
     },
   });
 
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    return users.filter(user =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.address.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
+
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredUsers, currentPage]);
+
   const handleAddNew = () => {
     setCurrentUser(null);
     form.reset({ name: '', email: '', phone: '', address: '', role: 'user' });
@@ -108,7 +128,7 @@ export function UserManagement() {
   };
 
   const onSubmit = async (values: WargaFormValues) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     
     try {
       if (currentUser) {
@@ -119,7 +139,7 @@ export function UserManagement() {
         const adminRoleRef = doc(firestore, 'roles_admin', currentUser.id);
         if (values.role === 'admin') {
           // If role is admin, ensure the roles_admin doc exists
-          setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, { merge: true });
+          setDocumentNonBlocking(adminRoleRef, { userId: currentUser.id }, { merge: true });
         } else if (currentUser.role === 'admin' && values.role !== 'admin') {
           // If role was admin and now it's not, delete the roles_admin doc
           deleteDocumentNonBlocking(adminRoleRef);
@@ -127,15 +147,17 @@ export function UserManagement() {
 
         toast({ title: 'Success', description: 'User updated successfully.' });
       } else {
-        // Create new user
+        // Create new user - this requires authentication to get a UID
+        // For simplicity, let's assume we can't create users directly this way without auth logic
+        // We will use a placeholder ID for now. In a real app, you'd create an auth user first.
         const usersCol = collection(firestore, 'users');
-        const newUserRef = doc(usersCol);
-        const newUserData = { ...values, id: newUserRef.id };
+        const newUserRef = doc(usersCol); // Firestore generates an ID
+        const newUserData: Warga = { ...values, id: newUserRef.id };
         setDocumentNonBlocking(newUserRef, newUserData, {});
 
         if (values.role === 'admin') {
-          const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
-          setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, {});
+            const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
+            setDocumentNonBlocking(adminRoleRef, { userId: newUserRef.id }, {});
         }
         toast({ title: 'Success', description: 'User created successfully.' });
       }
@@ -151,6 +173,8 @@ export function UserManagement() {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', userId);
     deleteDocumentNonBlocking(userRef);
+    const adminRoleRef = doc(firestore, 'roles_admin', userId);
+    deleteDocumentNonBlocking(adminRoleRef); // Also remove from admin roles if they were an admin
     toast({ title: 'Success', description: 'User deleted successfully.' });
   };
   
@@ -174,97 +198,143 @@ export function UserManagement() {
             email: email,
             phone: warga.phone,
             address: warga.address,
-            role: warga.role,
+            role: warga.role as 'user' | 'coordinator' | 'admin',
         };
         
         setDocumentNonBlocking(newUserRef, newUserData, {});
 
         if (newUserData.role === 'admin') {
             const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
-            setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, {});
+            setDocumentNonBlocking(adminRoleRef, { userId: newUserRef.id }, {});
         }
     });
   };
 
   return (
-    <div className="space-y-4">
-        <div className='flex justify-end gap-2'>
-            <Button onClick={handleSeedDatabase} variant="outline">
-                <Database className="mr-2" /> Seed Database
-            </Button>
-            <Button onClick={handleAddNew}>
-                <Plus className="mr-2" /> Add User
-            </Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Manage Users / Warga</CardTitle>
+        <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className='flex flex-col sm:flex-row justify-between items-center gap-2'>
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search users..."
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1); // Reset to first page on new search
+                    }}
+                />
+            </div>
+            <div className='flex gap-2 self-end'>
+                <Button onClick={handleSeedDatabase} variant="outline">
+                    <Database className="mr-2" /> Seed
+                </Button>
+                <Button onClick={handleAddNew}>
+                    <Plus className="mr-2" /> Add User
+                </Button>
+            </div>
         </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
+        <div className="border rounded-lg overflow-hidden">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead className='hidden md:table-cell'>Email</TableHead>
+                <TableHead className='hidden sm:table-cell'>Phone</TableHead>
+                <TableHead className='hidden md:table-cell'>Address</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoading ? (
+                    Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                            <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-32" /></TableCell>
+                            <TableCell className='hidden sm:table-cell'><Skeleton className="h-4 w-28" /></TableCell>
+                            <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : paginatedUsers.length > 0 ? (
+                paginatedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className='hidden md:table-cell'>{user.email}</TableCell>
+                    <TableCell className='hidden sm:table-cell'>{user.phone}</TableCell>
+                    <TableCell className='hidden md:table-cell'>{user.address}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
+                        <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className='text-destructive hover:text-destructive'>
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the user account.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
                     </TableRow>
                 ))
-            ) : users && users.length > 0 ? (
-              users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.phone}</TableCell>
-                  <TableCell>{user.address}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className='text-destructive hover:text-destructive'>
-                            <Trash className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the user account.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
+                ) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                        {searchQuery ? "No users found for your search." : "No users found. Click 'Seed Database' to add initial data."}
+                    </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center h-24">
-                  No users found. Click "Seed Database" to add initial data.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                )}
+            </TableBody>
+            </Table>
+        </div>
+      </CardContent>
+        {totalPages > 1 && (
+            <CardFooter className='justify-between'>
+                 <div className="text-xs text-muted-foreground">
+                    Showing <strong>{paginatedUsers.length}</strong> of <strong>{filteredUsers.length}</strong> users
+                </div>
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1))}} className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''} />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                             <PaginationItem key={page}>
+                                <PaginationLink href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(page)}} isActive={currentPage === page}>
+                                    {page}
+                                </PaginationLink>
+                            </PaginationItem>
+                        ))}
+                       
+                        <PaginationItem>
+                            <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1))}} className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''} />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
+            </CardFooter>
+        )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -356,6 +426,6 @@ export function UserManagement() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   );
 }

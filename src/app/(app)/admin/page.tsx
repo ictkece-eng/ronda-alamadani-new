@@ -3,24 +3,37 @@ import { GenerateScheduleForm } from './generate-schedule-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagement } from './user-management';
+import { Activity, Users, FileText, GitPullRequest } from 'lucide-react';
 
 export default function AdminPage() {
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
         title="Admin Panel"
         description="Manage schedules, users, and requests from here."
       />
 
-      <Tabs defaultValue="generate-schedule" className="w-full">
+      <Tabs defaultValue="users" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
-          <TabsTrigger value="generate-schedule">Generate Schedule</TabsTrigger>
-          <TabsTrigger value="users">Users/Warga</TabsTrigger>
-          <TabsTrigger value="requests">Schedule Requests</TabsTrigger>
-          <TabsTrigger value="replacements">Replacements</TabsTrigger>
+          <TabsTrigger value="generate-schedule">
+            <Activity className="w-4 h-4 mr-2" />
+            Generate Schedule
+          </TabsTrigger>
+          <TabsTrigger value="users">
+            <Users className="w-4 h-4 mr-2" />
+            Users/Warga
+            </TabsTrigger>
+          <TabsTrigger value="requests">
+            <FileText className="w-4 h-4 mr-2" />
+            Schedule Requests
+            </TabsTrigger>
+          <TabsTrigger value="replacements">
+            <GitPullRequest className="w-4 h-4 mr-2" />
+            Replacements
+            </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="generate-schedule" className="mt-4">
+        <TabsContent value="generate-schedule" className="mt-6">
           <Card>
             <CardHeader>
                 <CardTitle>Automated Schedule Generation</CardTitle>
@@ -32,19 +45,11 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Users / Warga</CardTitle>
-              <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagement />
-            </CardContent>
-          </Card>
+        <TabsContent value="users" className="mt-6">
+            <UserManagement />
         </TabsContent>
 
-        <TabsContent value="requests" className="mt-4">
+        <TabsContent value="requests" className="mt-6">
            <Card>
             <CardHeader>
               <CardTitle>Manage Schedule Requests</CardTitle>
@@ -56,7 +61,7 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="replacements" className="mt-4">
+        <TabsContent value="replacements" className="mt-6">
            <Card>
             <CardHeader>
               <CardTitle>Manage Replacements</CardTitle>
