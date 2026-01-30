@@ -1,4 +1,6 @@
+'use client';
 
+import { useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -9,21 +11,23 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  scheduleEntries,
-  backupPersons,
-  coordinatorPersons,
+  scheduleEntries as staticSchedule,
+  backupPersons as staticBackupPersons,
   infoItems,
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import type { PersonInfo } from '@/lib/types';
+import type { PersonInfo, Warga } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-function countConsecutiveDates(startIndex: number) {
+function countConsecutiveDates(schedule: any[], startIndex: number) {
   let count = 1;
-  if (startIndex >= scheduleEntries.length) return count;
-  
-  const targetDate = scheduleEntries[startIndex].hariTanggal;
-  for (let i = startIndex + 1; i < scheduleEntries.length; i++) {
-    if (scheduleEntries[i].hariTanggal === targetDate) {
+  if (startIndex >= schedule.length) return count;
+
+  const targetDate = schedule[startIndex].hariTanggal;
+  for (let i = startIndex + 1; i < schedule.length; i++) {
+    if (schedule[i].hariTanggal === targetDate) {
       count++;
     } else {
       break;
@@ -32,7 +36,15 @@ function countConsecutiveDates(startIndex: number) {
   return count;
 }
 
-const InfoTable = ({ title, data }: { title: string; data: PersonInfo[] }) => (
+const InfoTable = ({
+  title,
+  data,
+  isLoading,
+}: {
+  title: string;
+  data: PersonInfo[];
+  isLoading: boolean;
+}) => (
   <Card>
     <CardHeader className="p-4">
       <CardTitle className="text-base text-center font-bold">{title}</CardTitle>
@@ -48,14 +60,31 @@ const InfoTable = ({ title, data }: { title: string; data: PersonInfo[] }) => (
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((person, index) => (
-            <TableRow key={index}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell>{person.nama}</TableCell>
-              <TableCell>{person.blok}</TableCell>
-              <TableCell>{person.noHp}</TableCell>
-            </TableRow>
-          ))}
+          {isLoading
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-10" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-28" />
+                  </TableCell>
+                </TableRow>
+              ))
+            : data.map((person, index) => (
+                <TableRow key={index}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{person.nama}</TableCell>
+                  <TableCell>{person.blok}</TableCell>
+                  <TableCell>{person.noHp}</TableCell>
+                </TableRow>
+              ))}
         </TableBody>
       </Table>
     </CardContent>
@@ -63,7 +92,62 @@ const InfoTable = ({ title, data }: { title: string; data: PersonInfo[] }) => (
 );
 
 export default function DashboardPage() {
+  const firestore = useFirestore();
+  const usersCollection = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
+  );
+  const { data: users, isLoading: isUsersLoading } =
+    useCollection<Warga>(usersCollection);
+
+  const usersMap = useMemo(() => {
+    if (!users) return new Map<string, Warga>();
+    return new Map(users.map((user) => [user.name.toLowerCase(), user]));
+  }, [users]);
+
+  const processedScheduleEntries = useMemo(() => {
+    return staticSchedule.map((entry) => {
+      const user = usersMap.get(entry.nama.toLowerCase());
+      if (user) {
+        return {
+          ...entry,
+          nama: user.name,
+          blok: user.address,
+          noHp: user.phone,
+        };
+      }
+      return entry;
+    });
+  }, [usersMap]);
+
+  const backupPersons = useMemo(() => {
+    return staticBackupPersons.map((person) => {
+      const user = usersMap.get(person.nama.toLowerCase());
+      if (user) {
+        return {
+          nama: user.name,
+          blok: user.address,
+          noHp: user.phone,
+        };
+      }
+      return person;
+    });
+  }, [usersMap]);
+
+  const coordinatorPersons = useMemo(() => {
+    if (!users) return [];
+    return users
+      .filter((user) => user.role === 'coordinator')
+      .map((user) => ({
+        nama: user.name,
+        blok: user.address,
+        noHp: user.phone,
+      }));
+  }, [users]);
+
   let lastDate = '';
+
+  const isLoading = isUsersLoading;
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
@@ -95,59 +179,102 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {scheduleEntries.map((entry, index) => {
-                  const showDate = entry.hariTanggal !== lastDate;
-                  const isJumat = entry.hariTanggal.startsWith('Jumat');
-
-                  if (showDate) {
-                    lastDate = entry.hariTanggal;
-                    const rowSpan = countConsecutiveDates(index);
-                    return (
-                      <TableRow key={index} className={cn(isJumat && 'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30')}>
-                        <TableCell
-                          className="font-medium align-top p-2"
-                          rowSpan={rowSpan}
-                        >
-                          {entry.hariTanggal}
+                {isLoading
+                  ? Array.from({ length: 15 }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
                         </TableCell>
-                        <TableCell className="p-2">{entry.nama}</TableCell>
-                        <TableCell className="p-2">{entry.blok}</TableCell>
-                        <TableCell className="p-2">{entry.noHp}</TableCell>
-                        <TableCell
-                          className={cn(
-                            'p-2',
-                            entry.pengganti && 'font-semibold'
-                          )}
-                        >
-                          {entry.pengganti || '-'}
+                        <TableCell>
+                          <Skeleton className="h-4 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-10" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-28" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-20" />
                         </TableCell>
                       </TableRow>
-                    );
-                  }
-                  return (
-                    <TableRow key={index} className={cn(isJumat && 'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30')}>
-                      <TableCell className="p-2">{entry.nama}</TableCell>
-                      <TableCell className="p-2">{entry.blok}</TableCell>
-                      <TableCell className="p-2">{entry.noHp}</TableCell>
-                      <TableCell
-                        className={cn(
-                          'p-2',
-                          entry.pengganti && 'font-semibold'
-                        )}
-                      >
-                        {entry.pengganti || '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                    ))
+                  : processedScheduleEntries.map((entry, index) => {
+                      const showDate = entry.hariTanggal !== lastDate;
+                      const isJumat = entry.hariTanggal.startsWith('Jumat');
+
+                      if (showDate) {
+                        lastDate = entry.hariTanggal;
+                        const rowSpan = countConsecutiveDates(
+                          processedScheduleEntries,
+                          index
+                        );
+                        return (
+                          <TableRow
+                            key={index}
+                            className={cn(
+                              isJumat &&
+                                'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30'
+                            )}
+                          >
+                            <TableCell
+                              className="font-medium align-top p-2"
+                              rowSpan={rowSpan}
+                            >
+                              {entry.hariTanggal}
+                            </TableCell>
+                            <TableCell className="p-2">{entry.nama}</TableCell>
+                            <TableCell className="p-2">{entry.blok}</TableCell>
+                            <TableCell className="p-2">{entry.noHp}</TableCell>
+                            <TableCell
+                              className={cn(
+                                'p-2',
+                                entry.pengganti && 'font-semibold'
+                              )}
+                            >
+                              {entry.pengganti || '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      return (
+                        <TableRow
+                          key={index}
+                          className={cn(
+                            isJumat &&
+                              'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30'
+                          )}
+                        >
+                          <TableCell className="p-2">{entry.nama}</TableCell>
+                          <TableCell className="p-2">{entry.blok}</TableCell>
+                          <TableCell className="p-2">{entry.noHp}</TableCell>
+                          <TableCell
+                            className={cn(
+                              'p-2',
+                              entry.pengganti && 'font-semibold'
+                            )}
+                          >
+                            {entry.pengganti || '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
               </TableBody>
             </Table>
           </div>
         </main>
 
         <aside className="lg:col-span-2 space-y-6">
-          <InfoTable title="Back Up / Pengganti Ronda" data={backupPersons} />
-          <InfoTable title="Coordinator Ronda" data={coordinatorPersons} />
+          <InfoTable
+            title="Back Up / Pengganti Ronda"
+            data={backupPersons}
+            isLoading={isLoading}
+          />
+          <InfoTable
+            title="Coordinator Ronda"
+            data={coordinatorPersons}
+            isLoading={isLoading}
+          />
 
           <Card>
             <CardHeader className="p-4">
