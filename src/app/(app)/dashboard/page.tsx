@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   scheduleEntries as staticSchedule,
   backupPersons as staticBackupPersons,
+  coordinatorPersons as staticCoordinatorPersons,
   infoItems,
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
@@ -142,15 +143,19 @@ export default function DashboardPage() {
   }, [usersMap]);
 
   const coordinatorPersons = useMemo(() => {
-    if (!users) return [];
-    return users
-      .filter((user) => user.role === 'coordinator')
-      .map((user) => ({
-        nama: user.name,
-        blok: user.address,
-        noHp: user.phone,
-      }));
-  }, [users]);
+    // If admin and users are loaded, derive from live data
+    if (isAdmin && users) {
+      return users
+        .filter((user) => user.role === 'coordinator')
+        .map((user) => ({
+          nama: user.name,
+          blok: user.address,
+          noHp: user.phone,
+        }));
+    }
+    // For non-admins or while loading, use the static data
+    return staticCoordinatorPersons;
+  }, [users, isAdmin]);
 
   let lastDate = '';
 
