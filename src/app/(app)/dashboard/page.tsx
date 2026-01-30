@@ -94,12 +94,12 @@ const InfoTable = ({
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading: isAuthLoading } = useUser();
+  const { isUserLoading: isAuthLoading } = useUser();
 
   const usersCollection = useMemoFirebase(
-    // Fetch users if firestore is available and a user is signed in.
-    () => (firestore && user ? collection(firestore, 'users') : null),
-    [firestore, user]
+    // Fetch users if firestore is available, regardless of auth state.
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
   );
 
   const { data: users, isLoading: isUsersLoading } =
@@ -142,12 +142,17 @@ export default function DashboardPage() {
   }, [usersMap]);
 
   const coordinatorPersons = useMemo(() => {
-    // While loading, we can show the static data to prevent a blank screen
-    if (isLoading || !users) {
+    // While loading user data, show the static list to prevent a blank screen.
+    if (isUsersLoading) {
       return staticCoordinatorPersons;
     }
   
-    // Once loading is complete, derive the list exclusively from the live data
+    // If loading is complete but we have no users, return an empty array.
+    if (!users) {
+      return [];
+    }
+  
+    // Once loading is complete, derive the list exclusively from the live data.
     return users
       .filter((user) => user.role === 'coordinator')
       .map((user) => ({
@@ -155,7 +160,7 @@ export default function DashboardPage() {
         blok: user.address,
         noHp: user.phone,
       }));
-  }, [users, isLoading]);
+  }, [users, isUsersLoading]);
 
 
   let lastDate = '';

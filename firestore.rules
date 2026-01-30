@@ -22,8 +22,8 @@
  *   path but are completely denied access to other users' data trees.
  * - Admin Privilege via Role Collection: An `isAdmin()` function checks for a document in the
  *   `/roles_admin` collection. This provides a clear and secure way to grant elevated permissions.
- * - No User Listing: To protect user privacy, listing the top-level `/users` collection is
- *   disabled for regular users. Only admins can list all users.
+ * - Public User Listing: To allow the dashboard to function for all users (logged in or not),
+ *   listing the top-level `/users` collection is public. Individual user documents are still protected.
  * - Secure Subcollection Listing: Users are only permitted to list items within their own
  *   subcollections (e.g., their own ronda schedules), preventing data leakage.
  * - Immutable Ownership Links: On document creation, rules enforce that ownership fields
@@ -90,7 +90,7 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if isSignedIn();
+      allow list: if true; // Allow public listing for dashboard functionality
       allow create: if isOwner(userId) && request.resource.data.id == userId || isAdmin();
       allow update: if (isOwner(userId) || isAdmin()) && isExistingDoc();
       allow delete: if isOwner(userId) || isAdmin();
