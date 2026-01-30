@@ -6,9 +6,22 @@ import { getCoordinatorSuggestions } from '@/ai/flows/coordinator-ai-suggestions
 
 const GenerateScheduleSchema = z.object({
   month: z.string().min(1, 'Month is required.'),
-  participants: z.string().min(1, 'Participants are required.'),
+  participants: z.string().transform((val, ctx) => {
+    try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(p => typeof p === 'string')) {
+            return parsed;
+        }
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Participants data is invalid or empty."});
+        return z.NEVER;
+    } catch (e) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid JSON for participants."});
+        return z.NEVER;
+    }
+  }),
   coordinator: z.string().min(1, 'Coordinator is required.'),
 });
+
 
 export async function handleGenerateSchedule(prevState: any, formData: FormData) {
   try {
@@ -26,11 +39,10 @@ export async function handleGenerateSchedule(prevState: any, formData: FormData)
     }
 
     const { month, participants, coordinator } = validatedFields.data;
-    const participantsArray = participants.split(',').map(p => p.trim());
 
     const result = await generateRondaSchedule({
       month,
-      participants: participantsArray,
+      participants: participants,
       coordinator,
     });
 

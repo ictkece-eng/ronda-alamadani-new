@@ -5,7 +5,6 @@ import { handleGenerateSchedule } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useEffect, useState, useActionState, useMemo } from 'react';
@@ -50,6 +49,16 @@ export function GenerateScheduleForm() {
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
+  const { participants, coordinator } = useMemo(() => {
+    if (!users) {
+        return { participants: [], coordinator: '' };
+    }
+    const participantNames = users.filter(u => u.role === 'user').map(u => u.name);
+    const coordinatorName = users.find(u => u.role === 'coordinator')?.name || users.find(u => u.role === 'admin')?.name || '';
+    return { participants: participantNames, coordinator: coordinatorName };
+  }, [users]);
+
+
   const usersMap = useMemo(() => {
     if (!users) return new Map<string, Warga>();
     return new Map(users.map((user) => [user.name.toLowerCase(), user]));
@@ -93,7 +102,7 @@ export function GenerateScheduleForm() {
         const batch = writeBatch(firestore);
 
         for (const day of generatedSchedule) {
-            if (!day.date || !day.participants) continue; // Basic validation
+            if (!day.date || !day.participants) continue; 
             const scheduleDate = new Date(day.date);
             if (isNaN(scheduleDate.getTime())) continue;
 
@@ -130,20 +139,26 @@ export function GenerateScheduleForm() {
       <form action={formAction} className="space-y-4">
         <div>
           <Label htmlFor="month">Month (YYYY-MM)</Label>
-          <Input id="month" name="month" type="month" required />
-          {state.errors?.month && <p className="text-destructive text-sm mt-1">{state.errors.month[0]}</p>}
+          <Input id="month" name="month" type="month" required disabled={isUsersLoading}/>
+          {state?.errors?.month && <p className="text-destructive text-sm mt-1">{state.errors.month[0]}</p>}
         </div>
-        <div>
-          <Label htmlFor="participants">Participants (comma-separated)</Label>
-          <Textarea id="participants" name="participants" placeholder="e.g. Budi, Joko, Agus" required />
-          {state.errors?.participants && <p className="text-destructive text-sm mt-1">{state.errors.participants[0]}</p>}
-        </div>
-        <div>
-          <Label htmlFor="coordinator">Coordinator</Label>
-          <Input id="coordinator" name="coordinator" placeholder="e.g. Pak RT" required />
-          {state.errors?.coordinator && <p className="text-destructive text-sm mt-1">{state.errors.coordinator[0]}</p>}
-        </div>
+        
+        <input type="hidden" name="participants" value={JSON.stringify(participants)} />
+        <input type="hidden" name="coordinator" value={coordinator} />
+
         <SubmitButton />
+
+        {isUsersLoading && (
+            <p className="text-sm text-muted-foreground">Loading user data...</p>
+        )}
+        {!isUsersLoading && (participants.length === 0 || !coordinator) && (
+            <Alert variant="destructive">
+                <AlertTitle>Missing Data</AlertTitle>
+                <AlertDescription>
+                Not enough user data. Please ensure there are users with the 'user' role and at least one 'coordinator' or 'admin' in the User Management tab.
+                </AlertDescription>
+            </Alert>
+        )}
       </form>
 
       <div>
@@ -171,7 +186,7 @@ export function GenerateScheduleForm() {
                 <Wand2 className="h-4 w-4" />
                 <AlertTitle>Awaiting Generation</AlertTitle>
                 <AlertDescription>
-                Fill out the form to generate a fair and balanced ronda schedule. The generated schedule will appear here for review before saving.
+                Select a month and click 'Generate' to create a fair and balanced ronda schedule. The generated schedule will appear here for review before saving.
                 </AlertDescription>
             </Alert>
         )}

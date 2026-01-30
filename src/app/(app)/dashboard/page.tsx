@@ -12,7 +12,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   scheduleEntries as staticSchedule,
-  backupPersons as staticBackupPersons,
   infoItems,
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
@@ -20,6 +19,18 @@ import type { PersonInfo, Warga } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Extend jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 
 function countConsecutiveDates(schedule: any[], startIndex: number) {
   let count = 1;
@@ -96,7 +107,6 @@ export default function DashboardPage() {
   const { isUserLoading: isAuthLoading } = useUser();
 
   const usersCollection = useMemoFirebase(
-    // Fetch users if firestore is available, regardless of auth state.
     () => (firestore ? collection(firestore, 'users') : null),
     [firestore]
   );
@@ -106,70 +116,161 @@ export default function DashboardPage() {
   
   const isLoading = isUsersLoading || isAuthLoading;
 
-  const usersMap = useMemo(() => {
-    if (!users) return new Map<string, Warga>();
-    return new Map(users.map((user) => [user.name.toLowerCase(), user]));
-  }, [users]);
-
-  const processedScheduleEntries = useMemo(() => {
-    return staticSchedule.map((entry) => {
-      const user = usersMap.get(entry.nama.toLowerCase());
-      if (user) {
-        return {
-          ...entry,
-          nama: user.name,
-          blok: user.address,
-          noHp: user.phone,
-        };
-      }
-      return entry;
-    });
-  }, [usersMap]);
-
-  const backupPersons = useMemo(() => {
-    return staticBackupPersons.map((person) => {
-      const user = usersMap.get(person.nama.toLowerCase());
-      if (user) {
-        return {
-          nama: user.name,
-          blok: user.address,
-          noHp: user.phone,
-        };
-      }
-      return person;
-    });
-  }, [usersMap]);
-
-  const coordinatorPersons = useMemo(() => {
-    // If there's no user data from Firestore (still loading or an empty collection),
-    // return an empty array. The `isLoading` prop on InfoTable will handle showing skeletons.
+  const { processedScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
     if (!users) {
-      return [];
+        return {
+            processedScheduleEntries: staticSchedule,
+            backupPersons: [],
+            coordinatorPersons: []
+        };
     }
-  
-    // Once we have user data, derive the list of coordinators exclusively from it.
-    return users
-      .filter((user) => user.role === 'coordinator')
-      .map((user) => ({
-        nama: user.name,
-        blok: user.address,
-        noHp: user.phone,
-      }));
+
+    const usersMap = new Map(users.map((user) => [user.name.toLowerCase(), user]));
+
+    const schedule = staticSchedule.map((entry) => {
+        const user = usersMap.get(entry.nama.toLowerCase());
+        return user ? { ...entry, nama: user.name, blok: user.address, noHp: user.phone } : entry;
+    });
+
+    const backups = users
+      .filter((user) => ['Sudirman', 'Andre Revalino', 'Zulkifli'].includes(user.name))
+      .map(user => ({ nama: user.name, blok: user.address, noHp: user.phone }));
+      
+    const coordinators = users
+        .filter((user) => user.role === 'coordinator')
+        .map((user) => ({
+            nama: user.name,
+            blok: user.address,
+            noHp: user.phone,
+        }));
+
+    return { processedScheduleEntries: schedule, backupPersons: backups, coordinatorPersons: coordinators };
   }, [users]);
 
 
   let lastDate = '';
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.width;
+    const pageH = doc.internal.pageSize.height;
+
+    // 1. Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 15, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('RT 08 / RW 20', pageW / 2, 22, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('Periode: Desember 2025', pageW / 2, 28, { align: 'center' });
+
+    // 2. Right Column Tables (to determine height)
+    const rightColX = 115;
+    const rightColMargin = { left: rightColX };
+    let rightColY = 35;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Back Up / Pengganti Ronda', rightColX, rightColY);
+    doc.autoTable({
+        head: [['No', 'Nama', 'Blok', 'No HP']],
+        body: backupPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
+        startY: rightColY + 2,
+        margin: rightColMargin,
+        theme: 'grid',
+        headStyles: { fillColor: '#f3f4f6', textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: 150 },
+        styles: { fontSize: 8, lineWidth: 0.1, lineColor: 150 },
+        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
+    });
+    rightColY = doc.autoTable.previous.finalY || rightColY;
+
+    rightColY += 6;
+    doc.text('Coordinator Ronda', rightColX, rightColY);
+    doc.autoTable({
+        head: [['No', 'Nama', 'Blok', 'No HP']],
+        body: coordinatorPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
+        startY: rightColY + 2,
+        margin: rightColMargin,
+        theme: 'grid',
+        headStyles: { fillColor: '#f3f4f6', textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: 150 },
+        styles: { fontSize: 8, lineWidth: 0.1, lineColor: 150 },
+        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
+    });
+    rightColY = doc.autoTable.previous.finalY || rightColY;
+
+    rightColY += 6;
+    doc.text('Informasi', rightColX, rightColY);
+    doc.autoTable({
+        body: infoItems.map(item => [item.id + '.', item.text]),
+        startY: rightColY + 2,
+        margin: rightColMargin,
+        theme: 'plain',
+        styles: { fontSize: 8, cellPadding: {top: 1, left: 0, right: 0, bottom: 1}},
+        columnStyles: {
+            0: { cellWidth: 5, fontStyle: 'bold' },
+        },
+        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
+    });
+    
+    // 3. Main Schedule Table
+    const flatMainTableBody = processedScheduleEntries.map(entry => ([
+        entry.hariTanggal,
+        entry.nama,
+        entry.blok,
+        entry.noHp,
+        entry.pengganti || '-',
+    ]));
+
+    doc.autoTable({
+        head: [['Hari, Tanggal', 'Nama', 'Blok', 'No HP', 'Pengganti Ronda']],
+        body: flatMainTableBody,
+        startY: 35,
+        margin: { right: pageW - rightColX + 5 },
+        theme: 'grid',
+        headStyles: { fillColor: '#3b82f6', textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 1.5, lineWidth: 0.1, lineColor: 150 },
+        columnStyles: { 
+            0: { cellWidth: 25 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 10 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 'auto' },
+        },
+        didDrawCell: (data) => {
+            if (data.section === 'body') {
+                const rawRow = data.row.raw as (string | { content: string })[];
+                const dateCell = Array.isArray(rawRow) ? rawRow[0] : (rawRow as { content: string }).content;
+                if (typeof dateCell === 'string' && dateCell.startsWith('Jumat')) {
+                    doc.setFillColor(254, 249, 195);
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                }
+            }
+        },
+    });
+
+    doc.save('jadwal-ronda.pdf');
+  };
+
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
       <header className="text-center mb-6">
-        <h1 className="text-xl md:text-2xl font-bold uppercase">
-          Jadwal Ronda Perum. Alam Madani
-        </h1>
-        <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Periode: Desember 2025
-        </p>
+        <div className='flex justify-between items-center'>
+            <div></div>
+            <div className='flex flex-col items-center'>
+                <h1 className="text-xl md:text-2xl font-bold uppercase">
+                Jadwal Ronda Perum. Alam Madani
+                </h1>
+                <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                Periode: Desember 2025
+                </p>
+            </div>
+            <Button onClick={handleExportPDF} variant="outline" size="sm">
+                <FileDown className="mr-2" />
+                PDF
+            </Button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
