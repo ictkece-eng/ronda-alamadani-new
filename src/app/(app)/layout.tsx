@@ -142,7 +142,7 @@ export default function AppLayout({
                  <DialogHeader className="text-center space-y-2">
                     <DialogTitle className="text-2xl font-bold">Ronda Planner Login</DialogTitle>
                     <DialogDescription>
-                        Admin masuk dengan email. Warga masuk sebagai tamu.
+                        Masukkan kredensial Anda untuk masuk.
                     </DialogDescription>
                 </DialogHeader>
                 <LoginForm onLoginSuccess={() => setIsLoginOpen(false)} />
