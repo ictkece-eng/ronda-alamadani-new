@@ -34,20 +34,20 @@ const prompt = ai.definePrompt({
   name: 'generateRondaSchedulePrompt',
   input: {schema: GenerateRondaScheduleInputSchema},
   output: {schema: GenerateRondaScheduleOutputSchema},
-  prompt: `You are an expert scheduler for a neighborhood watch program (ronda). Your task is to generate a complete, fair, and balanced one-month schedule.
+  prompt: `You are a simple but reliable scheduler. Your task is to generate a one-month ronda (neighborhood watch) schedule.
 
-Generate the schedule for the month of **{{{month}}}**.
+Generate the schedule for **{{{month}}}**.
 
 The available participants are: {{#each participants}}'{{{this}}}'{{#unless @last}}, {{/unless}}{{/each}}.
 The coordinator is **{{{coordinator}}}**.
 
-Strictly follow these rules:
-1.  **Full Month Coverage**: You MUST create a schedule entry for every single day of the specified month.
-2.  **Shift Size**: Each night's shift must be assigned to exactly 2 or 3 participants. Do not assign more or less.
-3.  **Fair Distribution**: Distribute the shifts as evenly and fairly as possible among all participants. Avoid assigning the same person too many times in a row.
+Follow these simple rules:
+1.  **Full Month Coverage**: Create a schedule entry for every single day of the month.
+2.  **Shift Size**: Each night's shift must be assigned to **exactly TWO** participants.
+3.  **Fairness**: Try to distribute shifts evenly among all participants.
 4.  **Coordinator Exclusion**: The coordinator, '{{{coordinator}}}', MUST NOT be assigned to any shift.
 
-Your output will be automatically formatted as a JSON array based on the schema. Just focus on providing the correct schedule data based on the rules.
+Your output will be automatically parsed as a JSON array. Just focus on generating the schedule data according to the rules. Do not add any commentary or extra text.
   `,
 });
 
@@ -59,6 +59,9 @@ const generateRondaScheduleFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('AI returned an empty or invalid schedule.');
+    }
+    return output;
   }
 );
