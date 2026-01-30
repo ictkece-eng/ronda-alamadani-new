@@ -54,8 +54,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Pencil, Plus, Trash } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash, Database } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { seedWarga } from '@/lib/seed-data';
 
 const wargaSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
@@ -152,10 +153,45 @@ export function UserManagement() {
     deleteDocumentNonBlocking(userRef);
     toast({ title: 'Success', description: 'User deleted successfully.' });
   };
+  
+  const handleSeedDatabase = () => {
+    if (!firestore) {
+        toast({ title: 'Error', description: 'Firestore is not available.', variant: 'destructive' });
+        return;
+    }
+    
+    toast({ title: 'Seeding database...', description: `Adding ${seedWarga.length} users. This may take a moment.` });
+
+    const usersCol = collection(firestore, 'users');
+    
+    seedWarga.forEach(warga => {
+        const newUserRef = doc(usersCol);
+        const email = `${warga.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@warga.com`;
+
+        const newUserData: Warga = {
+            id: newUserRef.id,
+            name: warga.name,
+            email: email,
+            phone: warga.phone,
+            address: warga.address,
+            role: warga.role,
+        };
+        
+        setDocumentNonBlocking(newUserRef, newUserData, {});
+
+        if (newUserData.role === 'admin') {
+            const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
+            setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, {});
+        }
+    });
+  };
 
   return (
     <div className="space-y-4">
-        <div className='text-right'>
+        <div className='flex justify-end gap-2'>
+            <Button onClick={handleSeedDatabase} variant="outline">
+                <Database className="mr-2" /> Seed Database
+            </Button>
             <Button onClick={handleAddNew}>
                 <Plus className="mr-2" /> Add User
             </Button>
@@ -175,12 +211,12 @@ export function UserManagement() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
+                Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                         <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                         <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
                     </TableRow>
@@ -222,7 +258,7 @@ export function UserManagement() {
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24">
-                  No users found.
+                  No users found. Click "Seed Database" to add initial data.
                 </TableCell>
               </TableRow>
             )}
