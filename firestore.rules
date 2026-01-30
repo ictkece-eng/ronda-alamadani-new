@@ -1,0 +1,170 @@
+/**
+ * This ruleset enforces a strict, user-centric security model for the Ronda Planner application,
+ * with an overlay for administrative access. It is designed for rapid prototyping, focusing on
+ * strong authorization while maintaining flexibility in data schemas.
+ *
+ * Core Philosophy:
+ * The primary security principle is "Authorization Independence." Each user's data is isolated
+ * within their own data tree, allowing rules to make access decisions based on the document path
+ * without needing to read other documents. This is both secure and highly performant.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores a user's public profile.
+ * - /users/{userId}/...: A nested hierarchy containing all data private to a user, such as
+ *   their schedules, requests, and replacements.
+ * - /roles_admin/{userId}: A separate, locked-down collection where the existence of a
+ *   document signifies that the user is an administrator.
+ * - /coordinatorAssignments/{coordinatorAssignmentId}: A top-level collection for managing
+ *   coordinator roles, editable only by administrators.
+ *
+ * Key Security Decisions:
+ * - Strict Ownership: Users have full control over documents within their own `/users/{userId}`
+ *   path but are completely denied access to other users' data trees.
+ * - Admin Privilege via Role Collection: An `isAdmin()` function checks for a document in the
+ *   `/roles_admin` collection. This provides a clear and secure way to grant elevated permissions.
+ * - No User Listing: To protect user privacy, listing the top-level `/users` collection is
+ *   disabled for regular users. Only admins can list all users.
+ * - Secure Subcollection Listing: Users are only permitted to list items within their own
+ *   subcollections (e.g., their own ronda schedules), preventing data leakage.
+ * - Immutable Ownership Links: On document creation, rules enforce that ownership fields
+ *   (e.g., a `userId` field in the data) match the user ID in the path. On updates, these
+ *   fields are made immutable to prevent re-assigning documents.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     * @param userId The UID to check against the authenticated user.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the document being accessed already exists.
+     * Crucial for preventing updates or deletes on non-existent documents.
+     */
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    /**
+     * Combines owner and existence checks for update/delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+    
+    /**
+     * Checks if the user has administrative privileges by verifying the
+     * existence of a document in the locked-down roles_admin collection.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user can create their own user profile document.
+     * @deny (create) An authenticated user cannot create a profile for another user ID.
+     * @principle Enforces self-creation and ownership for a user's root document. Admins have read-only access for management.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages a user's private ronda schedules.
+     * @path /users/{userId}/rondaSchedules/{rondaScheduleId}
+     * @allow (get) The user with UID matching {userId} can read their own schedule.
+     * @deny (get) A different user cannot read another user's schedule.
+     * @principle Restricts access to a user's own data tree using path-based security.
+     */
+    match /users/{userId}/rondaSchedules/{rondaScheduleId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages a user's private schedule change requests.
+     * @path /users/{userId}/scheduleRequests/{scheduleRequestId}
+     * @allow (create) The user with UID matching {userId} can create a request for themself.
+     * @deny (update) A different user cannot update another user's request.
+     * @principle Restricts access to a user's own data tree using path-based security.
+     */
+    match /users/{userId}/scheduleRequests/{scheduleRequestId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages a user's private ronda replacement records.
+     * @path /users/{userId}/rondaReplacements/{rondaReplacementId}
+     * @allow (delete) The user with UID matching {userId} can delete their own replacement record.
+     * @deny (list) A different user cannot list another user's replacement records.
+     * @principle Restricts access to a user's own data tree using path-based security.
+     */
+    match /users/{userId}/rondaReplacements/{rondaReplacementId} {
+      allow get, list: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages coordinator assignments. Editable only by admins.
+     * @path /coordinatorAssignments/{coordinatorAssignmentId}
+     * @allow (get) An admin or the user assigned as coordinator can read the document.
+     * @deny (create) A non-admin user cannot create a coordinator assignment.
+     * @principle Enforces role-based access for administrative tasks. The assigned user has read-only access to their own assignment.
+     */
+    match /coordinatorAssignments/{coordinatorAssignmentId} {
+      allow get: if isAdmin() || (isExistingDoc() && isOwner(resource.data.userId));
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    /**
+     * @description Manages admin roles. Only other admins can view or modify this collection.
+     * @path /roles_admin/{userId}
+     * @allow (get) An authenticated admin can check if another user is an admin.
+     * @deny (create) A non-admin user cannot make themselves or anyone else an admin.
+     * @principle Secures the role management system itself, preventing unauthorized privilege escalation.
+     */
+    match /roles_admin/{userId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+  }
+}

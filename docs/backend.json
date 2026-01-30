@@ -1,0 +1,314 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the Ronda Planner application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "User's phone number."
+        },
+        "address": {
+          "type": "string",
+          "description": "User's address."
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role (e.g., 'admin', 'coordinator', 'user')."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "address",
+        "role"
+      ]
+    },
+    "RondaSchedule": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RondaSchedule",
+      "type": "object",
+      "description": "Represents a single ronda schedule entry.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the RondaSchedule entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User assigned to this ronda. (Relationship: User 1:N RondaSchedule)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the ronda.",
+          "format": "date-time"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time of the ronda (e.g., '22:00')."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time of the ronda (e.g., '06:00')."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "date",
+        "startTime",
+        "endTime"
+      ]
+    },
+    "ScheduleRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ScheduleRequest",
+      "type": "object",
+      "description": "Represents a user's request for a schedule change.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ScheduleRequest entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who made the request. (Relationship: User 1:N ScheduleRequest)"
+        },
+        "rondaScheduleId": {
+          "type": "string",
+          "description": "Reference to RondaSchedule being requested to change. (Relationship: RondaSchedule 1:N ScheduleRequest)"
+        },
+        "requestDate": {
+          "type": "string",
+          "description": "Date the request was made.",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the schedule change request."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the request ('pending', 'approved', 'rejected')."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "rondaScheduleId",
+        "requestDate",
+        "reason",
+        "status"
+      ]
+    },
+    "RondaReplacement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RondaReplacement",
+      "type": "object",
+      "description": "Represents a replacement for a scheduled ronda.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the RondaReplacement entity."
+        },
+        "rondaScheduleId": {
+          "type": "string",
+          "description": "Reference to RondaSchedule being replaced. (Relationship: RondaSchedule 1:N RondaReplacement)"
+        },
+        "replacingUserId": {
+          "type": "string",
+          "description": "Reference to User who is replacing the original user. (Relationship: User 1:N RondaReplacement)"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the replacement."
+        },
+        "requestDate": {
+          "type": "string",
+          "description": "Date the replacement was requested",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the replacement ('pending', 'approved', 'rejected')."
+        }
+      },
+      "required": [
+        "id",
+        "rondaScheduleId",
+        "replacingUserId",
+        "reason",
+        "requestDate",
+        "status"
+      ]
+    },
+    "CoordinatorAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CoordinatorAssignment",
+      "type": "object",
+      "description": "Represents the assignment of a user as a coordinator.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CoordinatorAssignment entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who is assigned as the coordinator. (Relationship: User 1:N CoordinatorAssignment)"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date of the coordinator assignment.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End date of the coordinator assignment.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startDate",
+        "endDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Path-based ownership is enforced.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/rondaSchedules/{rondaScheduleId}",
+        "definition": {
+          "entityName": "RondaSchedule",
+          "schema": {
+            "$ref": "#/backend/entities/RondaSchedule"
+          },
+          "description": "Stores ronda schedules for each user. Enables path-based ownership for security.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "rondaScheduleId",
+              "description": "The unique identifier for the ronda schedule."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/scheduleRequests/{scheduleRequestId}",
+        "definition": {
+          "entityName": "ScheduleRequest",
+          "schema": {
+            "$ref": "#/backend/entities/ScheduleRequest"
+          },
+          "description": "Stores schedule requests made by each user. Enables path-based ownership for security.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "scheduleRequestId",
+              "description": "The unique identifier for the schedule request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/rondaReplacements/{rondaReplacementId}",
+        "definition": {
+          "entityName": "RondaReplacement",
+          "schema": {
+            "$ref": "#/backend/entities/RondaReplacement"
+          },
+          "description": "Stores ronda replacement requests related to a user's schedule. Enables path-based ownership for security.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "rondaReplacementId",
+              "description": "The unique identifier for the ronda replacement request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/coordinatorAssignments/{coordinatorAssignmentId}",
+        "definition": {
+          "entityName": "CoordinatorAssignment",
+          "schema": {
+            "$ref": "#/backend/entities/CoordinatorAssignment"
+          },
+          "description": "Stores coordinator assignments. Security rules can ensure only admins or the assigned user can modify these.",
+          "params": [
+            {
+              "name": "coordinatorAssignmentId",
+              "description": "The unique identifier for the coordinator assignment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Documents in this collection indicate administrative privileges for a user. Existence of a document indicates the user is an admin.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user with admin role."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User data and related entities (RondaSchedules, ScheduleRequests, RondaReplacements, CoordinatorAssignments) are organized into user-specific subcollections to leverage path-based ownership for simplified security rules. Global roles are managed using dedicated collections.\n\n**Authorization Independence:** This is achieved by using path-based ownership for user-related data. For example, `rondaSchedules` are stored under `/users/{userId}/rondaSchedules/{rondaScheduleId}`. This structure allows security rules to authorize access based on the `userId` in the path, without needing to `get()` data from other documents. The `CoordinatorAssignments` collection stores coordinator assignments, and security rules can enforce that only admins or the assigned user can modify the data.\n\n**QAPs (Rules are not Filters):**  The structure is designed to support secure `list` operations using structural segregation.  For example, listing `rondaSchedules` is performed within the user's own collection (`/users/{userId}/rondaSchedules`).  Because the data is segregated by user, the security rules can authorize the listing operation based solely on the `request.auth.uid` matching the `userId` in the path. Global roles (admins) are handled through existence checks in separate collections (`/roles_admin/{uid}`). This prevents the need for filtering based on data content within the rules.\n\n**Structure Overview:**\n\n*   `/users/{userId}`: Stores user profiles. Enables path-based ownership for user-specific data.\n*   `/users/{userId}/rondaSchedules/{rondaScheduleId}`: Stores ronda schedules for each user.\n*   `/users/{userId}/scheduleRequests/{scheduleRequestId}`: Stores schedule requests made by each user.\n*   `/users/{userId}/rondaReplacements/{rondaReplacementId}`: Stores ronda replacement requests related to a user's schedule.\n*   `/coordinatorAssignments/{coordinatorAssignmentId}`: Stores coordinator assignments.  Security rules ensure only admins or the assigned coordinator can modify these.\n*   `/roles_admin/{userId}`: Documents in this collection indicate administrative privileges for a user. Existence of a document indicates the user is an admin."
+  }
+}
