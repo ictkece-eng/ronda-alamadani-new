@@ -8,7 +8,6 @@ const GenerateScheduleSchema = z.object({
   month: z.string().min(1, 'Month is required.'),
   participants: z.string().min(1, 'Participants are required.'),
   coordinator: z.string().min(1, 'Coordinator is required.'),
-  roundsPerNight: z.coerce.number().min(1, 'Rounds per night must be at least 1.'),
 });
 
 export async function handleGenerateSchedule(prevState: any, formData: FormData) {
@@ -17,7 +16,6 @@ export async function handleGenerateSchedule(prevState: any, formData: FormData)
       month: formData.get('month'),
       participants: formData.get('participants'),
       coordinator: formData.get('coordinator'),
-      roundsPerNight: formData.get('roundsPerNight'),
     });
 
     if (!validatedFields.success) {
@@ -27,14 +25,13 @@ export async function handleGenerateSchedule(prevState: any, formData: FormData)
       };
     }
 
-    const { month, participants, coordinator, roundsPerNight } = validatedFields.data;
+    const { month, participants, coordinator } = validatedFields.data;
     const participantsArray = participants.split(',').map(p => p.trim());
 
     const result = await generateRondaSchedule({
       month,
       participants: participantsArray,
       coordinator,
-      roundsPerNight,
     });
 
     return { message: 'Schedule generated successfully.', schedule: result.schedule };

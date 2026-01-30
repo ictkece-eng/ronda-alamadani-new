@@ -18,12 +18,12 @@ import { collection, writeBatch, doc } from 'firebase/firestore';
 const initialState = {
   message: '',
   schedule: null,
+  errors: null,
 };
 
 type GeneratedSchedule = {
   date: string;
   participants: string[];
-  rounds: string[];
 };
 
 function SubmitButton() {
@@ -58,13 +58,22 @@ export function GenerateScheduleForm() {
 
   useEffect(() => {
     if (state?.schedule) {
-      const parsedSchedule = JSON.parse(state.schedule);
-      setGeneratedSchedule(parsedSchedule);
-      toast({
-        title: "Success!",
-        description: "Schedule generated. Review the JSON and click 'Save' to apply it.",
-      });
-    } else if (state?.message && !state.errors) {
+       try {
+        const parsedSchedule = JSON.parse(state.schedule);
+        setGeneratedSchedule(parsedSchedule);
+        toast({
+          title: "Success!",
+          description: "Schedule generated. Review the JSON and click 'Save' to apply it.",
+        });
+      } catch (e) {
+        console.error("Failed to parse schedule JSON:", e);
+        toast({
+          title: "Error",
+          description: "AI returned an invalid schedule format. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else if (state?.message && !state.schedule) {
        toast({
         title: "Error",
         description: state.message,
@@ -84,6 +93,7 @@ export function GenerateScheduleForm() {
         const batch = writeBatch(firestore);
 
         for (const day of generatedSchedule) {
+            if (!day.date || !day.participants) continue; // Basic validation
             const scheduleDate = new Date(day.date);
             if (isNaN(scheduleDate.getTime())) continue;
 
@@ -133,11 +143,6 @@ export function GenerateScheduleForm() {
           <Input id="coordinator" name="coordinator" placeholder="e.g. Pak RT" required />
           {state.errors?.coordinator && <p className="text-destructive text-sm mt-1">{state.errors.coordinator[0]}</p>}
         </div>
-        <div>
-          <Label htmlFor="roundsPerNight">Rounds Per Night</Label>
-          <Input id="roundsPerNight" name="roundsPerNight" type="number" min="1" defaultValue="2" required />
-           {state.errors?.roundsPerNight && <p className="text-destructive text-sm mt-1">{state.errors.roundsPerNight[0]}</p>}
-        </div>
         <SubmitButton />
       </form>
 
@@ -148,7 +153,7 @@ export function GenerateScheduleForm() {
               <CardTitle>Generated Schedule (JSON)</CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="p-4 rounded-md bg-background text-sm overflow-auto max-h-[340px]">
+              <pre className="p-4 rounded-md bg-background text-sm overflow-auto max-h-[400px]">
                 <code>
                     {JSON.stringify(generatedSchedule, null, 2)}
                 </code>
@@ -166,7 +171,7 @@ export function GenerateScheduleForm() {
                 <Wand2 className="h-4 w-4" />
                 <AlertTitle>Awaiting Generation</AlertTitle>
                 <AlertDescription>
-                The generated schedule will appear here. After reviewing, you can save it to the database.
+                Fill out the form to generate a fair and balanced ronda schedule. The generated schedule will appear here for review before saving.
                 </AlertDescription>
             </Alert>
         )}
