@@ -96,13 +96,10 @@ export default function DashboardPage() {
   const firestore = useFirestore();
   const { user, isUserLoading: isAuthLoading } = useUser();
 
-  // A simple check for admin role.
-  const isAdmin = useMemo(() => user?.email === 'tirtopbas@gmail.com', [user]);
-
   const usersCollection = useMemoFirebase(
-    // Only attempt to fetch the users collection if the user is an admin
-    () => (firestore && isAdmin ? collection(firestore, 'users') : null),
-    [firestore, isAdmin]
+    // Fetch users if firestore is available and a user is signed in.
+    () => (firestore && user ? collection(firestore, 'users') : null),
+    [firestore, user]
   );
 
   const { data: users, isLoading: isUsersLoading } =
@@ -143,8 +140,8 @@ export default function DashboardPage() {
   }, [usersMap]);
 
   const coordinatorPersons = useMemo(() => {
-    // If admin and users are loaded, derive from live data
-    if (isAdmin && users) {
+    // If users are loaded from firestore, derive from live data
+    if (users) {
       return users
         .filter((user) => user.role === 'coordinator')
         .map((user) => ({
@@ -155,7 +152,7 @@ export default function DashboardPage() {
     }
     // For non-admins or while loading, use the static data
     return staticCoordinatorPersons;
-  }, [users, isAdmin]);
+  }, [users]);
 
   let lastDate = '';
 
