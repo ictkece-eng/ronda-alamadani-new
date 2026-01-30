@@ -104,6 +104,8 @@ export default function DashboardPage() {
 
   const { data: users, isLoading: isUsersLoading } =
     useCollection<Warga>(usersCollection);
+  
+  const isLoading = isUsersLoading || isAuthLoading;
 
   const usersMap = useMemo(() => {
     if (!users) return new Map<string, Warga>();
@@ -140,23 +142,23 @@ export default function DashboardPage() {
   }, [usersMap]);
 
   const coordinatorPersons = useMemo(() => {
-    // If users are loaded from firestore, derive from live data
-    if (users) {
-      return users
-        .filter((user) => user.role === 'coordinator')
-        .map((user) => ({
-          nama: user.name,
-          blok: user.address,
-          noHp: user.phone,
-        }));
+    // While loading, we can show the static data to prevent a blank screen
+    if (isLoading || !users) {
+      return staticCoordinatorPersons;
     }
-    // For non-admins or while loading, use the static data
-    return staticCoordinatorPersons;
-  }, [users]);
+  
+    // Once loading is complete, derive the list exclusively from the live data
+    return users
+      .filter((user) => user.role === 'coordinator')
+      .map((user) => ({
+        nama: user.name,
+        blok: user.address,
+        noHp: user.phone,
+      }));
+  }, [users, isLoading]);
+
 
   let lastDate = '';
-
-  const isLoading = isUsersLoading || isAuthLoading;
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
