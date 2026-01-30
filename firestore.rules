@@ -161,8 +161,9 @@ service cloud.firestore {
      * @principle Secures the role management system itself, preventing unauthorized privilege escalation.
      */
     match /roles_admin/{userId} {
-      allow get, list: if isAdmin();
-      allow create: if isAdmin();
+      allow get: if isAdmin() || isOwner(userId);
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com') || isAdmin();
       allow update: if isAdmin() && isExistingDoc();
       allow delete: if isAdmin() && isExistingDoc();
     }

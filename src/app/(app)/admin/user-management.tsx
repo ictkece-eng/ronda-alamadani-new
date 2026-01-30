@@ -10,7 +10,6 @@ import {
   useMemoFirebase,
   setDocumentNonBlocking,
   deleteDocumentNonBlocking,
-  addDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { Warga } from '@/lib/types';
@@ -111,11 +110,28 @@ export function UserManagement() {
         // Update existing user
         const userRef = doc(firestore, 'users', currentUser.id);
         setDocumentNonBlocking(userRef, values, { merge: true });
+
+        const adminRoleRef = doc(firestore, 'roles_admin', currentUser.id);
+        if (values.role === 'admin') {
+          // If role is admin, ensure the roles_admin doc exists
+          setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, { merge: true });
+        } else if (currentUser.role === 'admin' && values.role !== 'admin') {
+          // If role was admin and now it's not, delete the roles_admin doc
+          deleteDocumentNonBlocking(adminRoleRef);
+        }
+
         toast({ title: 'Success', description: 'User updated successfully.' });
       } else {
         // Create new user
         const usersCol = collection(firestore, 'users');
-        addDocumentNonBlocking(usersCol, values);
+        const newUserRef = doc(usersCol);
+        const newUserData = { ...values, id: newUserRef.id };
+        setDocumentNonBlocking(newUserRef, newUserData, {});
+
+        if (values.role === 'admin') {
+          const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
+          setDocumentNonBlocking(adminRoleRef, { role: 'admin' }, {});
+        }
         toast({ title: 'Success', description: 'User created successfully.' });
       }
       setIsDialogOpen(false);

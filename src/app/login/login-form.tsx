@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -17,15 +19,31 @@ export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
+    if (!auth) {
+        toast({
+            variant: "destructive",
+            title: 'Error',
+            description: 'Firebase Auth not initialized.',
+        });
+        setIsLoading(false);
+        return;
+    }
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
       if (email === 'tirtopbas@gmail.com') {
+        if (firestore) {
+          const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+          await setDoc(adminRoleRef, { role: 'admin' });
+        }
         toast({
           title: 'Login Admin Berhasil',
           description: 'Anda akan diarahkan ke halaman admin.',
