@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/page-header';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserManagement } from './user-management';
 
 export default function AdminPage() {
   return (
@@ -38,7 +39,7 @@ export default function AdminPage() {
               <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">User management interface will be available here soon.</p>
+              <UserManagement />
             </CardContent>
           </Card>
         </TabsContent>

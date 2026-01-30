@@ -57,3 +57,12 @@ export type UserRequest = {
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected';
 };
+
+export type Warga = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: 'admin' | 'coordinator' | 'user';
+};
