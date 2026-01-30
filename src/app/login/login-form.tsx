@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, LogIn as LogInIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const [email, setEmail] = useState('');
@@ -18,16 +20,17 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsEmailLoading(true);
 
-    if (!auth) {
+    if (!auth || !firestore) {
         toast({
             variant: "destructive",
             title: 'Error',
-            description: 'Firebase Auth not initialized.',
+            description: 'Firebase not initialized correctly.',
         });
         setIsEmailLoading(false);
         return;
@@ -37,6 +40,10 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       if (email === 'tirtopbas@gmail.com') {
+        const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
+        // Ensure the admin role document exists
+        await setDoc(adminRoleRef, { userId: userCredential.user.uid }, { merge: true });
+
         toast({
           title: 'Login Admin Berhasil',
           description: 'Anda akan diarahkan ke halaman admin.',
@@ -120,7 +127,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                 />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-                {isEmailLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEmailLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogInIcon />}
                 Masuk sebagai Admin
             </Button>
         </form>

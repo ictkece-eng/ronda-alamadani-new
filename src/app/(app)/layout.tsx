@@ -29,6 +29,7 @@ function BottomNavbar({ onLoginClick }: { onLoginClick: () => void }) {
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
 
     const handleLogout = async () => {
         if (!auth) return;
@@ -38,6 +39,7 @@ function BottomNavbar({ onLoginClick }: { onLoginClick: () => void }) {
                 title: 'Logout Berhasil',
                 description: 'Anda telah keluar dari aplikasi.',
             });
+            router.push('/dashboard'); // Redirect to dashboard after logout
         } catch (error) {
             toast({
                 title: 'Logout Gagal',
@@ -47,6 +49,7 @@ function BottomNavbar({ onLoginClick }: { onLoginClick: () => void }) {
         }
     };
     
+    // A simple check for admin role. In a real app, this should be based on custom claims.
     const isAdmin = user?.email === 'tirtopbas@gmail.com';
 
     if (isUserLoading) {
@@ -71,7 +74,7 @@ function BottomNavbar({ onLoginClick }: { onLoginClick: () => void }) {
         <nav className="fixed bottom-0 left-0 right-0 z-20 border-t bg-card shadow-t-lg">
         <div className="flex h-16 items-center justify-around">
             {navItems.filter(item => item.show).map((item) => {
-                const isActive = pathname.startsWith(item.href);
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 return (
                     <Link
                     key={item.href}
@@ -115,6 +118,18 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const [isLoginOpen, setIsLoginOpen] = React.useState(false);
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Redirect non-admins away from admin page
+  React.useEffect(() => {
+    if (!isUserLoading && user && pathname.startsWith('/admin')) {
+      if (user.email !== 'tirtopbas@gmail.com') {
+        router.replace('/dashboard');
+      }
+    }
+  }, [user, isUserLoading, pathname, router]);
 
   return (
     <div>
@@ -125,7 +140,7 @@ export default function AppLayout({
         <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
             <DialogContent className="sm:max-w-md">
                  <DialogHeader className="text-center space-y-2">
-                    <DialogTitle className="text-2xl font-bold">Ronda Planner</DialogTitle>
+                    <DialogTitle className="text-2xl font-bold">Ronda Planner Login</DialogTitle>
                     <DialogDescription>
                         Admin masuk dengan email. Warga masuk sebagai tamu.
                     </DialogDescription>
