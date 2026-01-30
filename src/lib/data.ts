@@ -1,76 +1,85 @@
 
-import type { Schedule, Backup, Coordinator, UserRequest, RondaDay, BackupRondaPerson, CoordinatorRonda, InfoItem } from '@/lib/types';
+import type { ScheduleEntry, PersonInfo, InfoItem, UserRequest } from '@/lib/types';
 
-export const rondaDays: RondaDay[] = [
-  {
-    day: 'Senin',
-    date: '01 Desember 2025',
-    assignments: [
-      { name: 'Dedi Novel', block: 'I2', phone: '0823-8709-3522' },
-      { name: 'Rio Antoni', block: 'H12', phone: '0813-7447-3005' },
-      { name: 'Mulya Trisno', block: 'I5', phone: '0823-8941-2902' },
-    ],
-  },
-  {
-    day: 'Selasa',
-    date: '02 Desember 2025',
-    assignments: [
-      { name: 'Bagus', block: 'H11', phone: '0813-6505-6370', substitute: 'Andre Revalino' },
-    ],
-  },
-  {
-    day: 'Rabu',
-    date: '03 Desember 2025',
-    assignments: [
-        { name: 'Roni Saputra', block: 'B8', phone: '0852-7885-6368' },
-        { name: 'Randy Anugrah', block: 'F3', phone: '0852-7212-4318' },
-    ],
-  },
-   {
-    day: 'Kamis',
-    date: '04 Desember 2025',
-    assignments: [
-        { name: 'Jumaidi', block: 'I1', phone: '0852-6546-0038', substitute: 'Andre Revalino' },
-        { name: 'Eka Kurnia Putra', block: 'H5', phone: '0812-6819-9968' },
-        { name: 'Fajri', block: 'H1', phone: '0853-6308-9407' },
-    ],
-  },
-  {
-    day: 'Jumat',
-    date: '05 Desember 2025',
-    assignments: [
-        { name: 'Randy Maris', block: 'I4', phone: '0822-8414-6699', substitute: 'Andre Revalino' },
-    ],
-  },
-  {
-    day: 'Sabtu',
-    date: '06 Desember 2025',
-    assignments: [
-        { name: 'Adha', block: 'I8', phone: '0852-7827-1691' },
-        { name: 'Ali Harahap', block: 'B4', phone: '0821-6319-9560' },
-    ]
-  },
-  {
-    day: 'Minggu',
-    date: '07 Desember 2025',
-    assignments: [
-        { name: 'Bastian', block: 'D2', phone: '0812-6168-9816' },
-        { name: 'Gusrianto Hendra', block: 'F7', phone: '0812-3305-6255' },
-        { name: 'Roli', block: 'H10', phone: '0823-8775-8224', substitute: 'Andre Revalino' },
-    ]
-  }
+export const scheduleEntries: ScheduleEntry[] = [
+  { hariTanggal: 'Senin, 01 Desember 2025', nama: 'Dedi Novel', blok: 'I2', noHp: '0823-8709-3522' },
+  { hariTanggal: 'Senin, 01 Desember 2025', nama: 'Rio Antoni', blok: 'H12', noHp: '0813-7447-3005' },
+  { hariTanggal: 'Senin, 01 Desember 2025', nama: 'Mulya Trisno', blok: 'I5', noHp: '0823-8941-2902' },
+  { hariTanggal: 'Selasa, 02 Desember 2025', nama: 'Bagus', blok: 'H11', noHp: '0813-6505-6370', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Rabu, 03 Desember 2025', nama: 'Roni Saputra', blok: 'B8', noHp: '0852-7885-6368' },
+  { hariTanggal: 'Rabu, 03 Desember 2025', nama: 'Randy Anugrah', blok: 'F3', noHp: '0852-7212-4318' },
+  { hariTanggal: 'Kamis, 04 Desember 2025', nama: 'Jumaidi', blok: 'I1', noHp: '0852-6546-0038', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Kamis, 04 Desember 2025', nama: 'Eka Kurnia Putra', blok: 'H5', noHp: '0812-6819-9968' },
+  { hariTanggal: 'Kamis, 04 Desember 2025', nama: 'Fajri', blok: 'H1', noHp: '0853-6308-9407' },
+  { hariTanggal: 'Jumat, 05 Desember 2025', nama: 'Randy Maris', blok: 'I4', noHp: '0822-8414-6699', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Sabtu, 06 Desember 2025', nama: 'Adha', blok: 'I8', noHp: '0852-7827-1691' },
+  { hariTanggal: 'Sabtu, 06 Desember 2025', nama: 'Ali Harahap', blok: 'B4', noHp: '0821-6319-9560' },
+  { hariTanggal: 'Minggu, 07 Desember 2025', nama: 'Bastian', blok: 'D2', noHp: '0812-6168-9816' },
+  { hariTanggal: 'Minggu, 07 Desember 2025', nama: 'Gusrianto Hendra', blok: 'F7', noHp: '0812-3305-6255' },
+  { hariTanggal: 'Minggu, 07 Desember 2025', nama: 'Roli', blok: 'H10', noHp: '0823-8775-8224', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Senin, 08 Desember 2025', nama: 'Novri', blok: 'E3', noHp: '0852-7450-9533' },
+  { hariTanggal: 'Senin, 08 Desember 2025', nama: 'Novriadi Amin', blok: 'H8', noHp: '0813-7492-7070', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Senin, 08 Desember 2025', nama: 'Zul Fajri', blok: 'I7', noHp: '0823-1612-4388', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Selasa, 09 Desember 2025', nama: 'Gusfar Purnama', blok: 'F8', noHp: '0822-1080-1478' },
+  { hariTanggal: 'Rabu, 10 Desember 2025', nama: 'Kasman', blok: 'G10', noHp: '0812-7062-5022' },
+  { hariTanggal: 'Rabu, 10 Desember 2025', nama: 'Lucky', blok: 'A2', noHp: '0821-7044-4464', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Rabu, 10 Desember 2025', nama: 'Ikromi', blok: 'F5', noHp: '0852-7806-0633' },
+  { hariTanggal: 'Kamis, 11 Desember 2025', nama: 'Hari susanto', blok: 'H4', noHp: '0813-7086-3464' },
+  { hariTanggal: 'Jumat, 12 Desember 2025', nama: 'M. Fiqih', blok: 'G4', noHp: '0813-7467-6900' },
+  { hariTanggal: 'Jumat, 12 Desember 2025', nama: 'Zulfikar', blok: 'C7', noHp: '0852-7793-0606', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Sabtu, 13 Desember 2025', nama: 'Rahmat Hidayat', blok: 'A4', noHp: '0823-9099-2314' },
+  { hariTanggal: 'Sabtu, 13 Desember 2025', nama: 'Heru Hermawan', blok: 'F4', noHp: '0823-8628-6698' },
+  { hariTanggal: 'Sabtu, 13 Desember 2025', nama: 'Nazarudin', blok: 'C4', noHp: '0852-7805-6158' },
+  { hariTanggal: 'Minggu, 14 Desember 2025', nama: 'Fery A Putra', blok: 'H7', noHp: '0895-0197-0202', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Minggu, 14 Desember 2025', nama: 'Ronald', blok: 'A5', noHp: '0895-6347-17045', pengganti: 'Sudirman' },
+  { hariTanggal: 'Senin, 15 Desember 2025', nama: 'Nurhadi A Putra', blok: 'G12', noHp: '0823-8622-4808', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Senin, 15 Desember 2025', nama: 'Adi Anwar', blok: 'A6', noHp: '0853-5644-9991', pengganti: 'Sudirman' },
+  { hariTanggal: 'Selasa, 16 Desember 2025', nama: 'Dedi Tri Syahputra', blok: 'G9', noHp: '0823-9075-8081' },
+  { hariTanggal: 'Selasa, 16 Desember 2025', nama: 'Rido Sandi', blok: 'A7', noHp: '0821-2939-8176', pengganti: 'Sudirman' },
+  { hariTanggal: 'Rabu, 17 Desember 2025', nama: 'Ari Prabowo', blok: 'B2', noHp: '0822-8439-6784' },
+  { hariTanggal: 'Rabu, 17 Desember 2025', nama: 'Dedi Masrul', blok: 'B5', noHp: '0812-6638-8312', pengganti: 'Sudirman' },
+  { hariTanggal: 'Kamis, 18 Desember 2025', nama: 'Andi Julisman', blok: 'G7', noHp: '0853-6548-2272', pengganti: 'Sudirman' },
+  { hariTanggal: 'Kamis, 18 Desember 2025', nama: 'Pitok', blok: 'A8', noHp: '0852-6570-9370', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Jumat, 19 Desember 2025', nama: 'M. Arif', blok: 'I3', noHp: '0852-7497-6016' },
+  { hariTanggal: 'Jumat, 19 Desember 2025', nama: 'Zulkifli', blok: 'E2', noHp: '0852-6301-0203' },
+  { hariTanggal: 'Sabtu, 20 Desember 2025', nama: 'M. Fadillah', blok: 'D5', noHp: '0823-9026-6882' },
+  { hariTanggal: 'Sabtu, 20 Desember 2025', nama: 'Kamil Hakimi', blok: 'H6', noHp: '0895-4013-57160' },
+  { hariTanggal: 'Minggu, 21 Desember 2025', nama: 'Azuar Norbani', blok: 'F2', noHp: '0852-7853-1411' },
+  { hariTanggal: 'Minggu, 21 Desember 2025', nama: 'M. Ramadhan', blok: 'G5', noHp: '0823-9161-4185', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Senin, 22 Desember 2025', nama: 'Jimy Mardian', blok: 'B1', noHp: '0821-7061-0479', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Senin, 22 Desember 2025', nama: 'Rondi Gotama', blok: 'G3', noHp: '0852-6377-0551', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Selasa, 23 Desember 2025', nama: 'Alfiardhi', blok: 'B3', noHp: '0823-9243-7704', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Selasa, 23 Desember 2025', nama: 'Afray Can Yoga', blok: 'G2', noHp: '0822-8813-6462', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Rabu, 24 Desember 2025', nama: 'Rino Satrio', blok: 'B7', noHp: '0821-7281-3006', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Rabu, 24 Desember 2025', nama: 'Andre Revalino', blok: 'H9', noHp: '0821-6973-6347' },
+  { hariTanggal: 'Kamis, 25 Desember 2025', nama: 'Pak Boby', blok: 'C1', noHp: '0812-6810-003', pengganti: 'Sudirman' },
+  { hariTanggal: 'Kamis, 25 Desember 2025', nama: 'Sudarno', blok: 'C6', noHp: '0852-0796-4693', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Jumat, 26 Desember 2025', nama: 'Adi', blok: 'E1', noHp: '0853-5612-2010', pengganti: 'Sudirman' },
+  { hariTanggal: 'Jumat, 26 Desember 2025', nama: 'Frengky', blok: 'H2', noHp: '0852-6305-0512' },
+  { hariTanggal: 'Sabtu, 27 Desember 2025', nama: 'Rediansyah', blok: 'C2', noHp: '0821-7258-0113', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Sabtu, 27 Desember 2025', nama: 'Hari Yasto', blok: 'G8', noHp: '0821-2939-8479', pengganti: 'Sudirman' },
+  { hariTanggal: 'Minggu, 28 Desember 2025', nama: 'Agung Suja febri', blok: 'F6', noHp: '0852-7422-0174' },
+  { hariTanggal: 'Minggu, 28 Desember 2025', nama: 'Tirto Lesmana', blok: 'I6', noHp: '0813-6336-4465' },
+  { hariTanggal: 'Senin, 29 Desember 2025', nama: 'Fachril Dedy Irawan', blok: 'H3', noHp: '0822-8859-2535' },
+  { hariTanggal: 'Senin, 29 Desember 2025', nama: 'Andre Saputra', blok: 'D3', noHp: '0811-3230-404', pengganti: 'Sudirman' },
+  { hariTanggal: 'Selasa, 30 Desember 2025', nama: 'Sandy Harafi', blok: 'G1', noHp: '0823-8109-4000', pengganti: 'Zulkifli' },
+  { hariTanggal: 'Selasa, 30 Desember 2025', nama: 'Jefry', blok: 'D4', noHp: '0823-9099-0661', pengganti: 'Sudirman' },
+  { hariTanggal: 'Rabu, 31 Desember 2025', nama: 'Arief Al Ashari', blok: 'F9', noHp: '0812-6154-761', pengganti: 'Andre Revalino' },
+  { hariTanggal: 'Rabu, 31 Desember 2025', nama: 'Deni Muzki', blok: 'F1', noHp: '0812-7005-8389', pengganti: 'Sudirman' },
+  { hariTanggal: 'Rabu, 31 Desember 2025', nama: 'Beni Saputra', blok: 'G11', noHp: '0853-7409-4285' },
+  { hariTanggal: 'Rabu, 31 Desember 2025', nama: 'Qodratulloh', blok: 'A1', noHp: '0813-7248-1984' },
 ];
 
-export const backupRondaPeople: BackupRondaPerson[] = [
-  { name: 'Sudirman', block: 'F8', phone: '0813-7822-1660' },
-  { name: 'Andre Revalino', block: 'H9', phone: '0821-6973-6347' },
-  { name: 'Zulkifli', block: 'E2', phone: '0821-6271-4554' },
+export const backupPersons: PersonInfo[] = [
+  { nama: 'Sudirman', blok: 'F8', noHp: '0813-7822-1660' },
+  { nama: 'Andre Revalino', blok: 'H9', noHp: '0821-6973-6347' },
+  { nama: 'Zulkifli', blok: 'E2', noHp: '0821-6271-4554' },
 ];
 
-export const coordinatorRondaPeople: CoordinatorRonda[] = [
-  { name: 'Agung Suja febri', block: 'F6', phone: '0852-7422-0174' },
-  { name: 'Rahmat Hidayat', block: 'A4', phone: '0823-9099-2314' },
-  { name: 'Deni Muzki', block: 'F1', phone: '0812-7005-8389' },
+export const coordinatorPersons: PersonInfo[] = [
+  { nama: 'Agung Suja febri', blok: 'F6', noHp: '0852-7422-0174' },
+  { nama: 'Rahmat Hidayat', blok: 'A4', noHp: '0823-9099-2314' },
+  { nama: 'Deni Muzki', blok: 'F1', noHp: '0812-7005-8389' },
 ];
 
 export const infoItems: InfoItem[] = [
@@ -82,59 +91,6 @@ export const infoItems: InfoItem[] = [
   { id: 6, text: 'Untuk Penggantian Uang Ronda sebesar Rp. 50.000/orang/malam (Sesuai kesepakatan Musyawarah)' },
 ];
 
-// Original data
-export const schedules: Schedule[] = [
-  {
-    date: '2024-07-01',
-    participants: ['Budi', 'Joko'],
-    rounds: ['Round 1: Budi', 'Round 2: Joko'],
-  },
-  {
-    date: '2024-07-02',
-    participants: ['Agus', 'Siti'],
-    rounds: ['Round 1: Agus', 'Round 2: Siti'],
-  },
-  {
-    date: '2024-07-03',
-    participants: ['Dewi', 'Eko'],
-    rounds: ['Round 1: Dewi', 'Round 2: Eko'],
-  },
-  {
-    date: '2024-07-04',
-    participants: ['Budi', 'Agus'],
-    rounds: ['Round 1: Budi', 'Round 2: Agus'],
-  },
-];
-
-export const backups: Backup[] = [
-  {
-    originalParticipant: 'Budi',
-    replacement: 'Herman',
-    date: '2024-07-01',
-    status: 'Approved',
-  },
-  {
-    originalParticipant: 'Siti',
-    replacement: 'Lina',
-    date: '2024-07-02',
-    status: 'Pending',
-  },
-];
-
-export const coordinators: Coordinator[] = [
-  {
-    name: 'Pak RT',
-    avatar: 'user-5',
-    contact: '081234567890',
-    area: 'Blok A',
-  },
-  {
-    name: 'Pak RW',
-    avatar: 'user-6',
-    contact: '080987654321',
-    area: 'Blok B & C',
-  },
-];
 
 export const userRequests: UserRequest[] = [
   {

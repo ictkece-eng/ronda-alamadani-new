@@ -1,144 +1,172 @@
-'use client';
 
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  rondaDays,
-  backupRondaPeople,
-  coordinatorRondaPeople,
+  scheduleEntries,
+  backupPersons,
+  coordinatorPersons,
   infoItems,
 } from '@/lib/data';
-import type { RondaDay } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Phone, User, Shield, Info } from 'lucide-react';
+import type { PersonInfo } from '@/lib/types';
 
-const ScheduleCard = ({ schedule }: { schedule: RondaDay }) => {
-  const dayInitial = schedule.date.split(' ')[0];
-
-  return (
-    <Card className="mb-4 shadow-md">
-      <CardHeader className="flex flex-row items-start justify-between p-4">
-        <div>
-          <CardTitle className="text-base font-bold">{schedule.day}</CardTitle>
-          <CardDescription className="text-xs">{schedule.date}</CardDescription>
-        </div>
-        <div
-          className={cn(
-            'flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white',
-            schedule.day === 'Jumat' ? 'bg-yellow-500' : 'bg-primary'
-          )}
-        >
-          {dayInitial}
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="space-y-3">
-            {schedule.assignments.map((assignment, index) => (
-            <div key={index} className="flex items-center space-x-3 text-sm">
-                <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                <div className="flex-1">
-                <p className="font-semibold">{assignment.name}</p>
-                <p className="text-muted-foreground">
-                    {assignment.block}
-                </p>
-                 {assignment.substitute && (
-                    <p className="text-xs text-amber-600">
-                    Pengganti: {assignment.substitute}
-                    </p>
-                )}
-                </div>
-                 <a href={`tel:${assignment.phone}`} className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs hover:bg-secondary">
-                    <Phone className="h-3 w-3"/>
-                    <span>Call</span>
-                 </a>
-            </div>
-            ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const InfoListCard = ({ title, icon, items, renderItem }: { title: string; icon: React.ReactNode; items: any[]; renderItem: (item: any, index: number) => React.ReactNode }) => {
-    return (
-        <Card className="shadow-md">
-            <CardHeader className="flex flex-row items-center gap-3 space-y-0 p-4">
-                {icon}
-                <CardTitle className="text-base font-semibold">{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 text-sm space-y-3">
-                {items.map(renderItem)}
-            </CardContent>
-        </Card>
-    )
+function countConsecutiveDates(startIndex: number) {
+  let count = 1;
+  if (startIndex >= scheduleEntries.length) return count;
+  
+  const targetDate = scheduleEntries[startIndex].hariTanggal;
+  for (let i = startIndex + 1; i < scheduleEntries.length; i++) {
+    if (scheduleEntries[i].hariTanggal === targetDate) {
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
 }
 
+const InfoTable = ({ title, data }: { title: string; data: PersonInfo[] }) => (
+  <Card>
+    <CardHeader className="p-4">
+      <CardTitle className="text-base text-center font-bold">{title}</CardTitle>
+    </CardHeader>
+    <CardContent className="p-0">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-secondary hover:bg-secondary">
+            <TableHead className="w-[40px]">No</TableHead>
+            <TableHead>Nama</TableHead>
+            <TableHead>Blok</TableHead>
+            <TableHead>No HP</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((person, index) => (
+            <TableRow key={index}>
+              <TableCell>{index + 1}</TableCell>
+              <TableCell>{person.nama}</TableCell>
+              <TableCell>{person.blok}</TableCell>
+              <TableCell>{person.noHp}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </CardContent>
+  </Card>
+);
+
 export default function DashboardPage() {
+  let lastDate = '';
+
   return (
-    <div className="bg-background">
-      
-      <div className="hidden md:block p-6 pt-4">
-        <h1 className="text-2xl font-bold">Jadwal Ronda Perum. Alam Madani</h1>
-        <p className="text-muted-foreground">RT 08 / RW 20 - Periode: Desember 2025</p>
-      </div>
+    <div className="container mx-auto p-2 sm:p-4 md:p-6">
+      <header className="text-center mb-6">
+        <h1 className="text-xl md:text-2xl font-bold uppercase">
+          Jadwal Ronda Perum. Alam Madani
+        </h1>
+        <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Periode: Desember 2025
+        </p>
+      </header>
 
-      <div className="p-4 md:p-6 md:pt-0 pb-24">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            {rondaDays.map((schedule, index) => (
-              <ScheduleCard key={index} schedule={schedule} />
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <main className="lg:col-span-3">
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-primary hover:bg-primary">
+                  <TableHead className="text-primary-foreground w-[28%]">
+                    Hari, Tanggal
+                  </TableHead>
+                  <TableHead className="text-primary-foreground">Nama</TableHead>
+                  <TableHead className="text-primary-foreground">Blok</TableHead>
+                  <TableHead className="text-primary-foreground">No HP</TableHead>
+                  <TableHead className="text-primary-foreground">
+                    Pengganti Ronda
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {scheduleEntries.map((entry, index) => {
+                  const showDate = entry.hariTanggal !== lastDate;
+                  const isJumat = entry.hariTanggal.startsWith('Jumat');
+
+                  if (showDate) {
+                    lastDate = entry.hariTanggal;
+                    const rowSpan = countConsecutiveDates(index);
+                    return (
+                      <TableRow key={index} className={cn(isJumat && 'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30')}>
+                        <TableCell
+                          className="font-medium align-top p-2"
+                          rowSpan={rowSpan}
+                        >
+                          {entry.hariTanggal}
+                        </TableCell>
+                        <TableCell className="p-2">{entry.nama}</TableCell>
+                        <TableCell className="p-2">{entry.blok}</TableCell>
+                        <TableCell className="p-2">{entry.noHp}</TableCell>
+                        <TableCell
+                          className={cn(
+                            'p-2',
+                            entry.pengganti && 'font-semibold'
+                          )}
+                        >
+                          {entry.pengganti || '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return (
+                    <TableRow key={index} className={cn(isJumat && 'bg-yellow-100 dark:bg-yellow-900/20 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/30')}>
+                      <TableCell className="p-2">{entry.nama}</TableCell>
+                      <TableCell className="p-2">{entry.blok}</TableCell>
+                      <TableCell className="p-2">{entry.noHp}</TableCell>
+                      <TableCell
+                        className={cn(
+                          'p-2',
+                          entry.pengganti && 'font-semibold'
+                        )}
+                      >
+                        {entry.pengganti || '-'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
+        </main>
 
-          <div className="space-y-6">
-            <InfoListCard 
-                title="Back Up / Pengganti Ronda" 
-                icon={<Shield className="h-5 w-5 text-muted-foreground" />}
-                items={backupRondaPeople}
-                renderItem={(person, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                        <User className="h-4 w-4 shrink-0 text-muted-foreground"/>
-                        <div>
-                            <p className="font-medium">{person.name} ({person.block})</p>
-                            <p className="text-muted-foreground">{person.phone}</p>
-                        </div>
-                    </div>
-                )}
-            />
+        <aside className="lg:col-span-2 space-y-6">
+          <InfoTable title="Back Up / Pengganti Ronda" data={backupPersons} />
+          <InfoTable title="Coordinator Ronda" data={coordinatorPersons} />
 
-            <InfoListCard 
-                title="Koordinator Ronda" 
-                icon={<User className="h-5 w-5 text-muted-foreground" />}
-                items={coordinatorRondaPeople}
-                renderItem={(person, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                        <User className="h-4 w-4 shrink-0 text-muted-foreground"/>
-                        <div>
-                            <p className="font-medium">{person.name} ({person.block})</p>
-                            <p className="text-muted-foreground">{person.phone}</p>
-                        </div>
-                    </div>
-                )}
-            />
-
-            <InfoListCard 
-                title="Informasi" 
-                icon={<Info className="h-5 w-5 text-muted-foreground" />}
-                items={infoItems}
-                renderItem={(item) => (
-                   <div key={item.id} className="flex items-start gap-2">
-                    <span className="font-bold text-foreground -mt-0.5">{item.id}.</span>
-                    <span className="text-muted-foreground">{item.text}</span>
-                  </div>
-                )}
-            />
-          </div>
-        </div>
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-base text-center font-bold">
+                Informasi
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 text-sm space-y-3">
+              {infoItems.map((item) => (
+                <div key={item.id} className="flex items-start gap-2">
+                  <span className="font-bold text-foreground -mt-0.5">
+                    {item.id}.
+                  </span>
+                  <span className="text-muted-foreground">{item.text}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </div>
   );

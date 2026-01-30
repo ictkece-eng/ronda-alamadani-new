@@ -1,33 +1,33 @@
 
-export type Assignment = {
-  name: string;
-  block: string;
-  phone: string;
-  substitute?: string;
+export type ScheduleEntry = {
+  hariTanggal: string;
+  nama: string;
+  blok: string;
+  noHp: string;
+  pengganti?: string;
 };
 
-export type RondaDay = {
-  day: string;
-  date: string;
-  assignments: Assignment[];
-};
-
-export type BackupRondaPerson = {
-  name:string;
-  block: string;
-  phone: string;
-};
-
-export type CoordinatorRonda = {
-  name: string;
-  block: string;
-  phone: string;
+export type PersonInfo = {
+  nama: string;
+  blok: string;
+  noHp: string;
 };
 
 export type InfoItem = {
   id: number;
   text: string;
 };
+
+// Keep other types for different pages
+export type Warga = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: 'admin' | 'coordinator' | 'user';
+};
+
 
 export type Schedule = {
   date: string;
@@ -56,13 +56,4 @@ export type UserRequest = {
   requestedDate: string;
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected';
-};
-
-export type Warga = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  role: 'admin' | 'coordinator' | 'user';
 };
