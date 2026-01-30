@@ -8,7 +8,9 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center space-y-2">
             <CardTitle className="text-2xl font-bold">Ronda Planner</CardTitle>
-            <CardDescription>Masuk untuk mengelola jadwal ronda</CardDescription>
+            <CardDescription>
+                Admin masuk dengan email. Warga masuk sebagai tamu.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <LoginForm />
