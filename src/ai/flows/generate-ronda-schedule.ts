@@ -30,25 +30,27 @@ const prompt = ai.definePrompt({
   name: 'generateRondaSchedulePrompt',
   input: {schema: GenerateRondaScheduleInputSchema},
   output: {schema: GenerateRondaScheduleOutputSchema},
-  prompt: `You are a helpful assistant specialized in generating ronda schedules.
+  prompt: `You are an AI assistant that generates ronda (neighborhood watch) schedules.
 
-  Given the following information, generate a one-month ronda schedule in JSON format. The schedule must be fair and balanced, distributing the ronda duties as evenly as possible among all participants over the entire month.
+Your task is to create a fair and balanced one-month schedule based on the provided information and constraints. The output must be a valid JSON string.
 
-  Month: {{{month}}}
-  Participants: {{#each participants}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-  Coordinator: {{{coordinator}}}
+Month: {{{month}}}
+Participants: {{#each participants}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+Coordinator: {{{coordinator}}}
 
-  Constraints for the schedule:
-  1.  Assign exactly 2 or 3 participants for each night's ronda.
-  2.  Distribute duties fairly so that each participant gets a similar number of shifts throughout the month.
-  3.  A participant should not be assigned for more than 3 days in a single week.
-  4.  The coordinator should not be included in the ronda schedule.
+Constraints:
+1. Each night's ronda must be assigned to exactly 2 or 3 participants.
+2. Distribute the shifts as evenly as possible among all participants throughout the month.
+3. The coordinator ({{{coordinator}}}) must NOT be assigned to any ronda shift.
+4. Ensure every day of the given month has a schedule entry.
 
-  The JSON output should be an array of objects, where each object represents a day in the month. Each day object must have these properties:
-  - date: The date in "YYYY-MM-DD" format.
-  - participants: An array of participant names assigned to that day's ronda.
+Output Format:
+- The output must be a valid JSON string representing an array of schedule objects.
+- Each object in the array represents one day and must contain two properties:
+  1. \`date\`: The date of the ronda in "YYYY-MM-DD" format.
+  2. \`participants\`: An array of strings, where each string is the name of a participant assigned to that day.
 
-  Ensure the output is only a valid JSON array.
+IMPORTANT: Your response MUST be only the raw JSON string. Do not include any markdown formatting (like \`\`\`json), explanations, or any other text outside of the JSON array itself.
   `,
 });
 
