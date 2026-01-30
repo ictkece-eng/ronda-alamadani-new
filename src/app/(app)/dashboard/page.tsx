@@ -17,7 +17,7 @@ import {
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import type { PersonInfo, Warga } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -93,10 +93,17 @@ const InfoTable = ({
 
 export default function DashboardPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading: isAuthLoading } = useUser();
+
+  // A simple check for admin role.
+  const isAdmin = useMemo(() => user?.email === 'tirtopbas@gmail.com', [user]);
+
   const usersCollection = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'users') : null),
-    [firestore]
+    // Only attempt to fetch the users collection if the user is an admin
+    () => (firestore && isAdmin ? collection(firestore, 'users') : null),
+    [firestore, isAdmin]
   );
+
   const { data: users, isLoading: isUsersLoading } =
     useCollection<Warga>(usersCollection);
 
@@ -147,7 +154,7 @@ export default function DashboardPage() {
 
   let lastDate = '';
 
-  const isLoading = isUsersLoading;
+  const isLoading = isUsersLoading || isAuthLoading;
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
