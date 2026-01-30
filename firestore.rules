@@ -89,7 +89,7 @@ service cloud.firestore {
      * @principle Enforces self-creation and ownership for a user's root document. Admins have read-only access for management.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if true; // Allow public reads for dashboard functionality
       allow list: if true; // Allow public listing for dashboard functionality
       allow create: if isOwner(userId) && request.resource.data.id == userId || isAdmin();
       allow update: if (isOwner(userId) || isAdmin()) && isExistingDoc();
