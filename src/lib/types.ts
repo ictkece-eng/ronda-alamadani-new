@@ -1,3 +1,34 @@
+
+export type Assignment = {
+  name: string;
+  block: string;
+  phone: string;
+  substitute?: string;
+};
+
+export type RondaDay = {
+  day: string;
+  date: string;
+  assignments: Assignment[];
+};
+
+export type BackupRondaPerson = {
+  name:string;
+  block: string;
+  phone: string;
+};
+
+export type CoordinatorRonda = {
+  name: string;
+  block: string;
+  phone: string;
+};
+
+export type InfoItem = {
+  id: number;
+  text: string;
+};
+
 export type Schedule = {
   date: string;
   participants: string[];

@@ -1,11 +1,4 @@
-import Image from 'next/image';
-import {
-  Activity,
-  CalendarCheck,
-  Users,
-  UsersRound,
-} from 'lucide-react';
-import { PageHeader } from '@/components/page-header';
+
 import {
   Card,
   CardContent,
@@ -20,173 +13,130 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { schedules, backups, coordinators } from '@/lib/data';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { rondaDays, backupRondaPeople, coordinatorRondaPeople, infoItems } from '@/lib/data';
+import type { Assignment } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const getAvatarUrl = (avatarId: string) => {
-    return PlaceHolderImages.find(img => img.id === avatarId)?.imageUrl || '';
-  }
+  const renderAssignmentRows = (assignments: Assignment[], day: string, date: string, scheduleIndex: number) => {
+    return assignments.map((assignment, assignmentIndex) => (
+      <TableRow
+        key={`${scheduleIndex}-${assignmentIndex}`}
+        className={cn(day === 'Jumat' && 'bg-yellow-200 hover:bg-yellow-200/80', 'bg-white even:bg-slate-50')}
+      >
+        {assignmentIndex === 0 && (
+          <TableCell rowSpan={assignments.length} className="font-medium border align-top p-2">
+            {day},<br />
+            {date}
+          </TableCell>
+        )}
+        <TableCell className="border p-2">{assignment.name}</TableCell>
+        <TableCell className="border p-2">{assignment.block}</TableCell>
+        <TableCell className="border p-2">{assignment.phone}</TableCell>
+        <TableCell className="border p-2">{assignment.substitute || '-'}</TableCell>
+      </TableRow>
+    ));
+  };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <PageHeader
-        title="Dashboard"
-        description="Welcome to the Ronda Planner dashboard."
-      />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Schedules
-            </CardTitle>
-            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{schedules.length}</div>
-            <p className="text-xs text-muted-foreground">
-              for this month
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Available Backups
-            </CardTitle>
-            <UsersRound className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{backups.length}</div>
-             <p className="text-xs text-muted-foreground">
-              {backups.filter(b => b.status === 'Pending').length} pending
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Coordinators</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{coordinators.length}</div>
-            <p className="text-xs text-muted-foreground">
-              active coordinators
-            </p>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                Normal
-            </div>
-            <p className="text-xs text-muted-foreground">
-              All systems operational
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
+      <header className="text-center mb-4">
+        <h1 className="text-xl font-bold uppercase">Jadwal Ronda Perum. Alam Madani</h1>
+        <h2 className="text-lg font-bold">RT 08 / RW 20</h2>
+        <p className="text-sm">Periode: Desember 2025</p>
+      </header>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <Table className="border">
+            <TableHeader>
+              <TableRow className="bg-yellow-300 hover:bg-yellow-300">
+                <TableHead className="w-[150px] border p-2 font-bold text-black">Hari, Tanggal</TableHead>
+                <TableHead className="border p-2 font-bold text-black">Nama</TableHead>
+                <TableHead className="border p-2 font-bold text-black">Blok</TableHead>
+                <TableHead className="border p-2 font-bold text-black">No HP</TableHead>
+                <TableHead className="border p-2 font-bold text-black">Pengganti Ronda</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rondaDays.flatMap((schedule, index) => renderAssignmentRows(schedule.assignments, schedule.day, schedule.date, index))}
+            </TableBody>
+          </Table>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Ronda Schedule</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Participants</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {schedules.map((schedule) => (
-                  <TableRow key={schedule.date}>
-                    <TableCell className="font-medium">{schedule.date}</TableCell>
-                    <TableCell>{schedule.participants.join(', ')}</TableCell>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="bg-blue-200 p-2 text-center">
+              <CardTitle className="text-sm font-bold text-black">Back Up / Pengganti Ronda</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px] p-2">No</TableHead>
+                    <TableHead className="p-2">Nama</TableHead>
+                    <TableHead className="p-2">Blok</TableHead>
+                    <TableHead className="p-2">No HP</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {backupRondaPeople.map((person, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="p-2">{index + 1}</TableCell>
+                      <TableCell className="p-2">{person.name}</TableCell>
+                      <TableCell className="p-2">{person.block}</TableCell>
+                      <TableCell className="p-2">{person.phone}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Backup / Replacement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Original</TableHead>
-                  <TableHead>Replacement</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {backups.map((backup, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{backup.date}</TableCell>
-                    <TableCell>{backup.originalParticipant}</TableCell>
-                    <TableCell>{backup.replacement}</TableCell>
-                    <TableCell>
-                       <Badge variant={backup.status === 'Approved' ? 'default' : 'secondary'} className={backup.status === 'Approved' ? 'bg-green-600' : ''}>
-                        {backup.status}
-                      </Badge>
-                    </TableCell>
+          <Card>
+            <CardHeader className="bg-blue-200 p-2 text-center">
+              <CardTitle className="text-sm font-bold text-black">Coordinator Ronda</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px] p-2">No</TableHead>
+                    <TableHead className="p-2">Nama</TableHead>
+                    <TableHead className="p-2">Blok</TableHead>
+                    <TableHead className="p-2">No HP</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {coordinatorRondaPeople.map((person, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="p-2">{index + 1}</TableCell>
+                      <TableCell className="p-2">{person.name}</TableCell>
+                      <TableCell className="p-2">{person.block}</TableCell>
+                      <TableCell className="p-2">{person.phone}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Coordinators</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Area</TableHead>
-                  <TableHead>Contact</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {coordinators.map((coordinator, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={getAvatarUrl(coordinator.avatar)} alt={coordinator.name} data-ai-hint="person portrait" />
-                          <AvatarFallback>{coordinator.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{coordinator.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{coordinator.area}</TableCell>
-                    <TableCell>{coordinator.contact}</TableCell>
-                  </TableRow>
+          <Card>
+            <CardHeader className="bg-blue-200 p-2 text-center">
+              <CardTitle className="text-sm font-bold text-black">Informasi</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <ul className="space-y-1 text-sm">
+                {infoItems.map((item) => (
+                  <li key={item.id} className="flex items-start">
+                    <span className="flex items-center justify-center border border-black rounded-full w-4 h-4 text-xs mr-2 shrink-0 mt-0.5">{item.id}</span>
+                    <span>{item.text}</span>
+                  </li>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
