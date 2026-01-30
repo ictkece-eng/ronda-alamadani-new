@@ -1,3 +1,5 @@
+'use client';
+
 import { PageHeader } from '@/components/page-header';
 import { AdminTabs } from './admin-tabs';
 
