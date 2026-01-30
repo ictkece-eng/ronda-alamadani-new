@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { handleGenerateSchedule } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useActionState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,7 +28,7 @@ function SubmitButton() {
 }
 
 export function GenerateScheduleForm() {
-  const [state, formAction] = useFormState(handleGenerateSchedule, initialState);
+  const [state, formAction] = useActionState(handleGenerateSchedule, initialState);
   const [generatedSchedule, setGeneratedSchedule] = useState<string | null>(null);
   const { toast } = useToast();
 
