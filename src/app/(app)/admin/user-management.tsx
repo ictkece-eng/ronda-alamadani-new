@@ -10,6 +10,7 @@ import {
   useMemoFirebase,
   setDocumentNonBlocking,
   deleteDocumentNonBlocking,
+  useUser,
 } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { Warga } from '@/lib/types';
@@ -68,16 +69,19 @@ type WargaFormValues = z.infer<typeof wargaSchema>;
 
 export function UserManagement() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const usersCollection = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'users') : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, 'users') : null),
+    [firestore, user]
   );
-  const { data: users, isLoading } = useCollection<Warga>(usersCollection);
+  const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Warga | null>(null);
+
+  const isLoading = isUserLoading || isUsersLoading;
 
   const form = useForm<WargaFormValues>({
     resolver: zodResolver(wargaSchema),
