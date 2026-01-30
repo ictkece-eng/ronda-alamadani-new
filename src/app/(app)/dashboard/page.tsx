@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   scheduleEntries as staticSchedule,
   backupPersons as staticBackupPersons,
-  coordinatorPersons as staticCoordinatorPersons,
   infoItems,
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
@@ -142,17 +141,13 @@ export default function DashboardPage() {
   }, [usersMap]);
 
   const coordinatorPersons = useMemo(() => {
-    // While loading user data, show the static list to prevent a blank screen.
-    if (isUsersLoading) {
-      return staticCoordinatorPersons;
-    }
-  
-    // If loading is complete but we have no users, return an empty array.
+    // If there's no user data from Firestore (still loading or an empty collection),
+    // return an empty array. The `isLoading` prop on InfoTable will handle showing skeletons.
     if (!users) {
       return [];
     }
   
-    // Once loading is complete, derive the list exclusively from the live data.
+    // Once we have user data, derive the list of coordinators exclusively from it.
     return users
       .filter((user) => user.role === 'coordinator')
       .map((user) => ({
@@ -160,7 +155,7 @@ export default function DashboardPage() {
         blok: user.address,
         noHp: user.phone,
       }));
-  }, [users, isUsersLoading]);
+  }, [users]);
 
 
   let lastDate = '';
