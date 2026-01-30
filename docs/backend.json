@@ -100,6 +100,16 @@
           "description": "Date the request was made.",
           "format": "date-time"
         },
+        "currentScheduleDate": {
+          "type": "string",
+          "description": "The original date of the schedule being changed.",
+          "format": "date-time"
+        },
+        "requestedScheduleDate": {
+          "type": "string",
+          "description": "The new date the user is requesting.",
+          "format": "date-time"
+        },
         "reason": {
           "type": "string",
           "description": "Reason for the schedule change request."
@@ -115,7 +125,9 @@
         "rondaScheduleId",
         "requestDate",
         "reason",
-        "status"
+        "status",
+        "currentScheduleDate",
+        "requestedScheduleDate"
       ]
     },
     "RondaReplacement": {

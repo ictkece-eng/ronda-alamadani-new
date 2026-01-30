@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
 import { Activity, Users, FileText, GitPullRequest } from 'lucide-react';
+import { ScheduleRequests } from './schedule-requests';
 
 export function AdminTabs() {
     return (
@@ -32,7 +33,7 @@ export function AdminTabs() {
           <Card>
             <CardHeader>
                 <CardTitle>Automated Schedule Generation</CardTitle>
-                <CardDescription>Generate a one-month ronda schedule automatically using AI.</CardDescription>
+                <CardDescription>Generate a one-month ronda schedule automatically using AI, then save it to the database.</CardDescription>
             </CardHeader>
             <CardContent>
                 <GenerateScheduleForm />
@@ -45,15 +46,7 @@ export function AdminTabs() {
         </TabsContent>
 
         <TabsContent value="requests" className="mt-6">
-           <Card>
-            <CardHeader>
-              <CardTitle>Manage Schedule Requests</CardTitle>
-              <CardDescription>Approve or reject ronda schedule change requests.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Schedule request management interface will be available here soon.</p>
-            </CardContent>
-          </Card>
+           <ScheduleRequests />
         </TabsContent>
 
         <TabsContent value="replacements" className="mt-6">

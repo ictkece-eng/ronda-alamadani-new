@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -22,26 +22,61 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, ThumbsDown, ThumbsUp, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { UserRequest } from '@/lib/types';
-import { userRequests as initialRequests } from '@/lib/data';
+import type { ScheduleRequest, Warga } from '@/lib/types';
 import { handleGetCoordinatorSuggestion } from '@/lib/actions';
+import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { collection, collectionGroup, doc, query } from 'firebase/firestore';
+import { format } from 'date-fns';
+
+type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
 
 export function CoordinatorView() {
-  const [requests, setRequests] = useState<UserRequest[]>(initialRequests);
-  const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<ScheduleRequestWithUser | null>(null);
   const [suggestion, setSuggestion] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const handleRequestAction = (id: number, status: 'Approved' | 'Rejected') => {
-    setRequests(
-      requests.map((req) => (req.id === id ? { ...req, status } : req))
-    );
+  const requestsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore]
+  );
+  const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+
+  const usersQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
+  );
+  const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
+
+  const usersMap = useMemo(() => {
+    if (!users) return new Map<string, string>();
+    return new Map(users.map(user => [user.id, user.name]));
+  }, [users]);
+
+  const processedRequests = useMemo(() => {
+    if (!requests) return [];
+    return requests.map(req => ({
+      ...req,
+      userName: usersMap.get(req.userId) || 'Unknown User',
+    })).sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+  }, [requests, usersMap]);
+
+
+  const handleRequestAction = (request: ScheduleRequest, status: 'approved' | 'rejected') => {
+    if (!firestore) return;
+
+    const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
+    const updatedData = { ...request, status };
+
+    setDocumentNonBlocking(requestRef, updatedData, { merge: true });
+    
     toast({
       title: 'Request Updated',
-      description: `Request from ${requests.find(r => r.id === id)?.userName} has been ${status.toLowerCase()}.`,
+      description: `Request from ${usersMap.get(request.userId)} has been ${status}.`,
     });
-    if (selectedRequest?.id === id) {
+
+    if (selectedRequest?.id === request.id) {
         setSelectedRequest(null);
         setSuggestion('');
     }
@@ -49,28 +84,23 @@ export function CoordinatorView() {
 
   const handleGetSuggestion = async () => {
     if (!selectedRequest) return;
-    setIsLoading(true);
+    setIsLoadingSuggestion(true);
     setSuggestion('');
     
-    // Mock schedule data for context
-    const scheduleData = `Current Assignments:
+    const scheduleData = `Current Assignments: (Mock Data)
 - 2024-07-02: Agus, Siti
 - 2024-07-03: Dewi, Eko
 - 2024-07-10: Budi, Joko
-- 2024-07-15: Herman, Lina
-Shift Preferences:
-- Budi prefers weekends.
-- Siti can't work on Wednesdays.
-- Eko available Mon-Fri.`;
+- 2024-07-15: Herman, Lina`;
 
     const requestDetails = `User: ${selectedRequest.userName}
-Current Date: ${selectedRequest.currentDate}
-Requested Date: ${selectedRequest.requestedDate}
+Current Date: ${format(new Date(selectedRequest.currentScheduleDate), 'PPP')}
+Requested Date: ${format(new Date(selectedRequest.requestedScheduleDate), 'PPP')}
 Reason: ${selectedRequest.reason}`;
 
     const result = await handleGetCoordinatorSuggestion(scheduleData, requestDetails);
 
-    setIsLoading(false);
+    setIsLoadingSuggestion(false);
     if (result.error) {
       toast({
         title: 'Error',
@@ -81,6 +111,8 @@ Reason: ${selectedRequest.reason}`;
       setSuggestion(result.suggestion);
     }
   };
+
+  const isLoading = isRequestsLoading || isUsersLoading;
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -102,7 +134,13 @@ Reason: ${selectedRequest.reason}`;
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map((req) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center h-24">
+                    <Loader2 className="mx-auto animate-spin" />
+                  </TableCell>
+                </TableRow>
+              ) : processedRequests.map((req) => (
                 <TableRow 
                     key={req.id} 
                     onClick={() => { setSelectedRequest(req); setSuggestion(''); }}
@@ -112,26 +150,26 @@ Reason: ${selectedRequest.reason}`;
                   <TableCell className="font-medium">{req.userName}</TableCell>
                   <TableCell>{req.reason}</TableCell>
                   <TableCell>
-                    <Badge variant={req.status === 'Pending' ? 'secondary' : req.status === 'Approved' ? 'default' : 'destructive'}
-                        className={req.status === 'Approved' ? 'bg-green-600' : ''}
+                    <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}
+                        className={req.status === 'approved' ? 'bg-green-600' : ''}
                     >
                       {req.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {req.status === 'Pending' && (
+                    {req.status === 'pending' && (
                       <div className="flex gap-2 justify-end">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); handleRequestAction(req.id, 'Approved'); }}
+                          onClick={(e) => { e.stopPropagation(); handleRequestAction(req, 'approved'); }}
                         >
                           <ThumbsUp className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={(e) => { e.stopPropagation(); handleRequestAction(req.id, 'Rejected'); }}
+                          onClick={(e) => { e.stopPropagation(); handleRequestAction(req, 'rejected'); }}
                         >
                           <ThumbsDown className="h-4 w-4" />
                         </Button>
@@ -158,15 +196,15 @@ Reason: ${selectedRequest.reason}`;
               <div>
                 <h4 className="font-semibold">{selectedRequest.userName}'s Request</h4>
                 <p className="text-sm text-muted-foreground">
-                    From: {selectedRequest.currentDate}
+                    From: {format(new Date(selectedRequest.currentScheduleDate), 'PPP')}
                 </p>
                  <p className="text-sm text-muted-foreground">
-                    To: {selectedRequest.requestedDate}
+                    To: {format(new Date(selectedRequest.requestedScheduleDate), 'PPP')}
                 </p>
                 <p className="text-sm mt-2">"{selectedRequest.reason}"</p>
               </div>
-              <Button onClick={handleGetSuggestion} disabled={isLoading || selectedRequest.status !== 'Pending'}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Wand2 />}
+              <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion || selectedRequest.status !== 'pending'}>
+                {isLoadingSuggestion ? <Loader2 className="animate-spin" /> : <Wand2 />}
                 Get AI Suggestion
               </Button>
 

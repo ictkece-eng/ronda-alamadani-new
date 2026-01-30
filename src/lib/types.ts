@@ -49,11 +49,13 @@ export type Coordinator = {
   area: string;
 };
 
-export type UserRequest = {
-  id: number;
-  userName: string;
-  currentDate: string;
-  requestedDate: string;
+export type ScheduleRequest = {
+  id: string;
+  userId: string;
+  rondaScheduleId: string;
+  requestDate: string; // ISO String for when the request was made
+  currentScheduleDate: string; // ISO String for the original schedule date
+  requestedScheduleDate: string; // ISO String for the new requested date
   reason: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'pending' | 'approved' | 'rejected';
 };
