@@ -4,10 +4,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  ClipboardList,
   LayoutDashboard,
-  PenSquare,
-  ShieldCheck,
+  LogIn,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,19 +16,9 @@ const navItems = [
     label: 'Dashboard',
   },
   {
-    href: '/admin',
-    icon: ShieldCheck,
-    label: 'Admin',
-  },
-  {
-    href: '/coordinator',
-    icon: ClipboardList,
-    label: 'Coordinator',
-  },
-  {
-    href: '/schedule/request',
-    icon: PenSquare,
-    label: 'Request',
+    href: '/login',
+    icon: LogIn,
+    label: 'Login',
   },
 ];
 
