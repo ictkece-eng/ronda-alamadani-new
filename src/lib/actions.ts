@@ -40,13 +40,17 @@ export async function handleGenerateSchedule(prevState: any, formData: FormData)
 
     const { month, participants, coordinator } = validatedFields.data;
 
-    const result = await generateRondaSchedule({
+    // generateRondaSchedule now returns a structured array, not an object with a string.
+    const scheduleArray = await generateRondaSchedule({
       month,
       participants: participants,
       coordinator,
     });
 
-    return { message: 'Schedule generated successfully.', schedule: result.schedule };
+    // The client component still expects a JSON string to parse.
+    const scheduleJsonString = JSON.stringify(scheduleArray);
+
+    return { message: 'Schedule generated successfully.', schedule: scheduleJsonString };
   } catch (error) {
     console.error(error);
     return { message: 'Failed to generate schedule. Please try again.' };

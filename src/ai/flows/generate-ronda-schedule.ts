@@ -17,9 +17,13 @@ const GenerateRondaScheduleInputSchema = z.object({
 });
 export type GenerateRondaScheduleInput = z.infer<typeof GenerateRondaScheduleInputSchema>;
 
-const GenerateRondaScheduleOutputSchema = z.object({
-  schedule: z.string().describe('The generated ronda schedule in JSON format.'),
-});
+// Use a structured schema for the output, not just a string.
+const GenerateRondaScheduleOutputSchema = z.array(
+  z.object({
+    date: z.string().describe('The date of the shift in YYYY-MM-DD format.'),
+    participants: z.array(z.string()).describe('List of participant names for this shift.'),
+  })
+).describe('A JSON array representing the complete one-month ronda schedule.');
 export type GenerateRondaScheduleOutput = z.infer<typeof GenerateRondaScheduleOutputSchema>;
 
 export async function generateRondaSchedule(input: GenerateRondaScheduleInput): Promise<GenerateRondaScheduleOutput> {
@@ -30,27 +34,20 @@ const prompt = ai.definePrompt({
   name: 'generateRondaSchedulePrompt',
   input: {schema: GenerateRondaScheduleInputSchema},
   output: {schema: GenerateRondaScheduleOutputSchema},
-  prompt: `You are an AI assistant that generates ronda (neighborhood watch) schedules.
+  prompt: `You are an expert scheduler for a neighborhood watch program (ronda). Your task is to generate a complete, fair, and balanced one-month schedule.
 
-Your task is to create a fair and balanced one-month schedule based on the provided information.
+Generate the schedule for the month of **{{{month}}}**.
 
-Month: {{{month}}}
-Participants: {{#each participants}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-Coordinator: {{{coordinator}}}
+The available participants are: {{#each participants}}'{{{this}}}'{{#unless @last}}, {{/unless}}{{/each}}.
+The coordinator is **{{{coordinator}}}**.
 
-RULES:
-1. Each night shift must be assigned to 2 or 3 participants.
-2. Distribute the shifts as evenly as possible among all participants.
-3. The coordinator ({{{coordinator}}}) MUST NOT be assigned to any shift.
-4. Ensure every day of the given month has a schedule entry.
+Strictly follow these rules:
+1.  **Full Month Coverage**: You MUST create a schedule entry for every single day of the specified month.
+2.  **Shift Size**: Each night's shift must be assigned to exactly 2 or 3 participants. Do not assign more or less.
+3.  **Fair Distribution**: Distribute the shifts as evenly and fairly as possible among all participants. Avoid assigning the same person too many times in a row.
+4.  **Coordinator Exclusion**: The coordinator, '{{{coordinator}}}', MUST NOT be assigned to any shift.
 
-OUTPUT FORMAT:
-- Your output MUST be a valid JSON array of objects.
-- Each object represents one day and MUST contain two keys: "date" and "participants".
-- The "date" value must be a string in "YYYY-MM-DD" format.
-- The "participants" value must be an array of strings, containing the names of assigned participants.
-
-IMPORTANT: Respond with ONLY the raw JSON array. Do NOT include any explanations, comments, or markdown formatting like \`\`\`json.
+Your output will be automatically formatted as a JSON array based on the schema. Just focus on providing the correct schedule data based on the rules.
   `,
 });
 
