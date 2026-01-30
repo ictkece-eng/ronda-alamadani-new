@@ -32,25 +32,25 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateRondaScheduleOutputSchema},
   prompt: `You are an AI assistant that generates ronda (neighborhood watch) schedules.
 
-Your task is to create a fair and balanced one-month schedule based on the provided information and constraints. The output must be a valid JSON string.
+Your task is to create a fair and balanced one-month schedule based on the provided information.
 
 Month: {{{month}}}
 Participants: {{#each participants}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 Coordinator: {{{coordinator}}}
 
-Constraints:
-1. Each night's ronda must be assigned to exactly 2 or 3 participants.
-2. Distribute the shifts as evenly as possible among all participants throughout the month.
-3. The coordinator ({{{coordinator}}}) must NOT be assigned to any ronda shift.
+RULES:
+1. Each night shift must be assigned to 2 or 3 participants.
+2. Distribute the shifts as evenly as possible among all participants.
+3. The coordinator ({{{coordinator}}}) MUST NOT be assigned to any shift.
 4. Ensure every day of the given month has a schedule entry.
 
-Output Format:
-- The output must be a valid JSON string representing an array of schedule objects.
-- Each object in the array represents one day and must contain two properties:
-  1. \`date\`: The date of the ronda in "YYYY-MM-DD" format.
-  2. \`participants\`: An array of strings, where each string is the name of a participant assigned to that day.
+OUTPUT FORMAT:
+- Your output MUST be a valid JSON array of objects.
+- Each object represents one day and MUST contain two keys: "date" and "participants".
+- The "date" value must be a string in "YYYY-MM-DD" format.
+- The "participants" value must be an array of strings, containing the names of assigned participants.
 
-IMPORTANT: Your response MUST be only the raw JSON string. Do not include any markdown formatting (like \`\`\`json), explanations, or any other text outside of the JSON array itself.
+IMPORTANT: Respond with ONLY the raw JSON array. Do NOT include any explanations, comments, or markdown formatting like \`\`\`json.
   `,
 });
 
