@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -15,8 +16,9 @@ import {
 } from '@/lib/data';
 import type { RondaDay } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Phone, User, Shield, Info, MoreVertical } from 'lucide-react';
+import { Phone, User, Shield, Info, MoreVertical, PenSquare } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 
 const ScheduleCard = ({ schedule }: { schedule: RondaDay }) => {
   const dayInitial = schedule.date.split(' ')[0];
@@ -100,7 +102,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">RT 08 / RW 20 - Periode: Desember 2025</p>
       </div>
 
-      <div className="p-4 md:p-6 md:pt-0">
+      <div className="p-4 md:p-6 md:pt-0 pb-24">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
             {rondaDays.map((schedule, index) => (
@@ -153,6 +155,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <Link href="/schedule/request" passHref>
+        <Button
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-20"
+          size="icon"
+          aria-label="Request Schedule Change"
+        >
+          <PenSquare className="h-6 w-6" />
+        </Button>
+      </Link>
     </div>
   );
 }
