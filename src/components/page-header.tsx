@@ -1,4 +1,3 @@
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
 type PageHeaderProps = {
   title: string;
@@ -13,9 +12,6 @@ export function PageHeader({ title, description }: PageHeaderProps) {
         {description && (
           <p className="text-muted-foreground">{description}</p>
         )}
-      </div>
-      <div className="md:hidden">
-        <SidebarTrigger />
       </div>
     </div>
   );

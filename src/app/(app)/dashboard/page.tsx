@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -16,9 +15,7 @@ import {
 } from '@/lib/data';
 import type { RondaDay } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Phone, User, Shield, Info, MoreVertical, PenSquare } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
+import { Phone, User, Shield, Info } from 'lucide-react';
 
 const ScheduleCard = ({ schedule }: { schedule: RondaDay }) => {
   const dayInitial = schedule.date.split(' ')[0];
@@ -84,18 +81,6 @@ const InfoListCard = ({ title, icon, items, renderItem }: { title: string; icon:
 export default function DashboardPage() {
   return (
     <div className="bg-background">
-       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card px-4 shadow-sm md:hidden">
-        <div className="flex items-center gap-4">
-          <SidebarTrigger />
-          <div>
-            <h1 className="text-lg font-bold">Jadwal Ronda</h1>
-            <p className="text-xs text-muted-foreground">Desember 2025</p>
-          </div>
-        </div>
-        <button>
-            <MoreVertical className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </header>
       
       <div className="hidden md:block p-6 pt-4">
         <h1 className="text-2xl font-bold">Jadwal Ronda Perum. Alam Madani</h1>
@@ -155,15 +140,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      <Link href="/schedule/request" passHref>
-        <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-20"
-          size="icon"
-          aria-label="Request Schedule Change"
-        >
-          <PenSquare className="h-6 w-6" />
-        </Button>
-      </Link>
     </div>
   );
 }
