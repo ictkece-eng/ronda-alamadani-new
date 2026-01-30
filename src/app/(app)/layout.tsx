@@ -7,7 +7,8 @@ import {
   LayoutDashboard,
   LogOut,
   FilePlus2,
-  UserCheck
+  UserCheck,
+  LogIn,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
@@ -23,7 +24,7 @@ import {
 import { LoginForm } from '../login/login-form';
 
 
-function BottomNavbar() {
+function BottomNavbar({ onLoginClick }: { onLoginClick: () => void }) {
     const pathname = usePathname();
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
@@ -37,7 +38,6 @@ function BottomNavbar() {
                 title: 'Logout Berhasil',
                 description: 'Anda telah keluar dari aplikasi.',
             });
-            // No redirect, the dialog will appear automatically
         } catch (error) {
             toast({
                 title: 'Logout Gagal',
@@ -48,16 +48,6 @@ function BottomNavbar() {
     };
     
     const isAdmin = user?.email === 'tirtopbas@gmail.com';
-
-    const navItems = user
-      ? [
-          { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-          ...(isAdmin
-            ? [{ href: '/admin', icon: UserCheck, label: 'Admin' }]
-            : [{ href: '/schedule/request', icon: FilePlus2, label: 'Request' }]),
-        ]
-      : [];
-
 
     if (isUserLoading) {
         return (
@@ -70,32 +60,48 @@ function BottomNavbar() {
         )
     }
 
+    const navItems = [
+        { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', show: true },
+        { href: '/admin', icon: UserCheck, label: 'Admin', show: !!user && isAdmin },
+        { href: '/schedule/request', icon: FilePlus2, label: 'Request', show: !!user && !isAdmin },
+    ];
+
+
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-20 border-t bg-card shadow-t-lg">
         <div className="flex h-16 items-center justify-around">
-            {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-                <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                    'flex flex-col items-center justify-center gap-1 text-xs w-full h-full',
-                    isActive ? 'text-primary' : 'text-muted-foreground'
-                )}
-                >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
-                </Link>
-            );
+            {navItems.filter(item => item.show).map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                    <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                        'flex flex-col items-center justify-center gap-1 text-xs w-full h-full',
+                        isActive ? 'text-primary' : 'text-muted-foreground'
+                    )}
+                    >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                    </Link>
+                );
             })}
-            {user && (
+           
+            {user ? (
                  <button
                     onClick={handleLogout}
                     className="flex flex-col items-center justify-center gap-1 text-xs w-full h-full text-muted-foreground"
                 >
                     <LogOut className="h-5 w-5" />
                     <span>Logout</span>
+                </button>
+            ) : (
+                 <button
+                    onClick={onLoginClick}
+                    className="flex flex-col items-center justify-center gap-1 text-xs w-full h-full text-muted-foreground"
+                >
+                    <LogIn className="h-5 w-5" />
+                    <span>Login</span>
                 </button>
             )}
         </div>
@@ -108,17 +114,7 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isUserLoading } = useUser();
   const [isLoginOpen, setIsLoginOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isUserLoading && !user) {
-      setIsLoginOpen(true);
-    } else {
-      setIsLoginOpen(false);
-    }
-  }, [user, isUserLoading]);
-
 
   return (
     <div>
@@ -126,19 +122,19 @@ export default function AppLayout({
             {children}
         </main>
         
-        <Dialog open={isLoginOpen}>
-            <DialogContent className="sm:max-w-md" hideCloseButton={true}>
+        <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
+            <DialogContent className="sm:max-w-md">
                  <DialogHeader className="text-center space-y-2">
                     <DialogTitle className="text-2xl font-bold">Ronda Planner</DialogTitle>
                     <DialogDescription>
                         Admin masuk dengan email. Warga masuk sebagai tamu.
                     </DialogDescription>
                 </DialogHeader>
-                <LoginForm />
+                <LoginForm onLoginSuccess={() => setIsLoginOpen(false)} />
             </DialogContent>
         </Dialog>
 
-        <BottomNavbar />
+        <BottomNavbar onLoginClick={() => setIsLoginOpen(true)} />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/firebase';
 import { signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
 
-export function LoginForm() {
+export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -35,9 +35,7 @@ export function LoginForm() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
       
-      // The admin role check is done via security rules and UI is controlled in layout
       if (email === 'tirtopbas@gmail.com') {
         toast({
           title: 'Login Admin Berhasil',
@@ -51,6 +49,7 @@ export function LoginForm() {
         });
         router.push('/dashboard');
       }
+      onLoginSuccess?.();
     } catch (error: any) {
       console.error(error);
       toast({
@@ -77,6 +76,7 @@ export function LoginForm() {
             description: 'Selamat datang di Ronda Planner!',
         });
         router.push('/dashboard');
+        onLoginSuccess?.();
     } catch (error: any) {
         console.error("Anonymous sign-in error:", error);
         toast({
