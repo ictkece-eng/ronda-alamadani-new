@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -75,10 +75,18 @@ export function UserManagement() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
+  const [canFetch, setCanFetch] = useState(false);
+
+  useEffect(() => {
+    // Only allow fetching if user is loaded and authenticated
+    if (!isUserLoading && user) {
+        setCanFetch(true);
+    }
+  }, [isUserLoading, user]);
   
   const usersCollection = useMemoFirebase(
-    () => (firestore && user ? collection(firestore, 'users') : null),
-    [firestore, user]
+    () => (firestore && canFetch ? collection(firestore, 'users') : null),
+    [firestore, canFetch]
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
@@ -87,7 +95,7 @@ export function UserManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const isLoading = isUserLoading || isUsersLoading;
+  const isLoading = isUserLoading || isUsersLoading || !canFetch;
 
   const form = useForm<WargaFormValues>({
     resolver: zodResolver(wargaSchema),

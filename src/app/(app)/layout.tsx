@@ -2,27 +2,32 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
-  LogIn,
   LogOut,
   FilePlus2,
-  Users,
   UserCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { LoginForm } from '../login/login-form';
+
 
 function BottomNavbar() {
     const pathname = usePathname();
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
     const { toast } = useToast();
-    const router = useRouter();
 
     const handleLogout = async () => {
         if (!auth) return;
@@ -32,7 +37,7 @@ function BottomNavbar() {
                 title: 'Logout Berhasil',
                 description: 'Anda telah keluar dari aplikasi.',
             });
-            router.push('/login');
+            // No redirect, the dialog will appear automatically
         } catch (error) {
             toast({
                 title: 'Logout Gagal',
@@ -42,7 +47,6 @@ function BottomNavbar() {
         }
     };
     
-    // Simple role check based on email for UI purposes
     const isAdmin = user?.email === 'tirtopbas@gmail.com';
 
     const navItems = user
@@ -52,7 +56,7 @@ function BottomNavbar() {
             ? [{ href: '/admin', icon: UserCheck, label: 'Admin' }]
             : [{ href: '/schedule/request', icon: FilePlus2, label: 'Request' }]),
         ]
-      : [{ href: '/login', icon: LogIn, label: 'Login' }];
+      : [];
 
 
     if (isUserLoading) {
@@ -104,11 +108,36 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isUserLoading } = useUser();
+  const [isLoginOpen, setIsLoginOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      setIsLoginOpen(true);
+    } else {
+      setIsLoginOpen(false);
+    }
+  }, [user, isUserLoading]);
+
+
   return (
     <div>
         <main className="pb-16">
             {children}
         </main>
+        
+        <Dialog open={isLoginOpen}>
+            <DialogContent className="sm:max-w-md" hideCloseButton={true}>
+                 <DialogHeader className="text-center space-y-2">
+                    <DialogTitle className="text-2xl font-bold">Ronda Planner</DialogTitle>
+                    <DialogDescription>
+                        Admin masuk dengan email. Warga masuk sebagai tamu.
+                    </DialogDescription>
+                </DialogHeader>
+                <LoginForm />
+            </DialogContent>
+        </Dialog>
+
         <BottomNavbar />
     </div>
   );
