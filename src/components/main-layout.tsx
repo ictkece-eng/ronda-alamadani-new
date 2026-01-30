@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   PenSquare,
   ShieldCheck,
-  Users,
+  Shield,
 } from 'lucide-react';
 import {
   SidebarProvider,
@@ -61,7 +61,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="h-16 flex items-center justify-between p-4">
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
             <Button variant="ghost" size="icon" className="shrink-0">
-              <Users className="text-primary" />
+              <Shield className="text-primary" />
             </Button>
             <h1 className="text-lg font-semibold text-primary">Ronda Planner</h1>
           </div>
