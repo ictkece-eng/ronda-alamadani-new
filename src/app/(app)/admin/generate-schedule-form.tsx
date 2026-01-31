@@ -184,6 +184,12 @@ export function GenerateScheduleForm() {
                                 return scoreA_block - scoreB_block;
                             }
 
+                            // --- Previous Day Penalty ---
+                            const wasAOnYesterday = day > 0 && dailyAssignments[day - 1].map(n => n.toLowerCase()).includes(a.toLowerCase());
+                            const wasBOnYesterday = day > 0 && dailyAssignments[day - 1].map(n => n.toLowerCase()).includes(b.toLowerCase());
+                            if (wasAOnYesterday && !wasBOnYesterday) return 1; // Penalize A
+                            if (!wasAOnYesterday && wasBOnYesterday) return -1; // Penalize B
+
                             // --- Shift Count Score ---
                             const countA = shiftCounts.get(a) ?? 0;
                             const countB = shiftCounts.get(b) ?? 0;
