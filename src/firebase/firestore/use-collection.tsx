@@ -33,7 +33,8 @@ export interface InternalQuery extends Query<DocumentData> {
     path: {
       canonicalString(): string;
       toString(): string;
-    }
+    } | null; // Path can be null for collection group queries
+    collectionGroup: string | null;
   }
 }
 
@@ -85,11 +86,22 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+        let path: string = 'unknown/path'; // Default fallback path
+        try {
+          const internalQuery = memoizedTargetRefOrQuery as unknown as InternalQuery;
+          if (memoizedTargetRefOrQuery.type === 'collection') {
+            path = (memoizedTargetRefOrQuery as CollectionReference).path;
+          } else if (internalQuery._query.collectionGroup) {
+            // For collection group queries, the path is not specific.
+            // Represent it by the collection group ID for better debugging.
+            path = `(collectionGroup: ${internalQuery._query.collectionGroup})`;
+          } else if (internalQuery._query.path) {
+            path = internalQuery._query.path.canonicalString();
+          }
+        } catch (e) {
+          // In case internal properties change, we don't crash the app
+          console.error("Could not determine path for Firestore permission error:", e);
+        }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',

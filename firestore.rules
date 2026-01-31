@@ -78,6 +78,19 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
+    // Collection Group Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Grants access to collection group queries.
+     * @path /{path=**}/scheduleRequests/{scheduleRequestId}
+     * @allow (list) Admins can list all schedule requests across all users.
+     */
+    match /{path=**}/scheduleRequests/{scheduleRequestId} {
+      allow list: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------------
     // Collection Rules
     // ------------------------------------------------------------------------
 
