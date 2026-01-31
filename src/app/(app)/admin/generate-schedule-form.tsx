@@ -150,6 +150,8 @@ export function GenerateScheduleForm() {
                         }).filter(Boolean)
                     );
 
+                    let dayAlreadyHasTeacher = dailyAssignments[day].some(name => !!usersMap.get(name.toLowerCase())?.isTeacher);
+
                     for (let i = 0; i < needed; i++) {
                         if (candidates.length === 0) break;
 
@@ -157,9 +159,15 @@ export function GenerateScheduleForm() {
                             const userA = usersMap.get(a.toLowerCase());
                             const userB = usersMap.get(b.toLowerCase());
                             
-                            // --- Teacher Preference Score ---
                             const isATeacher = !!userA?.isTeacher;
                             const isBTeacher = !!userB?.isTeacher;
+
+                            if (dayAlreadyHasTeacher) {
+                                if (isATeacher && !isBTeacher) return 1;
+                                if (!isATeacher && isBTeacher) return -1;
+                            }
+                            
+                            // --- Teacher Preference Score ---
                             let teacherScoreA = 0;
                             let teacherScoreB = 0;
 
@@ -211,6 +219,10 @@ export function GenerateScheduleForm() {
                         const bestCandidateBlock = bestCandidateUser?.address ? bestCandidateUser.address.charAt(0).toUpperCase() : null;
                         if (bestCandidateBlock) {
                             assignedBlocksThisDay.add(bestCandidateBlock);
+                        }
+
+                        if (bestCandidateUser?.isTeacher) {
+                            dayAlreadyHasTeacher = true;
                         }
                     }
                 }
