@@ -53,9 +53,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Pencil, Plus, Trash, Database, Search } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { seedWarga } from '@/lib/seed-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -202,40 +201,6 @@ export function UserManagement() {
     toast({ title: 'Success', description: 'User deleted successfully.' });
   };
   
-  const handleSeedDatabase = () => {
-    if (!firestore) {
-        toast({ title: 'Error', description: 'Firestore is not available.', variant: 'destructive' });
-        return;
-    }
-    
-    toast({ title: 'Seeding database...', description: `Adding ${seedWarga.length} users. This may take a moment.` });
-
-    const usersCol = collection(firestore, 'users');
-    
-    seedWarga.forEach(warga => {
-        const newUserRef = doc(usersCol);
-        const email = `${warga.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@warga.com`;
-
-        const newUserData: Warga = {
-            id: newUserRef.id,
-            name: warga.name,
-            email: email,
-            phone: warga.phone,
-            address: warga.address,
-            role: warga.role as 'user' | 'coordinator' | 'admin' | 'backup',
-            includeInSchedule: warga.includeInSchedule || false,
-            isTeacher: warga.isTeacher || false,
-        };
-        
-        setDocumentNonBlocking(newUserRef, newUserData, {});
-
-        if (newUserData.role === 'admin') {
-            const adminRoleRef = doc(firestore, 'roles_admin', newUserRef.id);
-            setDocumentNonBlocking(adminRoleRef, { userId: newUserRef.id }, {});
-        }
-    });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -257,9 +222,6 @@ export function UserManagement() {
                 />
             </div>
             <div className='flex gap-2 self-end'>
-                <Button onClick={handleSeedDatabase} variant="outline">
-                    <Database className="mr-2" /> Seed
-                </Button>
                 <Button onClick={handleAddNew}>
                     <Plus className="mr-2" /> Add User
                 </Button>
@@ -343,7 +305,7 @@ export function UserManagement() {
                 ) : (
                 <TableRow>
                     <TableCell colSpan={7} className="text-center h-24">
-                        {searchQuery ? "No users found for your search." : "No users found. Click 'Seed Database' to add initial data."}
+                        {searchQuery ? "No users found for your search." : "No users found. Click 'Add User' to add initial data."}
                     </TableCell>
                 </TableRow>
                 )}
