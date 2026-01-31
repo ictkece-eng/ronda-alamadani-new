@@ -86,9 +86,8 @@ export const infoItems: InfoItem[] = [
   { id: 1, text: 'Mohon Maaf Bila Ada kesalahan Penulisan Nama, Alamat & No Hp (Mohon diinfokan ke Coord. Ronda)' },
   { id: 2, text: 'Mohon Maaf Jika Request Schedule Ronda tidak ter-akomodir, dan Hari Libur akan di Rotasi.' },
   { id: 3, text: 'Kegiatan Ronda Malam dilakukan Pada Jam 00:00 - 04:00 wib' },
-  { id: 4, text: 'Toleransi Kehadiran Ronda Paling Lambat 1 Jam, jika terlewat 1 jam sesuai kesepakatan dianggap tidak hadir' },
-  { id: 5, text: 'Jika Peserta Ronda tidak bisa hadir, Wajib mencari pengganti / Change Schedule atau Berkoordinasi dengan Coord. Ronda.' },
-  { id: 6, text: 'Untuk Penggantian Uang Ronda sebesar Rp. 50.000/orang/malam (Sesuai kesepakatan Musyawarah)' },
+  { id: 4, text: 'Jika Peserta Ronda tidak bisa hadir, Wajib mencari pengganti / Change Schedule atau Berkoordinasi dengan Coord. Ronda.' },
+  { id: 5, text: 'Untuk Penggantian Uang Ronda sebesar Rp. 50.000/orang/malam (Sesuai kesepakatan Musyawarah)' },
 ];
 
 
