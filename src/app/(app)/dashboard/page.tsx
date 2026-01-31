@@ -171,6 +171,7 @@ export default function DashboardPage() {
 
 
   let lastDate = '';
+  let dateGroupIndex = 0;
   
   const periodText = useMemo(() => {
     if (!selectedMonth) return '';
@@ -281,31 +282,43 @@ export default function DashboardPage() {
     });
 
     // --- Main Schedule Table ---
-    const mainTableBody: (string | number)[][] = [];
+    const mainTableBody: any[] = [];
     const groupedByDate = processedScheduleEntries.reduce((acc, entry) => {
         (acc[entry.hariTanggal] = acc[entry.hariTanggal] || []).push(entry);
         return acc;
     }, {} as Record<string, ScheduleEntry[]>);
 
     let rowSpans: { [key: number]: number } = {};
-    let rowIndex = 0;
+    let pdfRowIndex = 0;
     Object.keys(groupedByDate).forEach(date => {
         const entriesForDate = groupedByDate[date];
-        rowSpans[rowIndex] = entriesForDate.length;
-        entriesForDate.forEach((entry, index) => {
-            mainTableBody.push([
-                date,
-                entry.nama,
-                entry.blok,
-                entry.noHp,
-                entry.pengganti || '-',
-            ]);
-            rowIndex++;
+        const isJumat = date.startsWith('Jumat');
+        rowSpans[pdfRowIndex] = entriesForDate.length;
+        
+        entriesForDate.forEach((entry) => {
+            const row: any = {
+                hariTanggal: date,
+                nama: entry.nama,
+                blok: entry.blok,
+                noHp: entry.noHp,
+                pengganti: entry.pengganti || '-',
+            };
+            if (isJumat) {
+                row.styles = { fillColor: [254, 249, 195] };
+            }
+            mainTableBody.push(row);
+            pdfRowIndex++;
         });
     });
     
     doc.autoTable({
-        head: [['Hari, Tanggal', 'Nama', 'Blok', 'No HP', 'Pengganti Ronda']],
+        columns: [
+            { header: 'Hari, Tanggal', dataKey: 'hariTanggal' },
+            { header: 'Nama', dataKey: 'nama' },
+            { header: 'Blok', dataKey: 'blok' },
+            { header: 'No HP', dataKey: 'noHp' },
+            { header: 'Pengganti Ronda', dataKey: 'pengganti' },
+        ],
         body: mainTableBody,
         startY: 30,
         margin: { right: pageW - rightColX + 5, left: margin },
@@ -315,27 +328,28 @@ export default function DashboardPage() {
             textColor: 255, 
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 7,
-            cellPadding: 1,
+            fontSize: 8,
+            cellPadding: 1.5,
         },
         styles: { 
-            fontSize: 6.5,
-            cellPadding: 1,
+            fontSize: 7,
+            cellPadding: 1.5,
             lineWidth: 0.1, 
             lineColor: [221, 221, 221]
         },
         columnStyles: { 
-            0: { cellWidth: 25, fontStyle: 'bold' },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 8, halign: 'center' },
-            3: { cellWidth: 20 },
-            4: { cellWidth: 'auto' },
+            hariTanggal: { cellWidth: 25, fontStyle: 'bold' },
+            nama: { cellWidth: 'auto' },
+            blok: { cellWidth: 8, halign: 'center' },
+            noHp: { cellWidth: 20 },
+            pengganti: { cellWidth: 'auto' },
         },
         alternateRowStyles: {
             fillColor: [248, 249, 250]
         },
         didDrawCell: (data) => {
-            if (data.column.index === 0 && rowSpans[data.row.index]) {
+            // This logic handles the vertical merging of date cells
+            if (data.column.dataKey === 'hariTanggal' && rowSpans[data.row.index]) {
                 const span = rowSpans[data.row.index];
                 if (span > 1) {
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height * span, 'S');
@@ -343,15 +357,10 @@ export default function DashboardPage() {
                     doc.text(data.cell.text, data.cell.x + data.cell.padding('left'), textY, { valign: 'middle' });
                 }
             }
-
-            const originalDateText = mainTableBody[data.row.index]?.[0] as string;
-            if (data.section === 'body' && originalDateText && originalDateText.startsWith('Jumat')) {
-                doc.setFillColor(254, 249, 195);
-                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-            }
         },
          willDrawCell: (data) => {
-            if (data.column.index === 0 && data.row.index > 0 && mainTableBody[data.row.index][0] === mainTableBody[data.row.index - 1][0]) {
+            // This logic prevents drawing the date cell again for subsequent rows of the same date
+            if (data.column.dataKey === 'hariTanggal' && data.row.index > 0 && mainTableBody[data.row.index].hariTanggal === mainTableBody[data.row.index - 1].hariTanggal) {
                return false;
             }
         }
@@ -473,6 +482,10 @@ export default function DashboardPage() {
                       : processedScheduleEntries.length > 0 ? (
                         processedScheduleEntries.map((entry, index) => {
                           const showDate = entry.hariTanggal !== lastDate;
+                          if (showDate) {
+                            dateGroupIndex++;
+                          }
+                          const isEvenGroup = dateGroupIndex % 2 === 0;
                           const isJumat = entry.hariTanggal.startsWith('Jumat');
 
                           if (showDate) {
@@ -485,8 +498,12 @@ export default function DashboardPage() {
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  "transition-colors",
-                                  isJumat ? 'bg-yellow-100/50 dark:bg-yellow-900/20 hover:bg-yellow-100/70' : 'hover:bg-muted/50'
+                                  "transition-colors hover:bg-primary/10",
+                                  isJumat 
+                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                    : !isEvenGroup 
+                                    ? "bg-secondary" 
+                                    : ""
                                 )}
                               >
                                 <TableCell
@@ -513,8 +530,12 @@ export default function DashboardPage() {
                             <TableRow
                               key={index}
                               className={cn(
-                                "transition-colors",
-                                isJumat ? 'bg-yellow-100/50 dark:bg-yellow-900/20 hover:bg-yellow-100/70' : 'hover:bg-muted/50'
+                                "transition-colors hover:bg-primary/10",
+                                isJumat 
+                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                  : !isEvenGroup 
+                                  ? "bg-secondary" 
+                                  : ""
                               )}
                             >
                               <TableCell className="p-3">{entry.nama}</TableCell>
