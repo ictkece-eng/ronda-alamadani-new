@@ -91,12 +91,12 @@ service cloud.firestore {
     }
     
     /**
-     * @description Grants read-only access to all ronda schedules for any authenticated user.
+     * @description Grants read-only access to all ronda schedules for any user.
      * @path /{path=**}/rondaSchedules/{rondaScheduleId}
-     * @allow (list) Any authenticated user can list all schedules to populate the main dashboard.
+     * @allow (list) Any user (authenticated or not) can list all schedules to populate the main dashboard.
      */
     match /{path=**}/rondaSchedules/{rondaScheduleId} {
-        allow list: if isSignedIn();
+        allow list: if true;
     }
 
     // ------------------------------------------------------------------------
@@ -141,9 +141,9 @@ service cloud.firestore {
      */
     match /users/{userId}/scheduleRequests/{scheduleRequestId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isAdmin();
-      allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     /**
@@ -155,9 +155,9 @@ service cloud.firestore {
      */
     match /users/{userId}/rondaReplacements/{rondaReplacementId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if (isOwner(userId) || isAdmin());
+      allow update: if (isExistingOwner(userId) || isAdmin());
+      allow delete: if (isExistingOwner(userId) || isAdmin());
     }
 
     /**
