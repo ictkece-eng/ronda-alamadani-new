@@ -19,7 +19,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import { collection, collectionGroup } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileDown, Calendar as CalendarIcon, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { FileDown, Calendar as CalendarIcon, Image as ImageIcon, Loader2, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
@@ -96,6 +96,7 @@ export default function DashboardPage() {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   });
   const [isExportingPNG, setIsExportingPNG] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const usersCollection = useMemoFirebase(
     () => (firestore ? collection(firestore, 'users') : null),
@@ -129,7 +130,7 @@ export default function DashboardPage() {
 
     const usersMap = new Map(users.map((user) => [user.id, user]));
 
-    const scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
+    let scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
         const user = usersMap.get(schedule.userId);
         const scheduleDate = new Date(schedule.date);
         return {
@@ -141,6 +142,14 @@ export default function DashboardPage() {
             pengganti: schedule.replacementUserName || undefined,
         }
     }).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        scheduleEntries = scheduleEntries.filter(entry => 
+            entry.nama.toLowerCase().includes(lowercasedQuery) ||
+            (entry.pengganti && entry.pengganti.toLowerCase().includes(lowercasedQuery))
+        );
+    }
 
 
     const backups = users
@@ -158,7 +167,7 @@ export default function DashboardPage() {
         .sort((a, b) => a.nama.localeCompare(b.nama));
 
     return { processedScheduleEntries: scheduleEntries, backupPersons: backups, coordinatorPersons: coordinators };
-  }, [users, allSchedules, selectedMonth]);
+  }, [users, allSchedules, selectedMonth, searchQuery]);
 
 
   let lastDate = '';
@@ -376,22 +385,30 @@ export default function DashboardPage() {
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
-                <h1 className="text-2xl md:text-3xl font-bold">Dashboard Jadwal Ronda</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard Jadwal Ronda</h1>
                 <p className="text-muted-foreground">Lihat, kelola, dan ekspor jadwal ronda bulanan.</p>
             </div>
-            <div className="flex items-center gap-2 self-start sm:self-center">
-                <div className="w-48">
+            <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
+                 <div className="relative w-full sm:w-48">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="search-name"
+                        placeholder="Cari nama..."
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+                <div className="relative w-full sm:w-48">
                     <Label htmlFor="month-picker" className="sr-only">Pilih Bulan</Label>
-                    <div className='relative'>
-                        <CalendarIcon className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-                        <Input
-                            id="month-picker"
-                            type="month"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            className='pl-8'
-                        />
-                    </div>
+                    <CalendarIcon className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        id="month-picker"
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className='pl-8'
+                    />
                 </div>
                  <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={isLoading || processedScheduleEntries.length === 0}>
                     <FileDown />
@@ -517,7 +534,7 @@ export default function DashboardPage() {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center h-24">
-                            Jadwal untuk bulan ini belum dibuat.
+                            {searchQuery ? "Nama tidak ditemukan pada jadwal bulan ini." : "Jadwal untuk bulan ini belum dibuat."}
                           </TableCell>
                         </TableRow>
                       )}
