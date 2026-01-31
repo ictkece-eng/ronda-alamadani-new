@@ -9,7 +9,6 @@ import {
   useFirestore,
   useMemoFirebase,
   setDocumentNonBlocking,
-  updateDocumentNonBlocking,
 } from '@/firebase';
 import { collection, collectionGroup, doc, query } from 'firebase/firestore';
 import type { ScheduleRequest, Warga } from '@/lib/types';
@@ -33,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
@@ -54,7 +54,7 @@ export function ScheduleRequests() {
     () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
     [firestore]
   );
-  const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+  const { data: requests, isLoading: isRequestsLoading, error: requestsError } = useCollection<ScheduleRequest>(requestsQuery);
   
   const usersQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'users') : null),
@@ -103,7 +103,8 @@ export function ScheduleRequests() {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
     
-    updateDocumentNonBlocking(requestRef, { status: status });
+    // In a real scenario, you'd also update the main schedule here if approved
+    setDocumentNonBlocking(requestRef, { status: status }, { merge: true });
     
     toast({ title: 'Success', description: `Request status updated to ${status}.` });
   };
@@ -116,13 +117,13 @@ export function ScheduleRequests() {
     try {
       const requestsCol = collection(firestore, 'users', userId, 'scheduleRequests');
       const newRequestRef = doc(requestsCol);
-      const newRequestData = {
+      const newRequestData: Omit<ScheduleRequest, 'rondaScheduleId' | 'currentScheduleDate'> = {
         id: newRequestRef.id,
         userId: userId,
         requestDate: new Date().toISOString(),
         requestedScheduleDate: new Date(requestedDate).toISOString(),
         reason: reason,
-        status: 'pending' as 'pending' | 'approved' | 'rejected',
+        status: 'pending' as 'pending',
       };
 
       setDocumentNonBlocking(newRequestRef, newRequestData, {});
@@ -142,6 +143,8 @@ export function ScheduleRequests() {
 
   // Derived state for user search
   const selectedUserId = watch('userId');
+  const watchedDate = watch('requestedDate');
+  
   const selectedUser = useMemo(() => {
     return users?.find(u => u.id === selectedUserId);
   }, [users, selectedUserId]);
@@ -156,6 +159,17 @@ export function ScheduleRequests() {
           user.phone.toLowerCase().includes(userSearch.toLowerCase())
       ) ?? [];
   }, [userSearch, users, selectedUser]);
+  
+  const requestsForSelectedDate = useMemo(() => {
+    if (!watchedDate || !processedRequests) return [];
+    // Normalize dates to ignore time part
+    const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
+    return processedRequests.filter(req => {
+        const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
+        // Only count pending or approved, not rejected
+        return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
+    });
+  }, [watchedDate, processedRequests]);
 
   return (
     <>
@@ -173,6 +187,14 @@ export function ScheduleRequests() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {requestsError && (
+          <Alert variant="destructive">
+            <AlertTitle>Loading Error</AlertTitle>
+            <AlertDescription>
+              Could not load schedule requests due to a permission error. The security rules may need adjustment.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="border rounded-lg overflow-hidden">
             <Table>
             <TableHeader>
@@ -335,6 +357,19 @@ export function ScheduleRequests() {
                             </FormItem>
                         )}
                     />
+                     {requestsForSelectedDate.length >= 3 && (
+                        <Alert variant="destructive">
+                            <AlertTitle>Tanggal Penuh</AlertTitle>
+                            <AlertDescription>
+                                Tanggal ini sudah dipilih oleh 3 orang:
+                                <ul className="list-disc pl-5 mt-2">
+                                    {requestsForSelectedDate.map(req => (
+                                        <li key={req.id}>{req.userName}</li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
                      <FormField
                         control={form.control}
                         name="reason"
@@ -350,7 +385,7 @@ export function ScheduleRequests() {
                     />
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={formState.isSubmitting}>
+                        <Button type="submit" disabled={formState.isSubmitting || requestsForSelectedDate.length >= 3}>
                         {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Create Request
                         </Button>

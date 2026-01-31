@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,9 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, collectionGroup } from 'firebase/firestore';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import type { ScheduleRequest, Warga } from '@/lib/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 const requestSchema = z.object({
   requestedDate: z.string().min(1, 'Requested date is required'),
@@ -32,7 +36,41 @@ export function RequestForm() {
     }
   });
 
-  const { formState, handleSubmit, reset } = form;
+  const { formState, handleSubmit, reset, watch } = form;
+  const watchedDate = watch('requestedDate');
+
+  const requestsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore]
+  );
+  const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+
+  const usersQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'users') : null),
+    [firestore]
+  );
+  const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
+
+  const usersMap = useMemo(() => {
+    if (!users) return new Map<string, string>();
+    return new Map(users.map(user => [user.id, user.name]));
+  }, [users]);
+
+  const requestsForSelectedDate = useMemo(() => {
+    if (!watchedDate || !requests) return [];
+    const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
+    return requests
+        .filter(req => {
+            const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
+            return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
+        })
+        .map(req => ({
+            ...req,
+            userName: usersMap.get(req.userId) || 'Unknown User'
+        }));
+  }, [watchedDate, requests, usersMap]);
+
+  const isLoading = isUserLoading || isRequestsLoading || isUsersLoading;
 
   const onSubmit = async (values: RequestFormValues) => {
     if (!user || !firestore) {
@@ -44,7 +82,7 @@ export function RequestForm() {
         const requestsCol = collection(firestore, 'users', user.uid, 'scheduleRequests');
         const newRequestRef = doc(requestsCol);
 
-        const newRequestData = {
+        const newRequestData: Omit<ScheduleRequest, 'rondaScheduleId' | 'currentScheduleDate'> = {
             id: newRequestRef.id,
             userId: user.uid,
             requestDate: new Date().toISOString(),
@@ -67,7 +105,7 @@ export function RequestForm() {
     }
   };
 
-  if (isUserLoading) {
+  if (isLoading) {
     return <div className='flex justify-center'><Loader2 className='animate-spin'/></div>
   }
 
@@ -78,7 +116,7 @@ export function RequestForm() {
 
   return (
     <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <FormField
                 control={form.control}
                 name="requestedDate"
@@ -92,6 +130,21 @@ export function RequestForm() {
                     </FormItem>
                 )}
             />
+
+            {requestsForSelectedDate.length >= 3 && (
+                <Alert variant="destructive">
+                    <AlertTitle>Tanggal Penuh</AlertTitle>
+                    <AlertDescription>
+                        Tanggal ini sudah dipilih oleh 3 orang:
+                        <ul className="list-disc pl-5 mt-2">
+                            {requestsForSelectedDate.map(req => (
+                                <li key={req.id}>{req.userName}</li>
+                            ))}
+                        </ul>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <FormField
                 control={form.control}
                 name="reason"
@@ -105,7 +158,7 @@ export function RequestForm() {
                     </FormItem>
                 )}
             />
-            <Button type="submit" disabled={formState.isSubmitting || isUserLoading}>
+            <Button type="submit" disabled={formState.isSubmitting || isLoading || requestsForSelectedDate.length >= 3}>
                 {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit Request
             </Button>
