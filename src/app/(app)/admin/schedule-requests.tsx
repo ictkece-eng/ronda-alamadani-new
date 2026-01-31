@@ -23,7 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, ThumbsDown, ThumbsUp, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -33,9 +33,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn } from '@/lib/utils';
 
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
@@ -43,7 +40,7 @@ type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
 const ITEMS_PER_PAGE = 10;
 
 const newRequestSchema = z.object({
-  userId: z.string({ required_error: 'Please select a user.' }),
+  userId: z.string({ required_error: 'Please select a user.' }).min(1, 'Please select a user.'),
   currentDate: z.string().min(1, 'Current schedule date is required.'),
   requestedDate: z.string().min(1, 'New requested date is required.'),
   reason: z.string().min(1, 'Reason is required.').max(200, 'Reason cannot exceed 200 characters.'),
@@ -68,16 +65,19 @@ export function ScheduleRequests() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
 
   const form = useForm<NewRequestFormValues>({
     resolver: zodResolver(newRequestSchema),
     defaultValues: {
+        userId: '',
+        currentDate: '',
+        requestedDate: '',
         reason: '',
     },
   });
 
-  const { formState, handleSubmit, reset } = form;
+  const { formState, handleSubmit, reset, watch } = form;
 
   const usersMap = useMemo(() => {
     if (!users) return new Map<string, string>();
@@ -175,6 +175,22 @@ export function ScheduleRequests() {
     }
   };
 
+  // Derived state for user search
+  const selectedUserId = watch('userId');
+  const selectedUser = useMemo(() => {
+    return users?.find(u => u.id === selectedUserId);
+  }, [users, selectedUserId]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch || (selectedUser && selectedUser.name === userSearch)) {
+      return [];
+    }
+    return users?.filter(
+        user =>
+          user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+          user.phone.toLowerCase().includes(userSearch.toLowerCase())
+      ) ?? [];
+  }, [userSearch, users, selectedUser]);
 
   return (
     <>
@@ -185,7 +201,7 @@ export function ScheduleRequests() {
                 <CardTitle>Manage Schedule Requests</CardTitle>
                 <CardDescription>Approve or reject ronda schedule change requests from warga.</CardDescription>
             </div>
-            <Button className="self-end sm:self-center" onClick={() => { reset(); setIsCreateDialogOpen(true); }}>
+            <Button className="self-end sm:self-center" onClick={() => { reset(); setUserSearch(''); setIsCreateDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Request Jadwal
             </Button>
@@ -286,7 +302,13 @@ export function ScheduleRequests() {
         )}
     </Card>
 
-    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+    <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => {
+        setIsCreateDialogOpen(isOpen);
+        if (!isOpen) {
+            reset();
+            setUserSearch('');
+        }
+    }}>
         <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
                 <DialogTitle>Create New Schedule Request</DialogTitle>
@@ -295,68 +317,44 @@ export function ScheduleRequests() {
                 </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-                <form onSubmit={handleSubmit(onCreateSubmit)} className="space-y-4 py-4">
+                <form onSubmit={handleSubmit(onCreateSubmit)} className="space-y-6 py-4">
                     <FormField
                         control={form.control}
                         name="userId"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel>User / Warga</FormLabel>
-                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={isComboboxOpen}
-                                                className={cn(
-                                                    "w-full justify-between",
-                                                    !field.value && "text-muted-foreground"
-                                                )}
-                                            >
-                                                {field.value
-                                                    ? users?.find(
-                                                        (user) => user.id === field.value
-                                                    )?.name
-                                                    : "Select user..."}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command>
-                                            <CommandInput placeholder="Search user by name or phone..." />
-                                            <CommandList>
-                                                <CommandEmpty>No user found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {users?.map((user) => (
-                                                        <CommandItem
-                                                            value={`${user.name} ${user.phone}`}
-                                                            key={user.id}
-                                                            onSelect={() => {
-                                                                form.setValue("userId", user.id)
-                                                                setIsComboboxOpen(false)
-                                                            }}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    "mr-2 h-4 w-4",
-                                                                    user.id === field.value
-                                                                        ? "opacity-100"
-                                                                        : "opacity-0"
-                                                                )}
-                                                            />
-                                                            <div>
-                                                                <p className="font-medium">{user.name}</p>
-                                                                <p className="text-xs text-muted-foreground">{user.phone}</p>
-                                                            </div>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                                <div className="relative">
+                                    <FormControl>
+                                        <Input
+                                            placeholder="Search user by name or phone..."
+                                            value={userSearch || selectedUser?.name || ''}
+                                            onChange={e => {
+                                                setUserSearch(e.target.value);
+                                                if (field.value) {
+                                                    form.setValue('userId', '');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    {filteredUsers.length > 0 && (
+                                        <div className="absolute top-full mt-1 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md max-h-48 overflow-y-auto">
+                                            {filteredUsers.map(user => (
+                                                <div
+                                                    key={user.id}
+                                                    className="cursor-pointer p-2 hover:bg-accent"
+                                                    onClick={() => {
+                                                        form.setValue('userId', user.id, { shouldValidate: true });
+                                                        setUserSearch(user.name);
+                                                    }}
+                                                >
+                                                    <p className="font-medium">{user.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{user.phone}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                         )}
