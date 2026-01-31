@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Loader2, Wand2, Save, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Warga, ScheduleRequest } from '@/lib/types';
+import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
 import { collection, writeBatch, doc, query, collectionGroup, where, getDocs } from 'firebase/firestore';
 import {
     AlertDialog,
@@ -38,6 +38,8 @@ export function GenerateScheduleForm() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [hasExistingSchedule, setHasExistingSchedule] = useState(false);
+
 
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -53,8 +55,14 @@ export function GenerateScheduleForm() {
     [firestore]
   );
   const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+
+  const schedulesQuery = useMemoFirebase(
+    () => (firestore ? collectionGroup(firestore, 'rondaSchedules') : null),
+    [firestore]
+  );
+  const { data: allSchedules, isLoading: isSchedulesLoading } = useCollection<RondaSchedule>(schedulesQuery);
   
-  const isLoading = isUsersLoading || isRequestsLoading;
+  const isLoading = isUsersLoading || isRequestsLoading || isSchedulesLoading;
 
   const availableParticipants = useMemo(() => {
     if (!users) {
@@ -89,6 +97,58 @@ export function GenerateScheduleForm() {
     if (!users) return new Map<string, Warga>();
     return new Map(users.map((user) => [user.id, user]));
   }, [users]);
+
+  // Load existing schedule when month changes
+  useEffect(() => {
+    // Do nothing if data is not ready
+    if (!month || !allSchedules || !usersIdMap.size) {
+        setGeneratedSchedule(null);
+        setHasExistingSchedule(false);
+        return;
+    }
+
+    const [year, monthNum] = month.split('-').map(Number);
+    const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+    const endDate = new Date(Date.UTC(year, monthNum, 1));
+
+    // Filter schedules for the selected month
+    const schedulesForMonth = allSchedules.filter(schedule => {
+        const scheduleDate = new Date(schedule.date);
+        return scheduleDate >= startDate && scheduleDate < endDate;
+    });
+
+    if (schedulesForMonth.length > 0) {
+        // Group by date
+        const groupedByDate = schedulesForMonth.reduce((acc, schedule) => {
+            const dateStr = new Date(schedule.date).toISOString().split('T')[0];
+            if (!acc[dateStr]) {
+                acc[dateStr] = [];
+            }
+            const userName = usersIdMap.get(schedule.userId)?.name;
+            if (userName && !acc[dateStr].includes(userName)) {
+                acc[dateStr].push(userName);
+            }
+            return acc;
+        }, {} as Record<string, string[]>);
+
+        // Convert to GeneratedSchedule[] format
+        const loadedSchedule: GeneratedSchedule[] = Object.entries(groupedByDate).map(([date, participants]) => ({
+            date: date,
+            participants: participants.sort(),
+        })).sort((a, b) => a.date.localeCompare(b.date));
+
+        setGeneratedSchedule(loadedSchedule);
+        setHasExistingSchedule(true);
+        toast({
+            title: "Jadwal Ditemukan",
+            description: `Jadwal untuk bulan ${format(startDate, 'MMMM yyyy', { locale: idLocale })} telah dimuat dari database.`,
+        });
+    } else {
+        setGeneratedSchedule(null);
+        setHasExistingSchedule(false);
+    }
+  }, [month, allSchedules, usersIdMap, toast]);
+
 
   const handleGenerateClick = () => {
     if (!month) {
@@ -246,6 +306,7 @@ export function GenerateScheduleForm() {
             }
 
             setGeneratedSchedule(newSchedule);
+            setHasExistingSchedule(newSchedule.length > 0);
             toast({
                 title: "Success!",
                 description: "Schedule generated, incorporating approved requests and avoiding block clashes.",
@@ -294,8 +355,8 @@ export function GenerateScheduleForm() {
 
 
   const handleSaveSchedule = async () => {
-    if (!generatedSchedule || !firestore || !usersMap.size) {
-        toast({ title: 'Error', description: 'No schedule to save or user data not loaded.', variant: 'destructive'});
+    if (!generatedSchedule || !firestore || !usersMap.size || !month || !users) {
+        toast({ title: 'Error', description: 'No schedule to save, user data not loaded, or month not selected.', variant: 'destructive'});
         return;
     }
 
@@ -303,6 +364,23 @@ export function GenerateScheduleForm() {
     try {
         const batch = writeBatch(firestore);
 
+        // --- 1. Find and delete existing entries for the month ---
+        const [year, monthNum] = month.split('-').map(Number);
+        const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+        const endDate = new Date(Date.UTC(year, monthNum, 1));
+
+        const schedulesColGroup = collectionGroup(firestore, 'rondaSchedules');
+        const schedulesToDeleteQuery = query(
+            schedulesColGroup,
+            where('date', '>=', startDate.toISOString()),
+            where('date', '<', endDate.toISOString())
+        );
+        const querySnapshot = await getDocs(schedulesToDeleteQuery);
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // --- 2. Add new entries from the generatedSchedule state ---
         for (const day of generatedSchedule) {
             if (!day.date || !day.participants) continue; 
             const utcDate = new Date(day.date + 'T00:00:00Z');
@@ -326,7 +404,7 @@ export function GenerateScheduleForm() {
         
         await batch.commit();
         toast({ title: 'Success!', description: 'Ronda schedule has been saved to the database.' });
-        setGeneratedSchedule(null); // Clear after saving
+        setHasExistingSchedule(true);
     } catch (error) {
         console.error("Error saving schedule:", error);
         toast({ title: 'Save Failed', description: 'Could not save the schedule to the database.', variant: 'destructive' });
@@ -378,6 +456,8 @@ export function GenerateScheduleForm() {
             title: "Success!",
             description: `Successfully deleted ${deletedCount} schedule entries for ${month}.`,
         });
+        setGeneratedSchedule(null);
+        setHasExistingSchedule(false);
         
     } catch (error) {
         console.error("Error clearing schedule:", error);
@@ -405,14 +485,14 @@ export function GenerateScheduleForm() {
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading || isClearing} className="flex-grow sm:flex-grow-0">
+          <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading || isClearing || !month} className="flex-grow sm:flex-grow-0">
             {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
-            Generate Schedule
+            {hasExistingSchedule ? 'Regenerate' : 'Generate'} Schedule
           </Button>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isClearing || isLoading || !month} className="flex-grow sm:flex-grow-0">
+                <Button variant="destructive" disabled={isClearing || isLoading || !month || !hasExistingSchedule} className="flex-grow sm:flex-grow-0">
                     {isClearing ? <Loader2 className="animate-spin" /> : <Trash2 />}
                     Clear Schedule
                 </Button>
@@ -433,9 +513,18 @@ export function GenerateScheduleForm() {
         </div>
 
         {isLoading && (
-            <p className="text-sm text-muted-foreground">Loading user and request data...</p>
+            <p className="text-sm text-muted-foreground">Loading user and schedule data...</p>
         )}
-        {!isLoading && (availableParticipants.length < 3) && (
+        {!isLoading && !month && (
+             <Alert>
+                <Wand2 className="h-4 w-4" />
+                <AlertTitle>Select a Month</AlertTitle>
+                <AlertDescription>
+                Please select a month to view, generate, or manage a schedule.
+                </AlertDescription>
+            </Alert>
+        )}
+        {!isLoading && month && (availableParticipants.length < 3) && (
             <Alert variant="destructive">
                 <AlertTitle>Missing Data</AlertTitle>
                 <AlertDescription>
@@ -495,12 +584,12 @@ export function GenerateScheduleForm() {
                 </Button>
             </CardFooter>
           </Card>
-        ) : (
+        ) : ( month && !isLoading &&
              <Alert>
                 <Wand2 className="h-4 w-4" />
                 <AlertTitle>Awaiting Generation</AlertTitle>
                 <AlertDescription>
-                Select a month and click 'Generate' to create a fair and balanced ronda schedule. The generated schedule will appear here for review before saving.
+                {hasExistingSchedule ? 'Loading schedule...' : "No schedule exists for this month. Click 'Generate' to create a fair and balanced ronda schedule."}
                 </AlertDescription>
             </Alert>
         )}
