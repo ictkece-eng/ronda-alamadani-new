@@ -6,6 +6,7 @@ import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
 import { Activity, Users, FileText, GitPullRequest } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
+import { ReplacementManagement } from './replacement-management';
 
 export function AdminTabs() {
     return (
@@ -50,15 +51,7 @@ export function AdminTabs() {
         </TabsContent>
 
         <TabsContent value="replacements" className="mt-6">
-           <Card>
-            <CardHeader>
-              <CardTitle>Manage Replacements</CardTitle>
-              <CardDescription>Manage user replacements for ronda duties.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Replacement management interface will be available here soon.</p>
-            </CardContent>
-          </Card>
+           <ReplacementManagement />
         </TabsContent>
       </Tabs>
     );

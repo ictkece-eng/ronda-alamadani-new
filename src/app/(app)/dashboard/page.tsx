@@ -156,6 +156,7 @@ export default function DashboardPage() {
             nama: user?.name || 'Unknown User',
             blok: user?.address || '-',
             noHp: user?.phone || '-',
+            pengganti: schedule.replacementUserName || undefined,
         }
     }).sort((a, b) => a.date.getTime() - b.date.getTime());
 

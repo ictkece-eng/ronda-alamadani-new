@@ -76,6 +76,14 @@
         "endTime": {
           "type": "string",
           "description": "End time of the ronda (e.g., '06:00')."
+        },
+        "replacementUserId": {
+          "type": "string",
+          "description": "Reference to the User who is replacing the original user for this shift."
+        },
+        "replacementUserName": {
+          "type": "string",
+          "description": "Name of the replacing user, stored for easy display."
         }
       },
       "required": [

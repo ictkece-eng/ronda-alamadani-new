@@ -70,4 +70,6 @@ export type RondaSchedule = {
     date: string; // ISO String
     startTime: string;
     endTime: string;
+    replacementUserId?: string;
+    replacementUserName?: string;
 }
