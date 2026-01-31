@@ -9,6 +9,7 @@ import {
   useFirestore,
   useMemoFirebase,
   setDocumentNonBlocking,
+  updateDocumentNonBlocking,
 } from '@/firebase';
 import { collection, collectionGroup, doc, query, where, getDocs, limit } from 'firebase/firestore';
 import type { ScheduleRequest, Warga } from '@/lib/types';
@@ -104,10 +105,14 @@ export function ScheduleRequests() {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
     
-    // We keep all original data and just update the status
     const updatedData = { ...request, status };
-
     setDocumentNonBlocking(requestRef, updatedData, { merge: true });
+
+    // If approved, update the actual schedule document
+    if (status === 'approved') {
+        const scheduleRef = doc(firestore, 'users', request.userId, 'rondaSchedules', request.rondaScheduleId);
+        updateDocumentNonBlocking(scheduleRef, { date: request.requestedScheduleDate });
+    }
     
     toast({ title: 'Success', description: `Request status updated to ${status}.` });
   };
@@ -297,7 +302,7 @@ export function ScheduleRequests() {
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel>User / Warga</FormLabel>
-                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen} modal={false}>
                                     <PopoverTrigger asChild>
                                         <FormControl>
                                             <Button
