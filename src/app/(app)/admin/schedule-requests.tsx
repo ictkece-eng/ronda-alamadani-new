@@ -302,7 +302,7 @@ export function ScheduleRequests() {
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel>User / Warga</FormLabel>
-                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen} modal={false}>
+                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
                                     <PopoverTrigger asChild>
                                         <FormControl>
                                             <Button
