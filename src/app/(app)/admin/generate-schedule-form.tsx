@@ -125,31 +125,63 @@ export function GenerateScheduleForm() {
             });
 
 
-            // --- 2. Fill remaining slots fairly ---
+            // --- 2. Fill remaining slots fairly and avoid block clashes ---
             for (let day = 0; day < daysInMonth; day++) {
                 const currentDate = new Date(Date.UTC(year, monthNum - 1, day + 1));
                 const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
                 const targetParticipants = isWeekend ? 3 : 2;
                 
-                const needed = targetParticipants - dailyAssignments[day].length;
+                let needed = targetParticipants - dailyAssignments[day].length;
 
                 if (needed > 0) {
-                    const candidates = [...availableParticipants].filter(p => !dailyAssignments[day].includes(p));
+                    let candidates = [...availableParticipants].filter(p => !dailyAssignments[day].includes(p));
                     
-                    const sortedCandidates = candidates.sort((a, b) => {
-                         const countA = shiftCounts.get(a) ?? 0;
-                         const countB = shiftCounts.get(b) ?? 0;
-                         if (countA !== countB) return countA - countB;
-                         return Math.random() - 0.5; // Randomize tie-breaking
-                    });
-                    
-                    const newAssignments = sortedCandidates.slice(0, needed);
-                    
-                    newAssignments.forEach(p => {
-                        dailyAssignments[day].push(p);
-                        shiftCounts.set(p, (shiftCounts.get(p) ?? 0) + 1);
-                    });
+                    const assignedBlocksThisDay = new Set(
+                        dailyAssignments[day].map(name => {
+                            const user = usersMap.get(name.toLowerCase());
+                            return user?.address ? user.address.charAt(0).toUpperCase() : null;
+                        }).filter(Boolean)
+                    );
+
+                    for (let i = 0; i < needed; i++) {
+                        if (candidates.length === 0) break;
+
+                        candidates.sort((a, b) => {
+                            const userA = usersMap.get(a.toLowerCase());
+                            const userB = usersMap.get(b.toLowerCase());
+                            
+                            const blockA = userA?.address ? userA.address.charAt(0).toUpperCase() : null;
+                            const blockB = userB?.address ? userB.address.charAt(0).toUpperCase() : null;
+
+                            const scoreA_block = (blockA && assignedBlocksThisDay.has(blockA)) ? 1 : 0;
+                            const scoreB_block = (blockB && assignedBlocksThisDay.has(blockB)) ? 1 : 0;
+
+                            if (scoreA_block !== scoreB_block) {
+                                return scoreA_block - scoreB_block;
+                            }
+
+                            const countA = shiftCounts.get(a) ?? 0;
+                            const countB = shiftCounts.get(b) ?? 0;
+                            if (countA !== countB) {
+                                return countA - countB;
+                            }
+
+                            return Math.random() - 0.5;
+                        });
+                        
+                        const bestCandidate = candidates[0];
+                        dailyAssignments[day].push(bestCandidate);
+                        shiftCounts.set(bestCandidate, (shiftCounts.get(bestCandidate) ?? 0) + 1);
+
+                        const bestCandidateUser = usersMap.get(bestCandidate.toLowerCase());
+                        const bestCandidateBlock = bestCandidateUser?.address ? bestCandidateUser.address.charAt(0).toUpperCase() : null;
+                        if (bestCandidateBlock) {
+                            assignedBlocksThisDay.add(bestCandidateBlock);
+                        }
+                        
+                        candidates = candidates.filter(p => p !== bestCandidate);
+                    }
                 }
             }
             
@@ -165,7 +197,7 @@ export function GenerateScheduleForm() {
             setGeneratedSchedule(newSchedule);
             toast({
                 title: "Success!",
-                description: "Schedule generated, incorporating approved requests. Review and save.",
+                description: "Schedule generated, incorporating approved requests and avoiding block clashes.",
             });
 
         } catch (e) {
