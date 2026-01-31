@@ -115,8 +115,8 @@ export function GenerateScheduleForm() {
 
             // --- 2. Fill remaining slots fairly ---
             for (let day = 0; day < daysInMonth; day++) {
-                const currentDate = new Date(year, monthNum - 1, day + 1);
-                const dayOfWeek = currentDate.getDay(); // 0=Sun, 5=Fri, 6=Sat
+                const currentDate = new Date(Date.UTC(year, monthNum - 1, day + 1));
+                const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
                 const targetParticipants = isWeekend ? 3 : 2;
                 
@@ -143,7 +143,7 @@ export function GenerateScheduleForm() {
             
             // --- 3. Final Assembly ---
             for (let day = 0; day < daysInMonth; day++) {
-                const date = new Date(year, monthNum - 1, day + 1);
+                const date = new Date(Date.UTC(year, monthNum - 1, day + 1));
                 newSchedule.push({
                     date: date.toISOString().split('T')[0],
                     participants: dailyAssignments[day].sort(), // Sort names alphabetically for consistency
@@ -182,9 +182,8 @@ export function GenerateScheduleForm() {
 
         for (const day of generatedSchedule) {
             if (!day.date || !day.participants) continue; 
-            const scheduleDate = new Date(day.date);
-            // Adjust for timezone offset to prevent date shifting
-            const utcDate = new Date(scheduleDate.getTime() + scheduleDate.getTimezoneOffset() * 60000);
+            // Directly parse YYYY-MM-DD string as UTC date to avoid timezone issues
+            const utcDate = new Date(day.date + 'T00:00:00Z');
             if (isNaN(utcDate.getTime())) continue;
 
             for (const participantName of day.participants) {
