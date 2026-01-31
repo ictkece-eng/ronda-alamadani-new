@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { Combobox } from '@/components/ui/combobox';
 
 // Combined type for easier handling
 type ScheduleWithUser = RondaSchedule & {
@@ -51,6 +51,24 @@ export function ReplacementManagement() {
         return new Map(allUsers.map((user) => [user.id, user]));
     }, [allUsers]);
 
+    const dailyScheduledIds = useMemo(() => {
+        const map = new Map<string, Set<string>>();
+        if (!allSchedules) return map;
+
+        for (const schedule of allSchedules) {
+            const dateStr = new Date(schedule.date).toISOString().split('T')[0];
+            if (!map.has(dateStr)) {
+                map.set(dateStr, new Set());
+            }
+            const dailySet = map.get(dateStr)!;
+            dailySet.add(schedule.userId);
+            if (schedule.replacementUserId) {
+                dailySet.add(schedule.replacementUserId);
+            }
+        }
+        return map;
+    }, [allSchedules]);
+
     const schedulesForMonth = useMemo(() => {
         if (!allSchedules || !usersMap.size) return [];
         
@@ -75,11 +93,28 @@ export function ReplacementManagement() {
     const handleReplacementChange = (schedule: ScheduleWithUser, newReplacementId: string) => {
         if (!firestore) return;
 
-        const scheduleRef = doc(firestore, 'users', schedule.userId, 'rondaSchedules', schedule.id);
-        
-        const isClearing = newReplacementId === 'clear';
+        const isClearing = newReplacementId === 'clear' || !newReplacementId;
         const replacementUser = isClearing ? null : usersMap.get(newReplacementId);
 
+        // --- CONSECUTIVE DAY CHECK ---
+        if (replacementUser) {
+            const currentScheduleDate = new Date(schedule.date);
+            const previousDate = subDays(currentScheduleDate, 1);
+            const previousDateStr = previousDate.toISOString().split('T')[0];
+
+            const previousDayIds = dailyScheduledIds.get(previousDateStr);
+            if (previousDayIds && previousDayIds.has(replacementUser.id)) {
+                 toast({
+                    title: 'Peringatan Jadwal Berurutan',
+                    description: `${replacementUser.name} sudah bertugas pada hari sebelumnya. Sebaiknya istirahat dulu.`,
+                    duration: 5000,
+                });
+            }
+        }
+        // --- END CHECK ---
+
+        const scheduleRef = doc(firestore, 'users', schedule.userId, 'rondaSchedules', schedule.id);
+        
         const updateData = {
             replacementUserId: replacementUser ? replacementUser.id : null,
             replacementUserName: replacementUser ? replacementUser.name : null,
@@ -92,10 +127,6 @@ export function ReplacementManagement() {
             description: `${schedule.userName}'s shift on ${format(new Date(schedule.date), 'PPP')} will be covered by ${replacementUser ? replacementUser.name : 'no one'}.`,
         });
     };
-
-    const replacementOptions = useMemo(() => {
-        return allUsers?.sort((a,b) => a.name.localeCompare(b.name)) || [];
-    }, [allUsers])
 
     return (
         <Card>
@@ -128,7 +159,7 @@ export function ReplacementManagement() {
                             {isLoading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i}>
-                                        <TableCell colSpan={3}><Skeleton className="h-6 w-full" /></TableCell>
+                                        <TableCell colSpan={3}><Skeleton className="h-8 w-full" /></TableCell>
                                     </TableRow>
                                 ))
                             ) : schedulesForMonth.length > 0 ? (
@@ -142,24 +173,24 @@ export function ReplacementManagement() {
                                             <div className="text-sm text-muted-foreground">{schedule.userAddress}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <Select
+                                            <Combobox
                                                 value={schedule.replacementUserId || ''}
                                                 onValueChange={(newId) => handleReplacementChange(schedule, newId)}
-                                            >
-                                                <SelectTrigger className="w-[200px]">
-                                                    <SelectValue placeholder="Select replacement..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="clear">
-                                                        <span className="text-muted-foreground">-- No Replacement --</span>
-                                                    </SelectItem>
-                                                    {replacementOptions.filter(u => u.id !== schedule.userId).map(user => (
-                                                        <SelectItem key={user.id} value={user.id}>
-                                                            {user.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                                options={[
+                                                    { value: 'clear', label: '-- No Replacement --'},
+                                                    ...(allUsers
+                                                            ?.filter(u => u.id !== schedule.userId)
+                                                            .sort((a,b) => a.name.localeCompare(b.name))
+                                                            .map(user => ({
+                                                                value: user.id,
+                                                                label: user.name,
+                                                            })) || [])
+                                                ]}
+                                                placeholder="Pilih pengganti..."
+                                                searchPlaceholder="Cari pengganti..."
+                                                emptyPlaceholder="Warga tidak ditemukan."
+                                                className="w-[200px]"
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))
