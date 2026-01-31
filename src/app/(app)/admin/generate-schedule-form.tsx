@@ -9,8 +9,8 @@ import { useState, useMemo } from 'react';
 import { Loader2, Wand2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Warga } from '@/lib/types';
-import { collection, writeBatch, doc } from 'firebase/firestore';
+import type { Warga, ScheduleRequest } from '@/lib/types';
+import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
 
 type GeneratedSchedule = {
   date: string;
@@ -32,6 +32,14 @@ export function GenerateScheduleForm() {
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
+  const requestsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore]
+  );
+  const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+  
+  const isLoading = isUsersLoading || isRequestsLoading;
+
   const availableParticipants = useMemo(() => {
     if (!users) {
         return [];
@@ -50,6 +58,11 @@ export function GenerateScheduleForm() {
     if (!users) return new Map<string, Warga>();
     return new Map(users.map((user) => [user.name.toLowerCase(), user]));
   }, [users]);
+  
+  const usersIdMap = useMemo(() => {
+    if (!users) return new Map<string, Warga>();
+    return new Map(users.map((user) => [user.id, user]));
+  }, [users]);
 
   const handleGenerateClick = () => {
     if (!month) {
@@ -65,58 +78,70 @@ export function GenerateScheduleForm() {
     setIsGenerating(true);
     setGeneratedSchedule(null);
 
-    // Deterministic schedule generation without AI
+    // Deterministic schedule generation
     setTimeout(() => {
         try {
             const [year, monthNum] = month.split('-').map(Number);
             const daysInMonth = new Date(year, monthNum, 0).getDate();
             const newSchedule: GeneratedSchedule[] = [];
 
+            // --- Initialization ---
             const shiftCounts = new Map<string, number>(availableParticipants.map(p => [p, 0]));
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
 
-            // --- First Pass: Assign 2 people per night, prioritizing fairness ---
-            for (let day = 0; day < daysInMonth; day++) {
-                const sortedWarga = [...availableParticipants].sort((a, b) => {
-                    const countA = shiftCounts.get(a) ?? 0;
-                    const countB = shiftCounts.get(b) ?? 0;
-                    if (countA !== countB) return countA - countB;
-                    return Math.random() - 0.5; // Randomize to break ties
-                });
+            // --- 1. Pre-assign based on Approved Requests ---
+            const approvedRequestsForMonth = requests?.filter(r => {
+                if (r.status !== 'approved') return false;
+                const reqDate = new Date(r.requestedScheduleDate);
+                return reqDate.getUTCFullYear() === year && reqDate.getUTCMonth() + 1 === monthNum;
+            }) ?? [];
 
-                const p1 = sortedWarga[0];
-                const p2 = sortedWarga[1];
+            approvedRequestsForMonth.forEach(req => {
+                const user = usersIdMap.get(req.userId);
+                if (!user) return; // User might have been deleted
 
-                dailyAssignments[day].push(p1, p2);
-                shiftCounts.set(p1, (shiftCounts.get(p1) ?? 0) + 1);
-                shiftCounts.set(p2, (shiftCounts.get(p2) ?? 0) + 1);
-            }
+                const reqDate = new Date(r.requestedScheduleDate);
+                const dayIndex = reqDate.getUTCDate() - 1;
 
-            // --- Second Pass: Add a 3rd person to weekend shifts for extra coverage ---
+                if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(user.name) && !dailyAssignments[dayIndex].includes(user.name)) {
+                    // Cap assignments at 3 per day
+                    if (dailyAssignments[dayIndex].length < 3) {
+                        dailyAssignments[dayIndex].push(user.name);
+                        shiftCounts.set(user.name, (shiftCounts.get(user.name) ?? 0) + 1);
+                    }
+                }
+            });
+
+
+            // --- 2. Fill remaining slots fairly ---
             for (let day = 0; day < daysInMonth; day++) {
                 const currentDate = new Date(year, monthNum - 1, day + 1);
                 const dayOfWeek = currentDate.getDay(); // 0=Sun, 5=Fri, 6=Sat
-
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
+                const targetParticipants = isWeekend ? 3 : 2;
+                
+                const needed = targetParticipants - dailyAssignments[day].length;
 
-                if (isWeekend) {
-                     const sortedWarga = [...availableParticipants].sort((a, b) => {
+                if (needed > 0) {
+                    const candidates = [...availableParticipants].filter(p => !dailyAssignments[day].includes(p));
+                    
+                    const sortedCandidates = candidates.sort((a, b) => {
                          const countA = shiftCounts.get(a) ?? 0;
                          const countB = shiftCounts.get(b) ?? 0;
                          if (countA !== countB) return countA - countB;
-                         return Math.random() - 0.5;
+                         return Math.random() - 0.5; // Randomize tie-breaking
                     });
                     
-                    const thirdPerson = sortedWarga.find(p => !dailyAssignments[day].includes(p));
-
-                    if (thirdPerson) {
-                        dailyAssignments[day].push(thirdPerson);
-                        shiftCounts.set(thirdPerson, (shiftCounts.get(thirdPerson) ?? 0) + 1);
-                    }
+                    const newAssignments = sortedCandidates.slice(0, needed);
+                    
+                    newAssignments.forEach(p => {
+                        dailyAssignments[day].push(p);
+                        shiftCounts.set(p, (shiftCounts.get(p) ?? 0) + 1);
+                    });
                 }
             }
             
-            // --- Final Assembly ---
+            // --- 3. Final Assembly ---
             for (let day = 0; day < daysInMonth; day++) {
                 const date = new Date(year, monthNum - 1, day + 1);
                 newSchedule.push({
@@ -128,7 +153,7 @@ export function GenerateScheduleForm() {
             setGeneratedSchedule(newSchedule);
             toast({
                 title: "Success!",
-                description: "Schedule generated locally. Review the JSON and click 'Save'.",
+                description: "Schedule generated, incorporating approved requests. Review and save.",
             });
 
         } catch (e) {
@@ -141,7 +166,7 @@ export function GenerateScheduleForm() {
         } finally {
             setIsGenerating(false);
         }
-    }, 100); // Simulate async operation to allow UI to show loader
+    }, 100);
   };
 
 
@@ -200,21 +225,21 @@ export function GenerateScheduleForm() {
             name="month" 
             type="month" 
             required 
-            disabled={isUsersLoading || isGenerating}
+            disabled={isLoading || isGenerating}
             value={month}
             onChange={(e) => setMonth(e.target.value)}
           />
         </div>
         
-        <Button onClick={handleGenerateClick} disabled={isGenerating || isUsersLoading} className="w-full sm:w-auto">
+        <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full sm:w-auto">
           {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
           Generate Schedule
         </Button>
 
-        {isUsersLoading && (
-            <p className="text-sm text-muted-foreground">Loading user data...</p>
+        {isLoading && (
+            <p className="text-sm text-muted-foreground">Loading user and request data...</p>
         )}
-        {!isUsersLoading && (availableParticipants.length < 3) && (
+        {!isLoading && (availableParticipants.length < 3) && (
             <Alert variant="destructive">
                 <AlertTitle>Missing Data</AlertTitle>
                 <AlertDescription>
@@ -238,7 +263,7 @@ export function GenerateScheduleForm() {
               </pre>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleSaveSchedule} disabled={isSaving || isUsersLoading} className="w-full">
+                 <Button onClick={handleSaveSchedule} disabled={isSaving || isLoading} className="w-full">
                     {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
                     Save Schedule to Database
                 </Button>
