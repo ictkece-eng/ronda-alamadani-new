@@ -118,9 +118,9 @@ service cloud.firestore {
      */
     match /users/{userId}/rondaSchedules/{rondaScheduleId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isAdmin();
+      allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
@@ -146,9 +146,9 @@ service cloud.firestore {
      */
     match /users/{userId}/rondaReplacements/{rondaReplacementId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isExistingOwner(userId) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
