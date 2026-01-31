@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus } from 'lucide-react';
+import { Loader2, ThumbsDown, ThumbsUp, Plus, ChevronsUpDown, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -30,9 +30,11 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
@@ -65,6 +67,7 @@ export function ScheduleRequests() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   const form = useForm<NewRequestFormValues>({
     resolver: zodResolver(newRequestSchema),
@@ -292,22 +295,63 @@ export function ScheduleRequests() {
                         control={form.control}
                         name="userId"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel>User / Warga</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a user" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {users?.map(user => (
-                                            <SelectItem key={user.id} value={user.id}>
-                                                {user.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={isComboboxOpen}
+                                                className={cn(
+                                                    "w-full justify-between",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                            >
+                                                {field.value
+                                                    ? users?.find(
+                                                        (user) => user.id === field.value
+                                                    )?.name
+                                                    : "Select user..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Search user by name or phone..." />
+                                            <CommandList>
+                                                <CommandEmpty>No user found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {users?.map((user) => (
+                                                        <CommandItem
+                                                            value={`${user.name} ${user.phone}`}
+                                                            key={user.id}
+                                                            onSelect={() => {
+                                                                form.setValue("userId", user.id)
+                                                                setIsComboboxOpen(false)
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    user.id === field.value
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <div>
+                                                                <p className="font-medium">{user.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{user.phone}</p>
+                                                            </div>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                             </FormItem>
                         )}
