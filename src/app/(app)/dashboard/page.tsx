@@ -187,29 +187,29 @@ export default function DashboardPage() {
   const handleExportPDF = () => {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.width;
-    const margin = 14;
+    const margin = 10; // Reduced margin
 
     // --- Document Header ---
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(40, 52, 72); // Darker Blue
-    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 20, { align: 'center' });
+    doc.setFontSize(16); // Reduced
+    doc.setTextColor(40, 52, 72);
+    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 15, { align: 'center' }); // Adjusted Y
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(14);
+    doc.setFontSize(12); // Reduced
     doc.setTextColor(100);
-    doc.text('RT 08 / RW 20', pageW / 2, 28, { align: 'center' });
+    doc.text('RT 08 / RW 20', pageW / 2, 22, { align: 'center' }); // Adjusted Y
 
-    doc.setFontSize(12);
-    doc.text(`Periode: ${periodText}`, pageW / 2, 36, { align: 'center' });
+    doc.setFontSize(10); // Reduced
+    doc.text(`Periode: ${periodText}`, pageW / 2, 29, { align: 'center' }); // Adjusted Y
 
 
     // --- Right Column (Side Info) ---
     const rightColX = 115;
-    let rightColY = 45;
+    let rightColY = 38; // Adjusted Y
 
     // Backup Table
-    doc.setFontSize(11);
+    doc.setFontSize(10); // Reduced
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
     doc.text('Back Up / Pengganti Ronda', rightColX, rightColY - 4);
@@ -220,19 +220,25 @@ export default function DashboardPage() {
         margin: { left: rightColX, right: margin },
         theme: 'grid',
         headStyles: {
-            fillColor: [26, 188, 156], // Teal
+            fillColor: [26, 188, 156],
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 9
+            fontSize: 8, // Reduced
+            cellPadding: 1.5,
         },
-        styles: { fontSize: 8, lineWidth: 0.1, lineColor: [221, 221, 221] },
+        styles: { 
+            fontSize: 7, // Reduced
+            lineWidth: 0.1, 
+            lineColor: [221, 221, 221],
+            cellPadding: 1.5,
+        },
         columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
     });
-    rightColY = (doc as any).autoTable.previous.finalY + 8;
+    rightColY = (doc as any).autoTable.previous.finalY + 6; // Reduced gap
 
     // Coordinator Table
-    doc.setFontSize(11);
+    doc.setFontSize(10); // Reduced
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
     doc.text('Koordinator Ronda', rightColX, rightColY - 4);
@@ -243,19 +249,25 @@ export default function DashboardPage() {
         margin: { left: rightColX, right: margin },
         theme: 'grid',
         headStyles: {
-            fillColor: [52, 152, 219], // Another Blue
+            fillColor: [52, 152, 219],
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 9
+            fontSize: 8, // Reduced
+            cellPadding: 1.5,
         },
-        styles: { fontSize: 8, lineWidth: 0.1, lineColor: [221, 221, 221] },
+        styles: { 
+            fontSize: 7, // Reduced
+            lineWidth: 0.1, 
+            lineColor: [221, 221, 221],
+            cellPadding: 1.5,
+        },
         columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
     });
-    rightColY = (doc as any).autoTable.previous.finalY + 8;
+    rightColY = (doc as any).autoTable.previous.finalY + 6; // Reduced gap
 
     // Info section
-    doc.setFontSize(11);
+    doc.setFontSize(10); // Reduced
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
     doc.text('Informasi Penting', rightColX, rightColY - 4);
@@ -264,7 +276,10 @@ export default function DashboardPage() {
         startY: rightColY,
         margin: { left: rightColX, right: margin },
         theme: 'plain',
-        styles: { fontSize: 8, cellPadding: {top: 1, left: 0, right: 0, bottom: 1}},
+        styles: { 
+            fontSize: 6.5, // Reduced
+            cellPadding: {top: 0.5, left: 0, right: 0, bottom: 0.5} 
+        },
         columnStyles: {
             0: { cellWidth: 5, fontStyle: 'bold' },
         },
@@ -293,35 +308,37 @@ export default function DashboardPage() {
     doc.autoTable({
         head: [['Hari, Tanggal', 'Nama', 'Blok', 'No HP', 'Pengganti Ronda']],
         body: mainTableBody,
-        startY: 45,
+        startY: 38, // Adjusted Y
         margin: { right: pageW - rightColX + 5, left: margin },
         theme: 'grid',
         headStyles: { 
-            fillColor: '#3b82f6', // Primary Blue
+            fillColor: '#3b82f6',
             textColor: 255, 
             fontStyle: 'bold',
-            halign: 'center'
+            halign: 'center',
+            fontSize: 8, // Reduced
+            cellPadding: 1.5,
         },
         styles: { 
-            fontSize: 8,
-            cellPadding: 2,
+            fontSize: 7, // Reduced
+            cellPadding: 1.5, // Reduced
             lineWidth: 0.1, 
             lineColor: [221, 221, 221]
         },
         columnStyles: { 
             0: { cellWidth: 25, fontStyle: 'bold' },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 10, halign: 'center' },
+            2: { cellWidth: 8, halign: 'center' }, // Reduced
             3: { cellWidth: 20 },
             4: { cellWidth: 'auto' },
         },
         alternateRowStyles: {
-            fillColor: [248, 249, 250] // Lightest gray for stripes
+            fillColor: [248, 249, 250]
         },
         didDrawCell: (data) => {
             // Highlight Fridays (Jumat)
-            const dateText = (data.row.raw as (string | number)[])[0];
-            if (data.section === 'body' && typeof dateText === 'string' && dateText.startsWith('Jumat')) {
+            const originalDateText = processedScheduleEntries[data.row.index]?.hariTanggal;
+            if (data.section === 'body' && originalDateText && originalDateText.startsWith('Jumat')) {
                 doc.setFillColor(254, 249, 195); // Light Yellow
                 doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
             }
@@ -330,6 +347,7 @@ export default function DashboardPage() {
 
     doc.save(`jadwal-ronda-${selectedMonth}.pdf`);
   };
+
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
