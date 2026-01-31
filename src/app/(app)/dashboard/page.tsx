@@ -162,7 +162,8 @@ export default function DashboardPage() {
 
     const backups = users
       .filter((user) => user.role === 'backup')
-      .map(user => ({ nama: user.name, blok: user.address, noHp: user.phone }));
+      .map(user => ({ nama: user.name, blok: user.address, noHp: user.phone }))
+      .sort((a, b) => a.nama.localeCompare(b.nama));
       
     const coordinators = users
         .filter((user) => user.role === 'coordinator')
@@ -170,7 +171,8 @@ export default function DashboardPage() {
             nama: user.name,
             blok: user.address,
             noHp: user.phone,
-        }));
+        }))
+        .sort((a, b) => a.nama.localeCompare(b.nama));
 
     return { processedScheduleEntries: scheduleEntries, backupPersons: backups, coordinatorPersons: coordinators };
   }, [users, allSchedules, selectedMonth]);
@@ -521,7 +523,7 @@ export default function DashboardPage() {
                                   entry.pengganti && 'font-semibold'
                                 )}
                               >
-                                {entry.pengganti || '-'}
+                                  {entry.pengganti || '-'}
                               </TableCell>
                             </TableRow>
                           );
