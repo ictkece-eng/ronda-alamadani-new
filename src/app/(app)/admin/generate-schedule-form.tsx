@@ -368,16 +368,24 @@ export function GenerateScheduleForm() {
         const [year, monthNum] = month.split('-').map(Number);
         const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
         const endDate = new Date(Date.UTC(year, monthNum, 1));
+        
+        // This is a more robust way to delete documents across subcollections,
+        // avoiding a collection group query which can be tricky with delete permissions.
+        const deletePromises = users.map(user => {
+            const userSchedulesRef = collection(firestore, 'users', user.id, 'rondaSchedules');
+            const q = query(
+                userSchedulesRef,
+                where('date', '>=', startDate.toISOString()),
+                where('date', '<', endDate.toISOString())
+            );
+            return getDocs(q);
+        });
 
-        const schedulesColGroup = collectionGroup(firestore, 'rondaSchedules');
-        const schedulesToDeleteQuery = query(
-            schedulesColGroup,
-            where('date', '>=', startDate.toISOString()),
-            where('date', '<', endDate.toISOString())
-        );
-        const querySnapshot = await getDocs(schedulesToDeleteQuery);
-        querySnapshot.forEach(doc => {
-            batch.delete(doc.ref);
+        const snapshots = await Promise.all(deletePromises);
+        snapshots.forEach(snapshot => {
+            snapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
         });
 
         // --- 2. Add new entries from the generatedSchedule state ---
@@ -597,3 +605,5 @@ export function GenerateScheduleForm() {
     </div>
   );
 }
+
+    
