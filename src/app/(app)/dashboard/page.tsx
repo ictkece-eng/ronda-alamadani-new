@@ -187,32 +187,32 @@ export default function DashboardPage() {
   const handleExportPDF = () => {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.width;
-    const margin = 10; // Reduced margin
+    const margin = 10;
 
     // --- Document Header ---
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16); // Reduced
+    doc.setFontSize(15);
     doc.setTextColor(40, 52, 72);
-    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 15, { align: 'center' }); // Adjusted Y
+    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 12, { align: 'center' });
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12); // Reduced
+    doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text('RT 08 / RW 20', pageW / 2, 22, { align: 'center' }); // Adjusted Y
+    doc.text('RT 08 / RW 20', pageW / 2, 18, { align: 'center' });
 
-    doc.setFontSize(10); // Reduced
-    doc.text(`Periode: ${periodText}`, pageW / 2, 29, { align: 'center' }); // Adjusted Y
+    doc.setFontSize(9);
+    doc.text(`Periode: ${periodText}`, pageW / 2, 23, { align: 'center' });
 
 
     // --- Right Column (Side Info) ---
-    const rightColX = 115;
-    let rightColY = 38; // Adjusted Y
+    const rightColX = 120;
+    let rightColY = 30;
 
     // Backup Table
-    doc.setFontSize(10); // Reduced
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
-    doc.text('Back Up / Pengganti Ronda', rightColX, rightColY - 4);
+    doc.text('Back Up / Pengganti Ronda', rightColX, rightColY - 3);
     doc.autoTable({
         head: [['No', 'Nama', 'Blok', 'No HP']],
         body: backupPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
@@ -224,24 +224,24 @@ export default function DashboardPage() {
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 8, // Reduced
-            cellPadding: 1.5,
+            fontSize: 7,
+            cellPadding: 1.2,
         },
         styles: { 
-            fontSize: 7, // Reduced
+            fontSize: 6.5,
             lineWidth: 0.1, 
             lineColor: [221, 221, 221],
-            cellPadding: 1.5,
+            cellPadding: 1.2,
         },
         columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
     });
-    rightColY = (doc as any).autoTable.previous.finalY + 6; // Reduced gap
+    rightColY = (doc as any).autoTable.previous.finalY + 5;
 
     // Coordinator Table
-    doc.setFontSize(10); // Reduced
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
-    doc.text('Koordinator Ronda', rightColX, rightColY - 4);
+    doc.text('Koordinator Ronda', rightColX, rightColY - 3);
     doc.autoTable({
         head: [['No', 'Nama', 'Blok', 'No HP']],
         body: coordinatorPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
@@ -253,35 +253,35 @@ export default function DashboardPage() {
             textColor: 255,
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 8, // Reduced
-            cellPadding: 1.5,
+            fontSize: 7,
+            cellPadding: 1.2,
         },
         styles: { 
-            fontSize: 7, // Reduced
+            fontSize: 6.5,
             lineWidth: 0.1, 
             lineColor: [221, 221, 221],
-            cellPadding: 1.5,
+            cellPadding: 1.2,
         },
         columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
     });
-    rightColY = (doc as any).autoTable.previous.finalY + 6; // Reduced gap
+    rightColY = (doc as any).autoTable.previous.finalY + 5;
 
     // Info section
-    doc.setFontSize(10); // Reduced
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 52, 72);
-    doc.text('Informasi Penting', rightColX, rightColY - 4);
+    doc.text('Informasi Penting', rightColX, rightColY - 3);
     doc.autoTable({
         body: infoItems.map(item => [item.id + '.', item.text]),
         startY: rightColY,
         margin: { left: rightColX, right: margin },
         theme: 'plain',
         styles: { 
-            fontSize: 6.5, // Reduced
+            fontSize: 6,
             cellPadding: {top: 0.5, left: 0, right: 0, bottom: 0.5} 
         },
         columnStyles: {
-            0: { cellWidth: 5, fontStyle: 'bold' },
+            0: { cellWidth: 4, fontStyle: 'bold' },
         },
     });
 
@@ -292,23 +292,27 @@ export default function DashboardPage() {
         return acc;
     }, {} as Record<string, ScheduleEntry[]>);
 
+    let rowSpans: { [key: number]: number } = {};
+    let rowIndex = 0;
     Object.keys(groupedByDate).forEach(date => {
         const entriesForDate = groupedByDate[date];
+        rowSpans[rowIndex] = entriesForDate.length;
         entriesForDate.forEach((entry, index) => {
             mainTableBody.push([
-                index === 0 ? date : '',
+                date,
                 entry.nama,
                 entry.blok,
                 entry.noHp,
                 entry.pengganti || '-',
             ]);
+            rowIndex++;
         });
     });
     
     doc.autoTable({
         head: [['Hari, Tanggal', 'Nama', 'Blok', 'No HP', 'Pengganti Ronda']],
         body: mainTableBody,
-        startY: 38, // Adjusted Y
+        startY: 30,
         margin: { right: pageW - rightColX + 5, left: margin },
         theme: 'grid',
         headStyles: { 
@@ -316,19 +320,19 @@ export default function DashboardPage() {
             textColor: 255, 
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 8, // Reduced
-            cellPadding: 1.5,
+            fontSize: 7,
+            cellPadding: 1.2,
         },
         styles: { 
-            fontSize: 7, // Reduced
-            cellPadding: 1.5, // Reduced
+            fontSize: 6.5,
+            cellPadding: 1.2,
             lineWidth: 0.1, 
             lineColor: [221, 221, 221]
         },
         columnStyles: { 
             0: { cellWidth: 25, fontStyle: 'bold' },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 8, halign: 'center' }, // Reduced
+            2: { cellWidth: 8, halign: 'center' },
             3: { cellWidth: 20 },
             4: { cellWidth: 'auto' },
         },
@@ -336,13 +340,28 @@ export default function DashboardPage() {
             fillColor: [248, 249, 250]
         },
         didDrawCell: (data) => {
-            // Highlight Fridays (Jumat)
-            const originalDateText = processedScheduleEntries[data.row.index]?.hariTanggal;
+            // Merged cell for date
+            if (data.column.index === 0 && rowSpans[data.row.index]) {
+                const span = rowSpans[data.row.index];
+                if (span > 1) {
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height * span, 'S'); // 'S' is for stroke
+                    // Vertically center text
+                    const textY = data.cell.y + (data.cell.height * span) / 2;
+                    doc.text(data.cell.text, data.cell.x + data.cell.padding('left'), textY, { valign: 'middle' });
+                }
+            }
+
+            const originalDateText = mainTableBody[data.row.index]?.[0] as string;
             if (data.section === 'body' && originalDateText && originalDateText.startsWith('Jumat')) {
-                doc.setFillColor(254, 249, 195); // Light Yellow
+                doc.setFillColor(254, 249, 195);
                 doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
             }
         },
+         willDrawCell: (data) => {
+            if (data.column.index === 0 && data.row.index > 0 && mainTableBody[data.row.index][0] === mainTableBody[data.row.index - 1][0]) {
+               return false; // Don't draw cell if it's part of a span
+            }
+        }
     });
 
     doc.save(`jadwal-ronda-${selectedMonth}.pdf`);
