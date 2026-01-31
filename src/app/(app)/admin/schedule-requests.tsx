@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus } from 'lucide-react';
+import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -39,12 +39,12 @@ type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
 
 const ITEMS_PER_PAGE = 10;
 
-const newRequestSchema = z.object({
+const requestSchema = z.object({
   userId: z.string({ required_error: 'Please select a user.' }).min(1, 'Please select a user.'),
   requestedDate: z.string().min(1, 'New requested date is required.'),
   reason: z.string().min(1, 'Reason is required.').max(200, 'Reason cannot exceed 200 characters.'),
 });
-type NewRequestFormValues = z.infer<typeof newRequestSchema>;
+type RequestFormValues = z.infer<typeof requestSchema>;
 
 export function ScheduleRequests() {
   const firestore = useFirestore();
@@ -63,11 +63,12 @@ export function ScheduleRequests() {
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<ScheduleRequestWithUser | null>(null);
   const [userSearch, setUserSearch] = useState('');
 
-  const form = useForm<NewRequestFormValues>({
-    resolver: zodResolver(newRequestSchema),
+  const form = useForm<RequestFormValues>({
+    resolver: zodResolver(requestSchema),
     defaultValues: {
         userId: '',
         requestedDate: '',
@@ -109,12 +110,44 @@ export function ScheduleRequests() {
     toast({ title: 'Success', description: `Request status updated to ${status}.` });
   };
 
-  const onCreateSubmit = async (values: NewRequestFormValues) => {
+  const handleCreateClick = () => {
+    setEditingRequest(null);
+    reset({ userId: '', requestedDate: '', reason: '' });
+    setUserSearch('');
+    setIsFormDialogOpen(true);
+  };
+
+  const handleEditClick = (req: ScheduleRequestWithUser) => {
+    setEditingRequest(req);
+    const user = users?.find(u => u.id === req.userId);
+    setUserSearch(user?.name || '');
+    reset({
+        userId: req.userId,
+        // Format date for the input type="date" which expects 'yyyy-MM-dd'
+        requestedDate: format(new Date(req.requestedScheduleDate), 'yyyy-MM-dd'),
+        reason: req.reason,
+    });
+    setIsFormDialogOpen(true);
+  }
+
+  const onSubmit = async (values: RequestFormValues) => {
     if (!firestore) return;
 
-    const { userId, requestedDate, reason } = values;
-
-    try {
+    if (editingRequest) {
+      // Update existing request
+      const requestRef = doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id);
+      const updatedData = {
+          requestedScheduleDate: new Date(values.requestedDate).toISOString(),
+          reason: values.reason,
+      };
+      setDocumentNonBlocking(requestRef, updatedData, { merge: true });
+      toast({
+        title: 'Request Updated',
+        description: 'The schedule change request has been updated.',
+      });
+    } else {
+      // Create new request
+      const { userId, requestedDate, reason } = values;
       const requestsCol = collection(firestore, 'users', userId, 'scheduleRequests');
       const newRequestRef = doc(requestsCol);
       const newRequestData: Omit<ScheduleRequest, 'rondaScheduleId' | 'currentScheduleDate'> = {
@@ -127,18 +160,14 @@ export function ScheduleRequests() {
       };
 
       setDocumentNonBlocking(newRequestRef, newRequestData, {});
-
       toast({
         title: 'Request Created',
         description: 'The schedule change request has been created successfully.',
       });
-
-      setIsCreateDialogOpen(false);
-      reset();
-    } catch (error) {
-      console.error("Error creating request:", error);
-      toast({ title: 'Creation Failed', description: 'Could not create the request. Please try again.', variant: 'destructive' });
     }
+
+    setIsFormDialogOpen(false);
+    setEditingRequest(null);
   };
 
   // Derived state for user search
@@ -162,14 +191,15 @@ export function ScheduleRequests() {
   
   const requestsForSelectedDate = useMemo(() => {
     if (!watchedDate || !processedRequests) return [];
-    // Normalize dates to ignore time part
     const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
     return processedRequests.filter(req => {
+        // Exclude the currently editing request from the count
+        if (editingRequest && req.id === editingRequest.id) return false;
+        
         const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
-        // Only count pending or approved, not rejected
         return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
     });
-  }, [watchedDate, processedRequests]);
+  }, [watchedDate, processedRequests, editingRequest]);
 
   return (
     <>
@@ -180,7 +210,7 @@ export function ScheduleRequests() {
                 <CardTitle>Manage Schedule Requests</CardTitle>
                 <CardDescription>Approve or reject ronda schedule change requests from warga.</CardDescription>
             </div>
-            <Button className="self-end sm:self-center" onClick={() => { reset(); setUserSearch(''); setIsCreateDialogOpen(true); }}>
+            <Button className="self-end sm:self-center" onClick={handleCreateClick}>
                 <Plus className="h-4 w-4 mr-2" />
                 Request Jadwal
             </Button>
@@ -227,24 +257,29 @@ export function ScheduleRequests() {
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                           {req.status === 'pending' && (
-                                <div className="flex gap-2 justify-end">
-                                    <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUpdateStatus(req, 'approved')}
-                                    >
-                                    <ThumbsUp className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleUpdateStatus(req, 'rejected')}
-                                    >
-                                    <ThumbsDown className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            )}
+                           <div className="flex gap-1 justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(req)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                                {req.status === 'pending' && (
+                                    <>
+                                        <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleUpdateStatus(req, 'approved')}
+                                        >
+                                        <ThumbsUp className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => handleUpdateStatus(req, 'rejected')}
+                                        >
+                                        <ThumbsDown className="h-4 w-4" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
                         </TableCell>
                     </TableRow>
                 ))
@@ -287,22 +322,23 @@ export function ScheduleRequests() {
         )}
     </Card>
 
-    <Dialog open={isCreateDialogOpen} onOpenChange={(isOpen) => {
-        setIsCreateDialogOpen(isOpen);
+    <Dialog open={isFormDialogOpen} onOpenChange={(isOpen) => {
+        setIsFormDialogOpen(isOpen);
         if (!isOpen) {
+            setEditingRequest(null);
             reset();
             setUserSearch('');
         }
     }}>
         <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-                <DialogTitle>Create New Schedule Request</DialogTitle>
+                <DialogTitle>{editingRequest ? 'Edit' : 'Create New'} Schedule Request</DialogTitle>
                 <DialogDescription>
-                    Create a request on behalf of a user. This will appear in the list for approval.
+                    {editingRequest ? 'Update the details for this request.' : 'Create a request on behalf of a user. This will appear in the list for approval.'}
                 </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-                <form onSubmit={handleSubmit(onCreateSubmit)} className="space-y-6 py-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
                     <FormField
                         control={form.control}
                         name="userId"
@@ -320,6 +356,7 @@ export function ScheduleRequests() {
                                                     form.setValue('userId', '');
                                                 }
                                             }}
+                                            disabled={!!editingRequest}
                                         />
                                     </FormControl>
                                     {filteredUsers.length > 0 && (
@@ -384,10 +421,10 @@ export function ScheduleRequests() {
                         )}
                     />
                     <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                        <Button type="button" variant="ghost" onClick={() => setIsFormDialogOpen(false)}>Cancel</Button>
                         <Button type="submit" disabled={formState.isSubmitting || requestsForSelectedDate.length >= 3}>
                         {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Create Request
+                        {editingRequest ? 'Save Changes' : 'Create Request'}
                         </Button>
                     </DialogFooter>
                 </form>
