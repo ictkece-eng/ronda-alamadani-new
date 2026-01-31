@@ -32,13 +32,13 @@ export function GenerateScheduleForm() {
   );
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
-  const { participants, coordinator } = useMemo(() => {
+  const availableParticipants = useMemo(() => {
     if (!users) {
-        return { participants: [], coordinator: '' };
+        return [];
     }
-    const participantNames = users.filter(u => u.role === 'user').map(u => u.name);
-    const coordinatorName = users.find(u => u.role === 'coordinator')?.name || users.find(u => u.role === 'admin')?.name || '';
-    return { participants: participantNames, coordinator: coordinatorName };
+    return users
+      .filter(u => u.role === 'user' || u.role === 'coordinator')
+      .map(u => u.name);
   }, [users]);
 
 
@@ -52,9 +52,9 @@ export function GenerateScheduleForm() {
         toast({ title: "Error", description: "Please select a month.", variant: "destructive" });
         return;
     }
-    const availableParticipants = participants.filter(p => p !== coordinator);
+    
     if (availableParticipants.length < 3) {
-        toast({ title: "Error", description: "Not enough participants. Need at least 3 'user' roles to generate a schedule.", variant: "destructive" });
+        toast({ title: "Error", description: "Not enough participants. Need at least 3 users with 'user' or 'coordinator' roles to generate a schedule.", variant: "destructive" });
         return;
     }
 
@@ -210,11 +210,11 @@ export function GenerateScheduleForm() {
         {isUsersLoading && (
             <p className="text-sm text-muted-foreground">Loading user data...</p>
         )}
-        {!isUsersLoading && (participants.length < 3) && (
+        {!isUsersLoading && (availableParticipants.length < 3) && (
             <Alert variant="destructive">
                 <AlertTitle>Missing Data</AlertTitle>
                 <AlertDescription>
-                Not enough user data. Please ensure there are at least 3 users with the 'user' role in the User Management tab.
+                Not enough participants. Please ensure there are at least 3 users with 'user' or 'coordinator' roles in the User Management tab.
                 </AlertDescription>
             </Alert>
         )}
