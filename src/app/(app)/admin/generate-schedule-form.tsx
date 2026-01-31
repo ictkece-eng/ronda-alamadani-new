@@ -56,13 +56,20 @@ export function GenerateScheduleForm() {
     if (!users) {
         return [];
     }
-    return users
+    const participantNames = users
       .filter(u => 
         u.role === 'user' || 
         u.role === 'coordinator' ||
         (u.role === 'backup' && u.includeInSchedule === true)
       )
       .map(u => u.name);
+      
+    // Create a unique list of names, case-insensitively, preserving original case of the last one seen
+    const uniqueNames = new Map<string, string>();
+    for (const name of participantNames) {
+        uniqueNames.set(name.toLowerCase(), name);
+    }
+    return Array.from(uniqueNames.values());
   }, [users]);
 
 
@@ -135,7 +142,7 @@ export function GenerateScheduleForm() {
                 let needed = targetParticipants - dailyAssignments[day].length;
 
                 if (needed > 0) {
-                    let candidates = [...availableParticipants].filter(p => !dailyAssignments[day].includes(p));
+                    let candidates = [...availableParticipants].filter(p => !dailyAssignments[day].map(name => name.toLowerCase()).includes(p.toLowerCase()));
                     
                     const assignedBlocksThisDay = new Set(
                         dailyAssignments[day].map(name => {
@@ -170,7 +177,9 @@ export function GenerateScheduleForm() {
                             return Math.random() - 0.5;
                         });
                         
-                        const bestCandidate = candidates[0];
+                        const bestCandidate = candidates.shift(); // Safely get and remove the top candidate
+                        if (!bestCandidate) continue; // Safety check
+
                         dailyAssignments[day].push(bestCandidate);
                         shiftCounts.set(bestCandidate, (shiftCounts.get(bestCandidate) ?? 0) + 1);
 
@@ -179,8 +188,6 @@ export function GenerateScheduleForm() {
                         if (bestCandidateBlock) {
                             assignedBlocksThisDay.add(bestCandidateBlock);
                         }
-                        
-                        candidates = candidates.filter(p => p !== bestCandidate);
                     }
                 }
             }
