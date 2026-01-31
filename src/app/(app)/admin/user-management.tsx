@@ -64,7 +64,7 @@ const wargaSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   phone: z.string().min(1, { message: 'Phone is required' }),
   address: z.string().min(1, { message: 'Address is required' }),
-  role: z.enum(['user', 'coordinator', 'admin']),
+  role: z.enum(['user', 'coordinator', 'admin', 'backup']),
 });
 
 type WargaFormValues = z.infer<typeof wargaSchema>;
@@ -208,7 +208,7 @@ export function UserManagement() {
             email: email,
             phone: warga.phone,
             address: warga.address,
-            role: warga.role as 'user' | 'coordinator' | 'admin',
+            role: warga.role as 'user' | 'coordinator' | 'admin' | 'backup',
         };
         
         setDocumentNonBlocking(newUserRef, newUserData, {});
@@ -419,6 +419,7 @@ export function UserManagement() {
                             <option value="user">User</option>
                             <option value="coordinator">Coordinator</option>
                             <option value="admin">Admin</option>
+                            <option value="backup">Backup</option>
                         </select>
                     </FormControl>
                     <FormMessage />

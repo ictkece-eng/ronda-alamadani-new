@@ -133,7 +133,7 @@ export default function DashboardPage() {
     });
 
     const backups = users
-      .filter((user) => ['Sudirman', 'Andre Revalino', 'Zulkifli'].includes(user.name))
+      .filter((user) => user.role === 'backup')
       .map(user => ({ nama: user.name, blok: user.address, noHp: user.phone }));
       
     const coordinators = users

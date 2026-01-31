@@ -25,7 +25,7 @@ export type Warga = {
   email: string;
   phone: string;
   address: string;
-  role: 'admin' | 'coordinator' | 'user';
+  role: 'admin' | 'coordinator' | 'user' | 'backup';
 };
 
 
