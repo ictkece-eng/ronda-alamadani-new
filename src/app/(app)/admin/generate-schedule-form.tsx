@@ -100,7 +100,7 @@ export function GenerateScheduleForm() {
                 const user = usersIdMap.get(req.userId);
                 if (!user) return; // User might have been deleted
 
-                const reqDate = new Date(r.requestedScheduleDate);
+                const reqDate = new Date(req.requestedScheduleDate);
                 const dayIndex = reqDate.getUTCDate() - 1;
 
                 if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(user.name) && !dailyAssignments[dayIndex].includes(user.name)) {
