@@ -6,11 +6,22 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo } from 'react';
-import { Loader2, Wand2, Save } from 'lucide-react';
+import { Loader2, Wand2, Save, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Warga, ScheduleRequest } from '@/lib/types';
-import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
+import { collection, writeBatch, doc, query, collectionGroup, where, getDocs } from 'firebase/firestore';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type GeneratedSchedule = {
   date: string;
@@ -22,6 +33,7 @@ export function GenerateScheduleForm() {
   const [generatedSchedule, setGeneratedSchedule] = useState<GeneratedSchedule[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -90,9 +102,9 @@ export function GenerateScheduleForm() {
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
 
             // --- 1. Pre-assign based on Approved Requests ---
-            const approvedRequestsForMonth = requests?.filter(r => {
-                if (r.status !== 'approved') return false;
-                const reqDate = new Date(r.requestedScheduleDate);
+            const approvedRequestsForMonth = requests?.filter(req => {
+                if (req.status !== 'approved') return false;
+                const reqDate = new Date(req.requestedScheduleDate);
                 return reqDate.getUTCFullYear() === year && reqDate.getUTCMonth() + 1 === monthNum;
             }) ?? [];
 
@@ -213,6 +225,53 @@ export function GenerateScheduleForm() {
     }
   };
 
+  const handleClearSchedule = async () => {
+    if (!month || !firestore) {
+        toast({ title: "Error", description: "Please select a month to clear.", variant: "destructive" });
+        return;
+    }
+
+    setIsClearing(true);
+    try {
+        const [year, monthNum] = month.split('-').map(Number);
+        // Start of the selected month in UTC
+        const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+        // Start of the next month in UTC, which is the end boundary
+        const endDate = new Date(Date.UTC(year, monthNum, 1));
+
+        const schedulesToDeleteQuery = query(
+            collectionGroup(firestore, 'rondaSchedules'),
+            where('date', '>=', startDate.toISOString()),
+            where('date', '<', endDate.toISOString())
+        );
+
+        const querySnapshot = await getDocs(schedulesToDeleteQuery);
+
+        if (querySnapshot.empty) {
+            toast({ title: "No data", description: "No schedule data found for the selected month to clear." });
+            setIsClearing(false);
+            return;
+        }
+
+        const batch = writeBatch(firestore);
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        toast({
+            title: "Success!",
+            description: `Successfully deleted ${querySnapshot.size} schedule entries for ${month}.`,
+        });
+        
+    } catch (error) {
+        console.error("Error clearing schedule:", error);
+        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database.', variant: 'destructive' });
+    } finally {
+        setIsClearing(false);
+    }
+  };
+
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
@@ -224,16 +283,39 @@ export function GenerateScheduleForm() {
             name="month" 
             type="month" 
             required 
-            disabled={isLoading || isGenerating}
+            disabled={isLoading || isGenerating || isClearing}
             value={month}
             onChange={(e) => setMonth(e.target.value)}
           />
         </div>
         
-        <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading} className="w-full sm:w-auto">
-          {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
-          Generate Schedule
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleGenerateClick} disabled={isGenerating || isLoading || isClearing} className="flex-grow sm:flex-grow-0">
+            {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
+            Generate Schedule
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isClearing || isLoading || !month} className="flex-grow sm:flex-grow-0">
+                    {isClearing ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                    Clear Schedule
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete all schedule entries for <strong>{month}</strong>. Are you sure you want to proceed?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearSchedule}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
 
         {isLoading && (
             <p className="text-sm text-muted-foreground">Loading user and request data...</p>
