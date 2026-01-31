@@ -145,12 +145,17 @@ export function UserManagement() {
 
   const onSubmit = async (values: WargaFormValues) => {
     if (!firestore || !user) return;
+
+    const dataToSave = {
+        ...values,
+        includeInSchedule: values.role === 'backup' ? !!values.includeInSchedule : false,
+    };
     
     try {
       if (currentUser) {
         // Update existing user
         const userRef = doc(firestore, 'users', currentUser.id);
-        setDocumentNonBlocking(userRef, values, { merge: true });
+        setDocumentNonBlocking(userRef, dataToSave, { merge: true });
 
         const adminRoleRef = doc(firestore, 'roles_admin', currentUser.id);
         if (values.role === 'admin') {
@@ -168,7 +173,7 @@ export function UserManagement() {
         // We will use a placeholder ID for now. In a real app, you'd create an auth user first.
         const usersCol = collection(firestore, 'users');
         const newUserRef = doc(usersCol); // Firestore generates an ID
-        const newUserData: Warga = { ...values, id: newUserRef.id };
+        const newUserData: Warga = { ...dataToSave, id: newUserRef.id };
         setDocumentNonBlocking(newUserRef, newUserData, {});
 
         if (values.role === 'admin') {
