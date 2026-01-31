@@ -53,9 +53,9 @@ export type Coordinator = {
 export type ScheduleRequest = {
   id: string;
   userId: string;
-  rondaScheduleId: string;
+  rondaScheduleId?: string;
   requestDate: string; // ISO String for when the request was made
-  currentScheduleDate: string; // ISO String for the original schedule date
+  currentScheduleDate?: string; // ISO String for the original schedule date
   requestedScheduleDate: string; // ISO String for the new requested date
   reason: string;
   status: 'pending' | 'approved' | 'rejected';

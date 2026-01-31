@@ -127,11 +127,9 @@
       "required": [
         "id",
         "userId",
-        "rondaScheduleId",
         "requestDate",
         "reason",
         "status",
-        "currentScheduleDate",
         "requestedScheduleDate"
       ]
     },

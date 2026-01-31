@@ -11,7 +11,7 @@ import {
   setDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase';
-import { collection, collectionGroup, doc, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, collectionGroup, doc, query } from 'firebase/firestore';
 import type { ScheduleRequest, Warga } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +41,6 @@ const ITEMS_PER_PAGE = 10;
 
 const newRequestSchema = z.object({
   userId: z.string({ required_error: 'Please select a user.' }).min(1, 'Please select a user.'),
-  currentDate: z.string().min(1, 'Current schedule date is required.'),
   requestedDate: z.string().min(1, 'New requested date is required.'),
   reason: z.string().min(1, 'Reason is required.').max(200, 'Reason cannot exceed 200 characters.'),
 });
@@ -71,7 +70,6 @@ export function ScheduleRequests() {
     resolver: zodResolver(newRequestSchema),
     defaultValues: {
         userId: '',
-        currentDate: '',
         requestedDate: '',
         reason: '',
     },
@@ -105,14 +103,7 @@ export function ScheduleRequests() {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
     
-    const updatedData = { ...request, status };
-    setDocumentNonBlocking(requestRef, updatedData, { merge: true });
-
-    // If approved, update the actual schedule document
-    if (status === 'approved') {
-        const scheduleRef = doc(firestore, 'users', request.userId, 'rondaSchedules', request.rondaScheduleId);
-        updateDocumentNonBlocking(scheduleRef, { date: request.requestedScheduleDate });
-    }
+    updateDocumentNonBlocking(requestRef, { status: status });
     
     toast({ title: 'Success', description: `Request status updated to ${status}.` });
   };
@@ -120,41 +111,15 @@ export function ScheduleRequests() {
   const onCreateSubmit = async (values: NewRequestFormValues) => {
     if (!firestore) return;
 
-    const { userId, currentDate, requestedDate, reason } = values;
+    const { userId, requestedDate, reason } = values;
 
     try {
-      // Find the schedule ID for the current date for the SELECTED user
-      const startOfDay = new Date(currentDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(currentDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const schedulesRef = collection(firestore, 'users', userId, 'rondaSchedules');
-      const q = query(
-        schedulesRef,
-        where('date', '>=', startOfDay.toISOString()),
-        where('date', '<=', endOfDay.toISOString()),
-        limit(1)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        toast({ title: 'Error', description: `No schedule found for this user on ${currentDate}.`, variant: 'destructive' });
-        return;
-      }
-
-      const rondaSchedule = querySnapshot.docs[0];
-      const rondaScheduleId = rondaSchedule.id;
-
       const requestsCol = collection(firestore, 'users', userId, 'scheduleRequests');
       const newRequestRef = doc(requestsCol);
       const newRequestData = {
         id: newRequestRef.id,
         userId: userId,
-        rondaScheduleId: rondaScheduleId,
         requestDate: new Date().toISOString(),
-        currentScheduleDate: new Date(currentDate).toISOString(),
         requestedScheduleDate: new Date(requestedDate).toISOString(),
         reason: reason,
         status: 'pending' as 'pending' | 'approved' | 'rejected',
@@ -213,8 +178,7 @@ export function ScheduleRequests() {
             <TableHeader>
                 <TableRow>
                     <TableHead>Warga</TableHead>
-                    <TableHead>From</TableHead>
-                    <TableHead>To</TableHead>
+                    <TableHead>Requested Date</TableHead>
                     <TableHead className='hidden md:table-cell'>Reason</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -224,14 +188,13 @@ export function ScheduleRequests() {
                 {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                         <TableRow key={i}>
-                            <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
+                            <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
                         </TableRow>
                     ))
                 ) : paginatedRequests.length > 0 ? (
                 paginatedRequests.map((req) => (
                     <TableRow key={req.id}>
                         <TableCell className="font-medium">{req.userName}</TableCell>
-                        <TableCell>{format(new Date(req.currentScheduleDate), 'PPP')}</TableCell>
                         <TableCell>{format(new Date(req.requestedScheduleDate), 'PPP')}</TableCell>
                         <TableCell className='hidden md:table-cell'>{req.reason}</TableCell>
                         <TableCell>
@@ -265,7 +228,7 @@ export function ScheduleRequests() {
                 ))
                 ) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={5} className="text-center h-24">
                        No schedule requests found.
                     </TableCell>
                 </TableRow>
@@ -355,19 +318,6 @@ export function ScheduleRequests() {
                                         </div>
                                     )}
                                 </div>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="currentDate"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Current Schedule Date</FormLabel>
-                                <FormControl>
-                                    <Input type="date" {...field} />
-                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}

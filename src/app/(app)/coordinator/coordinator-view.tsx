@@ -24,7 +24,7 @@ import { Loader2, ThumbsDown, ThumbsUp, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ScheduleRequest, Warga } from '@/lib/types';
 import { handleGetCoordinatorSuggestion } from '@/lib/actions';
-import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, collectionGroup, doc, query } from 'firebase/firestore';
 import { format } from 'date-fns';
 
@@ -67,9 +67,7 @@ export function CoordinatorView() {
     if (!firestore) return;
 
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
-    const updatedData = { ...request, status };
-
-    setDocumentNonBlocking(requestRef, updatedData, { merge: true });
+    updateDocumentNonBlocking(requestRef, { status });
     
     toast({
       title: 'Request Updated',
@@ -94,7 +92,6 @@ export function CoordinatorView() {
 - 2024-07-15: Herman, Lina`;
 
     const requestDetails = `User: ${selectedRequest.userName}
-Current Date: ${format(new Date(selectedRequest.currentScheduleDate), 'PPP')}
 Requested Date: ${format(new Date(selectedRequest.requestedScheduleDate), 'PPP')}
 Reason: ${selectedRequest.reason}`;
 
@@ -196,10 +193,7 @@ Reason: ${selectedRequest.reason}`;
               <div>
                 <h4 className="font-semibold">{selectedRequest.userName}'s Request</h4>
                 <p className="text-sm text-muted-foreground">
-                    From: {format(new Date(selectedRequest.currentScheduleDate), 'PPP')}
-                </p>
-                 <p className="text-sm text-muted-foreground">
-                    To: {format(new Date(selectedRequest.requestedScheduleDate), 'PPP')}
+                    Requested Date: {format(new Date(selectedRequest.requestedScheduleDate), 'PPP')}
                 </p>
                 <p className="text-sm mt-2">"{selectedRequest.reason}"</p>
               </div>
