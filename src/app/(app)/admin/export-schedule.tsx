@@ -18,11 +18,22 @@ import type { PersonInfo, Warga, ScheduleEntry, RondaSchedule } from '@/lib/type
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, collectionGroup } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar as CalendarIcon, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileDown, Calendar as CalendarIcon, Image as ImageIcon, Loader2, Search } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import html2canvas from 'html2canvas';
+
+// Extend jsPDF with autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 
 function countConsecutiveDates(schedule: any[], startIndex: number) {
@@ -77,13 +88,14 @@ const InfoCard = ({
   </Card>
 );
 
-export default function DashboardPage() {
+export function ExportSchedule() {
   const firestore = useFirestore();
   const { isUserLoading: isAuthLoading } = useUser();
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [isExportingPNG, setIsExportingPNG] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const usersCollection = useMemoFirebase(
@@ -168,14 +180,219 @@ export default function DashboardPage() {
     return format(date, "MMMM yyyy", { locale: id });
   }, [selectedMonth]);
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.width;
+    const margin = 10;
+
+    // --- Document Header ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(40, 52, 72);
+    doc.text('JADWAL RONDA PERUM. ALAM MADANI', pageW / 2, 12, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('RT 08 / RW 20', pageW / 2, 18, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.text(`Periode: ${periodText}`, pageW / 2, 23, { align: 'center' });
+
+
+    // --- Right Column (Side Info) ---
+    const rightColX = 120;
+    let rightColY = 30;
+
+    // Backup Table
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 52, 72);
+    doc.text('Back Up / Pengganti Ronda', rightColX, rightColY - 3);
+    doc.autoTable({
+        head: [['No', 'Nama', 'Blok', 'No HP']],
+        body: backupPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
+        startY: rightColY,
+        margin: { left: rightColX, right: margin },
+        theme: 'grid',
+        headStyles: {
+            fillColor: [26, 188, 156],
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center',
+            fontSize: 7,
+            cellPadding: 1,
+        },
+        styles: { 
+            fontSize: 6.5,
+            lineWidth: 0.1, 
+            lineColor: [221, 221, 221],
+            cellPadding: 1,
+        },
+        columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
+    });
+    rightColY = (doc as any).autoTable.previous.finalY + 5;
+
+    // Coordinator Table
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 52, 72);
+    doc.text('Koordinator Ronda', rightColX, rightColY - 3);
+    doc.autoTable({
+        head: [['No', 'Nama', 'Blok', 'No HP']],
+        body: coordinatorPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
+        startY: rightColY,
+        margin: { left: rightColX, right: margin },
+        theme: 'grid',
+        headStyles: {
+            fillColor: [52, 152, 219],
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center',
+            fontSize: 7,
+            cellPadding: 1,
+        },
+        styles: { 
+            fontSize: 6.5,
+            lineWidth: 0.1, 
+            lineColor: [221, 221, 221],
+            cellPadding: 1,
+        },
+        columnStyles: { 0: { halign: 'center', cellWidth: 8 } }
+    });
+    rightColY = (doc as any).autoTable.previous.finalY + 5;
+
+    // Info section
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 52, 72);
+    doc.text('Informasi Penting', rightColX, rightColY - 3);
+    doc.autoTable({
+        body: infoItems.map(item => [item.id + '.', item.text]),
+        startY: rightColY,
+        margin: { left: rightColX, right: margin },
+        theme: 'plain',
+        styles: { 
+            fontSize: 6,
+            cellPadding: {top: 0.5, left: 0, right: 0, bottom: 0.5} 
+        },
+        columnStyles: {
+            0: { cellWidth: 4, fontStyle: 'bold' },
+        },
+    });
+
+    // --- Main Schedule Table ---
+    const mainTableBody: any[] = [];
+    const groupedByDate = processedScheduleEntries.reduce((acc, entry) => {
+        (acc[entry.hariTanggal] = acc[entry.hariTanggal] || []).push(entry);
+        return acc;
+    }, {} as Record<string, ScheduleEntry[]>);
+
+    let rowSpans: { [key: number]: number } = {};
+    let pdfRowIndex = 0;
+    Object.keys(groupedByDate).forEach(date => {
+        const entriesForDate = groupedByDate[date];
+        const isJumat = date.startsWith('Jumat');
+        rowSpans[pdfRowIndex] = entriesForDate.length;
+        
+        entriesForDate.forEach((entry) => {
+            const row: any = {
+                hariTanggal: date,
+                nama: entry.nama,
+                blok: entry.blok,
+                noHp: entry.noHp,
+                pengganti: entry.pengganti || '-',
+            };
+            if (isJumat) {
+                row.styles = { fillColor: [254, 249, 195] };
+            }
+            mainTableBody.push(row);
+            pdfRowIndex++;
+        });
+    });
+    
+    doc.autoTable({
+        columns: [
+            { header: 'Hari, Tanggal', dataKey: 'hariTanggal' },
+            { header: 'Nama', dataKey: 'nama' },
+            { header: 'Blok', dataKey: 'blok' },
+            { header: 'No HP', dataKey: 'noHp' },
+            { header: 'Pengganti Ronda', dataKey: 'pengganti' },
+        ],
+        body: mainTableBody,
+        startY: 30,
+        margin: { right: pageW - rightColX + 5, left: margin },
+        theme: 'grid',
+        headStyles: { 
+            fillColor: [41, 128, 185],
+            textColor: 255, 
+            fontStyle: 'bold',
+            halign: 'center',
+            fontSize: 8,
+            cellPadding: 1.5,
+        },
+        styles: { 
+            fontSize: 7,
+            cellPadding: 1.5,
+            lineWidth: 0.1, 
+            lineColor: [221, 221, 221]
+        },
+        columnStyles: { 
+            hariTanggal: { cellWidth: 25, fontStyle: 'bold' },
+            nama: { cellWidth: 'auto' },
+            blok: { cellWidth: 8, halign: 'center' },
+            noHp: { cellWidth: 20 },
+            pengganti: { cellWidth: 'auto' },
+        },
+        alternateRowStyles: {
+            fillColor: [248, 249, 250]
+        },
+        didDrawCell: (data) => {
+            // This logic handles the vertical merging of date cells
+            if (data.column.dataKey === 'hariTanggal' && rowSpans[data.row.index]) {
+                const span = rowSpans[data.row.index];
+                if (span > 1) {
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height * span, 'S');
+                    const textY = data.cell.y + (data.cell.height * span) / 2;
+                    doc.text(data.cell.text, data.cell.x + data.cell.padding('left'), textY, { valign: 'middle' });
+                }
+            }
+        },
+         willDrawCell: (data) => {
+            // This logic prevents drawing the date cell again for subsequent rows of the same date
+            if (data.column.dataKey === 'hariTanggal' && data.row.index > 0 && mainTableBody[data.row.index].hariTanggal === mainTableBody[data.row.index - 1].hariTanggal) {
+               return false;
+            }
+        }
+    });
+
+    doc.save(`jadwal-ronda-${selectedMonth}.pdf`);
+  };
+
+  const handleExportPNG = async () => {
+    setIsExportingPNG(true);
+    const element = document.getElementById('capture-area');
+    if (element) {
+        const canvas = await html2canvas(element, { 
+            backgroundColor: 'hsl(220 20% 97%)',
+            useCORS: true, 
+            scale: 3
+        });
+        const data = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = data;
+        link.download = `jadwal-ronda-${selectedMonth}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    setIsExportingPNG(false);
+  };
+
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 md:p-6">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard Jadwal Ronda</h1>
-                <p className="text-muted-foreground">Lihat, kelola, dan ekspor jadwal ronda bulanan.</p>
-            </div>
+    <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
                  <div className="relative w-full sm:w-48">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -198,10 +415,18 @@ export default function DashboardPage() {
                         className='pl-8'
                     />
                 </div>
+                 <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={isLoading || processedScheduleEntries.length === 0}>
+                    <FileDown />
+                    <span>PDF</span>
+                </Button>
+                <Button onClick={handleExportPNG} variant="outline" size="sm" disabled={isLoading || processedScheduleEntries.length === 0 || isExportingPNG}>
+                    {isExportingPNG ? <Loader2 className="animate-spin" /> : <ImageIcon />}
+                    <span>PNG</span>
+                </Button>
             </div>
-        </header>
+        </div>
 
-      <div className="bg-card p-4 sm:p-6 rounded-lg border">
+      <div id="capture-area" className="bg-card p-4 sm:p-6 rounded-lg border">
           <div className="text-center mb-6">
               <h2 className="text-xl md:text-2xl font-bold uppercase text-primary">
               Jadwal Ronda Perum. Alam Madani
