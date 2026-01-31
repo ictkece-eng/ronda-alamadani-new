@@ -37,7 +37,7 @@ export function GenerateScheduleForm() {
         return [];
     }
     return users
-      .filter(u => u.role === 'user' || u.role === 'coordinator')
+      .filter(u => u.role === 'user' || u.role === 'coordinator' || u.role === 'backup')
       .map(u => u.name);
   }, [users]);
 
@@ -54,7 +54,7 @@ export function GenerateScheduleForm() {
     }
     
     if (availableParticipants.length < 3) {
-        toast({ title: "Error", description: "Not enough participants. Need at least 3 users with 'user' or 'coordinator' roles to generate a schedule.", variant: "destructive" });
+        toast({ title: "Error", description: "Not enough participants. Need at least 3 users with 'user', 'coordinator', or 'backup' roles to generate a schedule.", variant: "destructive" });
         return;
     }
 
@@ -214,7 +214,7 @@ export function GenerateScheduleForm() {
             <Alert variant="destructive">
                 <AlertTitle>Missing Data</AlertTitle>
                 <AlertDescription>
-                Not enough participants. Please ensure there are at least 3 users with 'user' or 'coordinator' roles in the User Management tab.
+                Not enough participants. Please ensure there are at least 3 users with 'user', 'coordinator', or 'backup' roles in the User Management tab.
                 </AlertDescription>
             </Alert>
         )}
