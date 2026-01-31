@@ -26,6 +26,7 @@ export type Warga = {
   phone: string;
   address: string;
   role: 'admin' | 'coordinator' | 'user' | 'backup';
+  includeInSchedule?: boolean;
 };
 
 

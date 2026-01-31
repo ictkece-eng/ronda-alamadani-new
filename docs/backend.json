@@ -31,6 +31,10 @@
         "role": {
           "type": "string",
           "description": "User's role (e.g., 'admin', 'coordinator', 'user', 'backup')."
+        },
+        "includeInSchedule": {
+          "type": "boolean",
+          "description": "Whether a user with the 'backup' role should be included in automatic schedule generation."
         }
       },
       "required": [
