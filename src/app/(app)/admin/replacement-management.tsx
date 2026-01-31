@@ -124,7 +124,9 @@ export function ReplacementManagement() {
 
         toast({
             title: 'Replacement Updated',
-            description: `${schedule.userName}'s shift on ${format(new Date(schedule.date), 'PPP')} will be covered by ${replacementUser ? replacementUser.name : 'no one'}.`,
+            description: isClearing
+                ? `Replacement for ${schedule.userName}'s shift on ${format(new Date(schedule.date), 'PPP')} has been cleared.`
+                : `${schedule.userName}'s shift on ${format(new Date(schedule.date), 'PPP')} will be covered by ${replacementUser!.name}.`,
         });
     };
 
