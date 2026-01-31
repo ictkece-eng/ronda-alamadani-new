@@ -226,47 +226,53 @@ export function GenerateScheduleForm() {
   };
 
   const handleClearSchedule = async () => {
-    if (!month || !firestore) {
-        toast({ title: "Error", description: "Please select a month to clear.", variant: "destructive" });
+    if (!month || !firestore || !users) {
+        toast({ title: "Error", description: "Please select a month to clear or user data is not loaded.", variant: "destructive" });
         return;
     }
 
     setIsClearing(true);
     try {
         const [year, monthNum] = month.split('-').map(Number);
-        // Start of the selected month in UTC
         const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
-        // Start of the next month in UTC, which is the end boundary
         const endDate = new Date(Date.UTC(year, monthNum, 1));
 
-        const schedulesToDeleteQuery = query(
-            collectionGroup(firestore, 'rondaSchedules'),
-            where('date', '>=', startDate.toISOString()),
-            where('date', '<', endDate.toISOString())
-        );
+        const batch = writeBatch(firestore);
+        let deletedCount = 0;
 
-        const querySnapshot = await getDocs(schedulesToDeleteQuery);
+        // Iterate over each user to query their specific schedule subcollection
+        for (const user of users) {
+            const userSchedulesRef = collection(firestore, 'users', user.id, 'rondaSchedules');
+            const schedulesToDeleteQuery = query(
+                userSchedulesRef,
+                where('date', '>=', startDate.toISOString()),
+                where('date', '<', endDate.toISOString())
+            );
 
-        if (querySnapshot.empty) {
+            const querySnapshot = await getDocs(schedulesToDeleteQuery);
+            if (!querySnapshot.empty) {
+                querySnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                    deletedCount++;
+                });
+            }
+        }
+
+        if (deletedCount === 0) {
             toast({ title: "No data", description: "No schedule data found for the selected month to clear." });
             setIsClearing(false);
             return;
         }
 
-        const batch = writeBatch(firestore);
-        querySnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-
         await batch.commit();
         toast({
             title: "Success!",
-            description: `Successfully deleted ${querySnapshot.size} schedule entries for ${month}.`,
+            description: `Successfully deleted ${deletedCount} schedule entries for ${month}.`,
         });
         
     } catch (error) {
         console.error("Error clearing schedule:", error);
-        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database.', variant: 'destructive' });
+        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database. This might be a permission issue.', variant: 'destructive' });
     } finally {
         setIsClearing(false);
     }
