@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil } from 'lucide-react';
+import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil, Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -66,6 +66,7 @@ export function ScheduleRequests() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState<ScheduleRequestWithUser | null>(null);
   const [userSearch, setUserSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -85,11 +86,17 @@ export function ScheduleRequests() {
   
   const processedRequests = useMemo(() => {
     if (!requests) return [];
-    return requests.map(req => ({
+    const allMapped = requests.map(req => ({
       ...req,
       userName: usersMap.get(req.userId) || 'Unknown User',
-    })).sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
-  }, [requests, usersMap]);
+    }));
+
+    const filtered = searchQuery
+      ? allMapped.filter(req => req.userName.toLowerCase().includes(searchQuery.toLowerCase()))
+      : allMapped;
+
+    return filtered.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+  }, [requests, usersMap, searchQuery]);
 
   const isLoading = isRequestsLoading || isUsersLoading;
 
@@ -217,6 +224,18 @@ export function ScheduleRequests() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Search by name..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                }}
+            />
+        </div>
         {requestsError && (
           <Alert variant="destructive">
             <AlertTitle>Loading Error</AlertTitle>
@@ -286,7 +305,7 @@ export function ScheduleRequests() {
                 ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="text-center h-24">
-                       No schedule requests found.
+                       {searchQuery ? "No requests match your search." : "No schedule requests found."}
                     </TableCell>
                 </TableRow>
                 )}
@@ -434,3 +453,5 @@ export function ScheduleRequests() {
     </>
   );
 }
+
+    
