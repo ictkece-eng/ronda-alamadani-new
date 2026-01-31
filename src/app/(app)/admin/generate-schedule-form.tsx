@@ -22,6 +22,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Combobox } from '@/components/ui/combobox';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 
 type GeneratedSchedule = {
   date: string;
@@ -70,6 +74,10 @@ export function GenerateScheduleForm() {
     }
     return Array.from(uniqueNames.values());
   }, [users]);
+  
+  const participantOptions = useMemo(() => {
+    return availableParticipants.map(p => ({ value: p, label: p }));
+  }, [availableParticipants]);
 
 
   const usersMap = useMemo(() => {
@@ -256,6 +264,34 @@ export function GenerateScheduleForm() {
     }, 100);
   };
 
+  const handleParticipantChange = (dayIndex: number, participantIndex: number, newParticipant: string) => {
+    if (!newParticipant) return; // Don't allow clearing a slot
+
+    setGeneratedSchedule(currentSchedule => {
+        if (!currentSchedule) return null;
+
+        const newSchedule = [...currentSchedule];
+        const targetDay = { ...newSchedule[dayIndex] };
+        const newParticipants = [...targetDay.participants];
+        
+        // Check for duplicates on the same day
+        if (newParticipants.filter((p, i) => i !== participantIndex).includes(newParticipant)) {
+            toast({
+                title: "Duplicate Participant",
+                description: `${newParticipant} is already scheduled for this day.`,
+                variant: "destructive",
+            });
+            return currentSchedule; // Don't update state
+        }
+
+        newParticipants[participantIndex] = newParticipant;
+        targetDay.participants = newParticipants.sort(); // Keep it sorted
+        newSchedule[dayIndex] = targetDay;
+        
+        return newSchedule;
+    });
+  };
+
 
   const handleSaveSchedule = async () => {
     if (!generatedSchedule || !firestore || !usersMap.size) {
@@ -413,14 +449,44 @@ export function GenerateScheduleForm() {
         {generatedSchedule ? (
           <Card className="bg-secondary">
             <CardHeader>
-              <CardTitle>Generated Schedule (JSON)</CardTitle>
+              <CardTitle>Generated Schedule (Editable)</CardTitle>
             </CardHeader>
-            <CardContent>
-              <pre className="p-4 rounded-md bg-background text-sm overflow-auto max-h-[400px]">
-                <code>
-                    {JSON.stringify(generatedSchedule, null, 2)}
-                </code>
-              </pre>
+            <CardContent className="max-h-[400px] overflow-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Participants</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {generatedSchedule.map((day, dayIndex) => (
+                            <TableRow key={day.date}>
+                                <TableCell className="font-medium whitespace-nowrap">
+                                    {format(new Date(day.date + 'T00:00:00Z'), 'EEEE, dd MMM', { locale: idLocale })}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-2">
+                                        {day.participants.map((participant, participantIndex) => (
+                                            <Combobox
+                                                key={`${day.date}-${participantIndex}`}
+                                                value={participant}
+                                                onValueChange={(newValue) => {
+                                                  handleParticipantChange(dayIndex, participantIndex, newValue)
+                                                }}
+                                                options={participantOptions}
+                                                placeholder="Pilih Warga"
+                                                searchPlaceholder="Cari warga..."
+                                                emptyPlaceholder="Warga tidak ditemukan."
+                                                className="w-[150px]"
+                                            />
+                                        ))}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </CardContent>
             <CardFooter>
                  <Button onClick={handleSaveSchedule} disabled={isSaving || isLoading} className="w-full">
