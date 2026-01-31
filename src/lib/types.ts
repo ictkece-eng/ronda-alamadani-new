@@ -5,6 +5,7 @@ export type ScheduleEntry = {
   blok: string;
   noHp: string;
   pengganti?: string;
+  date?: Date;
 };
 
 export type PersonInfo = {
@@ -60,3 +61,11 @@ export type ScheduleRequest = {
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
 };
+
+export type RondaSchedule = {
+    id: string;
+    userId: string;
+    date: string; // ISO String
+    startTime: string;
+    endTime: string;
+}

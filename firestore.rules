@@ -89,6 +89,15 @@ service cloud.firestore {
     match /{path=**}/scheduleRequests/{scheduleRequestId} {
       allow list: if isAdmin();
     }
+    
+    /**
+     * @description Grants read-only access to all ronda schedules for any authenticated user.
+     * @path /{path=**}/rondaSchedules/{rondaScheduleId}
+     * @allow (list) Any authenticated user can list all schedules to populate the main dashboard.
+     */
+    match /{path=**}/rondaSchedules/{rondaScheduleId} {
+        allow list: if isSignedIn();
+    }
 
     // ------------------------------------------------------------------------
     // Collection Rules

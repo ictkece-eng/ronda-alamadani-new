@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -11,18 +11,21 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  scheduleEntries as staticSchedule,
   infoItems,
 } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import type { PersonInfo, Warga } from '@/lib/types';
+import type { PersonInfo, Warga, ScheduleEntry, RondaSchedule } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, collectionGroup } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileDown } from 'lucide-react';
+import { FileDown, Calendar as CalendarIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 // Extend jsPDF with autoTable
 declare module 'jspdf' {
@@ -105,32 +108,56 @@ const InfoTable = ({
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { isUserLoading: isAuthLoading } = useUser();
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
+
 
   const usersCollection = useMemoFirebase(
     () => (firestore ? collection(firestore, 'users') : null),
     [firestore]
   );
+  const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
-  const { data: users, isLoading: isUsersLoading } =
-    useCollection<Warga>(usersCollection);
+  const schedulesQuery = useMemoFirebase(
+      () => (firestore ? collectionGroup(firestore, 'rondaSchedules') : null),
+      [firestore]
+  );
+  const { data: allSchedules, isLoading: isSchedulesLoading } = useCollection<RondaSchedule>(schedulesQuery);
   
-  const isLoading = isUsersLoading || isAuthLoading;
+  const isLoading = isSchedulesLoading || isUsersLoading || isAuthLoading;
 
   const { processedScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
-    if (!users) {
+    if (!users || !allSchedules) {
         return {
-            processedScheduleEntries: staticSchedule,
+            processedScheduleEntries: [],
             backupPersons: [],
             coordinatorPersons: []
         };
     }
-
-    const usersMap = new Map(users.map((user) => [user.name.toLowerCase(), user]));
-
-    const schedule = staticSchedule.map((entry) => {
-        const user = usersMap.get(entry.nama.toLowerCase());
-        return user ? { ...entry, nama: user.name, blok: user.address, noHp: user.phone } : entry;
+    
+    const [year, month] = selectedMonth.split('-').map(Number);
+    
+    const filteredSchedules = allSchedules.filter(schedule => {
+        const scheduleDate = new Date(schedule.date);
+        return scheduleDate.getUTCFullYear() === year && scheduleDate.getUTCMonth() + 1 === month;
     });
+
+    const usersMap = new Map(users.map((user) => [user.id, user]));
+
+    const scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
+        const user = usersMap.get(schedule.userId);
+        const scheduleDate = new Date(schedule.date);
+        return {
+            date: scheduleDate,
+            hariTanggal: format(scheduleDate, "EEEE, dd MMMM yyyy", { locale: id }),
+            nama: user?.name || 'Unknown User',
+            blok: user?.address || '-',
+            noHp: user?.phone || '-',
+        }
+    }).sort((a, b) => a.date.getTime() - b.date.getTime());
+
 
     const backups = users
       .filter((user) => user.role === 'backup')
@@ -144,16 +171,22 @@ export default function DashboardPage() {
             noHp: user.phone,
         }));
 
-    return { processedScheduleEntries: schedule, backupPersons: backups, coordinatorPersons: coordinators };
-  }, [users]);
+    return { processedScheduleEntries: scheduleEntries, backupPersons: backups, coordinatorPersons: coordinators };
+  }, [users, allSchedules, selectedMonth]);
 
 
   let lastDate = '';
+  
+  const periodText = useMemo(() => {
+    if (!selectedMonth) return '';
+    const [year, month] = selectedMonth.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return format(date, "MMMM yyyy", { locale: id });
+  }, [selectedMonth]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.width;
-    const pageH = doc.internal.pageSize.height;
 
     // 1. Title
     doc.setFontSize(16);
@@ -163,11 +196,10 @@ export default function DashboardPage() {
     doc.setFont('helvetica', 'normal');
     doc.text('RT 08 / RW 20', pageW / 2, 22, { align: 'center' });
     doc.setFontSize(10);
-    doc.text('Periode: Desember 2025', pageW / 2, 28, { align: 'center' });
+    doc.text(`Periode: ${periodText}`, pageW / 2, 28, { align: 'center' });
 
     // 2. Right Column Tables (to determine height)
     const rightColX = 115;
-    const rightColMargin = { left: rightColX };
     let rightColY = 35;
 
     doc.setFontSize(10);
@@ -177,11 +209,10 @@ export default function DashboardPage() {
         head: [['No', 'Nama', 'Blok', 'No HP']],
         body: backupPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
         startY: rightColY + 2,
-        margin: rightColMargin,
+        margin: { left: rightColX },
         theme: 'grid',
         headStyles: { fillColor: '#f3f4f6', textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: 150 },
         styles: { fontSize: 8, lineWidth: 0.1, lineColor: 150 },
-        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
     });
     rightColY = doc.autoTable.previous.finalY || rightColY;
 
@@ -191,11 +222,10 @@ export default function DashboardPage() {
         head: [['No', 'Nama', 'Blok', 'No HP']],
         body: coordinatorPersons.map((p, i) => [i + 1, p.nama, p.blok, p.noHp]),
         startY: rightColY + 2,
-        margin: rightColMargin,
+        margin: { left: rightColX },
         theme: 'grid',
         headStyles: { fillColor: '#f3f4f6', textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: 150 },
         styles: { fontSize: 8, lineWidth: 0.1, lineColor: 150 },
-        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
     });
     rightColY = doc.autoTable.previous.finalY || rightColY;
 
@@ -204,13 +234,12 @@ export default function DashboardPage() {
     doc.autoTable({
         body: infoItems.map(item => [item.id + '.', item.text]),
         startY: rightColY + 2,
-        margin: rightColMargin,
+        margin: { left: rightColX },
         theme: 'plain',
         styles: { fontSize: 8, cellPadding: {top: 1, left: 0, right: 0, bottom: 1}},
         columnStyles: {
             0: { cellWidth: 5, fontStyle: 'bold' },
         },
-        didDrawPage: (data) => { rightColY = data.cursor?.y || 0; }
     });
     
     // 3. Main Schedule Table
@@ -249,21 +278,33 @@ export default function DashboardPage() {
         },
     });
 
-    doc.save('jadwal-ronda.pdf');
+    doc.save(`jadwal-ronda-${selectedMonth}.pdf`);
   };
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
       <header className="text-center mb-6">
-        <div className='flex justify-between items-center'>
-            <div></div>
-            <div className='flex flex-col items-center'>
+        <div className='flex justify-between items-start'>
+            <div className="w-48 text-left">
+                <Label htmlFor="month-picker">Pilih Bulan</Label>
+                <div className='relative'>
+                    <CalendarIcon className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        id="month-picker"
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className='pl-8'
+                    />
+                </div>
+            </div>
+            <div className='flex flex-col items-center -mt-2'>
                 <h1 className="text-xl md:text-2xl font-bold uppercase">
                 Jadwal Ronda Perum. Alam Madani
                 </h1>
                 <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                Periode: Desember 2025
+                <p className="text-sm text-muted-foreground mt-1 capitalize">
+                  Periode: {periodText}
                 </p>
             </div>
             <Button onClick={handleExportPDF} variant="outline" size="sm">
@@ -311,7 +352,8 @@ export default function DashboardPage() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : processedScheduleEntries.map((entry, index) => {
+                  : processedScheduleEntries.length > 0 ? (
+                    processedScheduleEntries.map((entry, index) => {
                       const showDate = entry.hariTanggal !== lastDate;
                       const isJumat = entry.hariTanggal.startsWith('Jumat');
 
@@ -370,7 +412,14 @@ export default function DashboardPage() {
                           </TableCell>
                         </TableRow>
                       );
-                    })}
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center h-24">
+                        No schedule data found for this month.
+                      </TableCell>
+                    </TableRow>
+                  )}
               </TableBody>
             </Table>
           </div>
