@@ -124,17 +124,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages a user's private schedule change requests.
+     * @description Manages a user's private schedule change requests. Admins have full access.
      * @path /users/{userId}/scheduleRequests/{scheduleRequestId}
-     * @allow (create) The user with UID matching {userId} can create a request for themself.
-     * @deny (update) A different user cannot update another user's request.
-     * @principle Restricts access to a user's own data tree using path-based security.
+     * @allow (create) The user can create a request for themself, or an admin can create it for them.
+     * @allow (update) The user can update their own request, or an admin can update any request.
+     * @principle Restricts access to a user's own data tree, but provides an admin override for management.
      */
     match /users/{userId}/scheduleRequests/{scheduleRequestId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isAdmin();
+      allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
