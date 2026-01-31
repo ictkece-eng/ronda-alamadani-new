@@ -68,6 +68,7 @@ const wargaSchema = z.object({
   address: z.string().min(1, { message: 'Address is required' }),
   role: z.enum(['user', 'coordinator', 'admin', 'backup']),
   includeInSchedule: z.boolean().optional(),
+  isTeacher: z.boolean().optional(),
 });
 
 type WargaFormValues = z.infer<typeof wargaSchema>;
@@ -111,6 +112,7 @@ export function UserManagement() {
       address: '',
       role: 'user',
       includeInSchedule: false,
+      isTeacher: false,
     },
   });
 
@@ -133,7 +135,7 @@ export function UserManagement() {
 
   const handleAddNew = () => {
     setCurrentUser(null);
-    form.reset({ name: '', email: '', phone: '', address: '', role: 'user', includeInSchedule: false });
+    form.reset({ name: '', email: '', phone: '', address: '', role: 'user', includeInSchedule: false, isTeacher: false });
     setIsDialogOpen(true);
   };
 
@@ -149,6 +151,7 @@ export function UserManagement() {
     const dataToSave = {
         ...values,
         includeInSchedule: values.role === 'backup' ? !!values.includeInSchedule : false,
+        isTeacher: !!values.isTeacher,
     };
     
     try {
@@ -221,6 +224,7 @@ export function UserManagement() {
             address: warga.address,
             role: warga.role as 'user' | 'coordinator' | 'admin' | 'backup',
             includeInSchedule: warga.includeInSchedule || false,
+            isTeacher: warga.isTeacher || false,
         };
         
         setDocumentNonBlocking(newUserRef, newUserData, {});
@@ -268,9 +272,8 @@ export function UserManagement() {
                 <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead className='hidden md:table-cell'>Email</TableHead>
-                <TableHead className='hidden sm:table-cell'>Phone</TableHead>
-                <TableHead className='hidden md:table-cell'>Address</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Guru</TableHead>
                 <TableHead>Include in Schedule</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -281,9 +284,8 @@ export function UserManagement() {
                         <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                             <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-32" /></TableCell>
-                            <TableCell className='hidden sm:table-cell'><Skeleton className="h-4 w-28" /></TableCell>
-                            <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-16" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-6" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-6" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
                         </TableRow>
@@ -293,9 +295,15 @@ export function UserManagement() {
                     <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell className='hidden md:table-cell'>{user.email}</TableCell>
-                    <TableCell className='hidden sm:table-cell'>{user.phone}</TableCell>
-                    <TableCell className='hidden md:table-cell'>{user.address}</TableCell>
                     <TableCell>{user.role}</TableCell>
+                    <TableCell>
+                        <div className='flex justify-center'>
+                            <Checkbox
+                                checked={!!user.isTeacher}
+                                disabled
+                            />
+                        </div>
+                    </TableCell>
                     <TableCell>
                         {user.role === 'backup' && (
                             <div className='flex justify-center'>
@@ -473,6 +481,27 @@ export function UserManagement() {
                     )}
                 />
               )}
+
+                <FormField
+                    control={form.control}
+                    name="isTeacher"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Guru</FormLabel>
+                                <FormDescription>
+                                    Jadwalkan pengguna ini pada hari Jumat atau Sabtu jika memungkinkan.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
 
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

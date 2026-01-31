@@ -1,4 +1,5 @@
 
+
 export type ScheduleEntry = {
   hariTanggal: string;
   nama: string;
@@ -28,6 +29,7 @@ export type Warga = {
   address: string;
   role: 'admin' | 'coordinator' | 'user' | 'backup';
   includeInSchedule?: boolean;
+  isTeacher?: boolean;
 };
 
 

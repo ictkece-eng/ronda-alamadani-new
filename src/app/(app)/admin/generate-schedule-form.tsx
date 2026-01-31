@@ -64,7 +64,6 @@ export function GenerateScheduleForm() {
       )
       .map(u => u.name);
       
-    // Create a unique list of names, case-insensitively, preserving original case of the last one seen
     const uniqueNames = new Map<string, string>();
     for (const name of participantNames) {
         uniqueNames.set(name.toLowerCase(), name);
@@ -122,7 +121,7 @@ export function GenerateScheduleForm() {
                 const reqDate = new Date(req.requestedScheduleDate);
                 const dayIndex = reqDate.getUTCDate() - 1;
 
-                if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(user.name) && !dailyAssignments[dayIndex].includes(user.name)) {
+                if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(user.name) && !dailyAssignments[dayIndex].map(name => name.toLowerCase()).includes(user.name.toLowerCase())) {
                     // Cap assignments at 3 per day
                     if (dailyAssignments[dayIndex].length < 3) {
                         dailyAssignments[dayIndex].push(user.name);
@@ -136,8 +135,8 @@ export function GenerateScheduleForm() {
             for (let day = 0; day < daysInMonth; day++) {
                 const currentDate = new Date(Date.UTC(year, monthNum - 1, day + 1));
                 const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
-                const targetParticipants = isWeekend ? 3 : 2;
+                const isWeekendShift = dayOfWeek === 5 || dayOfWeek === 6; // Friday or Saturday
+                const targetParticipants = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) ? 3 : 2;
                 
                 let needed = targetParticipants - dailyAssignments[day].length;
 
@@ -158,27 +157,46 @@ export function GenerateScheduleForm() {
                             const userA = usersMap.get(a.toLowerCase());
                             const userB = usersMap.get(b.toLowerCase());
                             
+                            // --- Teacher Preference Score ---
+                            const isATeacher = !!userA?.isTeacher;
+                            const isBTeacher = !!userB?.isTeacher;
+                            let teacherScoreA = 0;
+                            let teacherScoreB = 0;
+
+                            if (isWeekendShift) {
+                                if (!isATeacher) teacherScoreA = 1; // Non-teacher gets penalty
+                                if (!isBTeacher) teacherScoreB = 1;
+                            } else {
+                                if (isATeacher) teacherScoreA = 1; // Teacher gets penalty on weekdays
+                                if (isBTeacher) teacherScoreB = 1;
+                            }
+
+                            if (teacherScoreA !== teacherScoreB) {
+                                return teacherScoreA - teacherScoreB;
+                            }
+
+                            // --- Block Clash Score ---
                             const blockA = userA?.address ? userA.address.charAt(0).toUpperCase() : null;
                             const blockB = userB?.address ? userB.address.charAt(0).toUpperCase() : null;
-
                             const scoreA_block = (blockA && assignedBlocksThisDay.has(blockA)) ? 1 : 0;
                             const scoreB_block = (blockB && assignedBlocksThisDay.has(blockB)) ? 1 : 0;
-
                             if (scoreA_block !== scoreB_block) {
                                 return scoreA_block - scoreB_block;
                             }
 
+                            // --- Shift Count Score ---
                             const countA = shiftCounts.get(a) ?? 0;
                             const countB = shiftCounts.get(b) ?? 0;
                             if (countA !== countB) {
                                 return countA - countB;
                             }
 
+                            // --- Randomizer ---
                             return Math.random() - 0.5;
                         });
                         
-                        const bestCandidate = candidates.shift(); // Safely get and remove the top candidate
-                        if (!bestCandidate) continue; // Safety check
+                        const bestCandidate = candidates.shift();
+                        if (!bestCandidate) continue; 
 
                         dailyAssignments[day].push(bestCandidate);
                         shiftCounts.set(bestCandidate, (shiftCounts.get(bestCandidate) ?? 0) + 1);
@@ -233,7 +251,6 @@ export function GenerateScheduleForm() {
 
         for (const day of generatedSchedule) {
             if (!day.date || !day.participants) continue; 
-            // Directly parse YYYY-MM-DD string as UTC date to avoid timezone issues
             const utcDate = new Date(day.date + 'T00:00:00Z');
             if (isNaN(utcDate.getTime())) continue;
 
@@ -279,7 +296,6 @@ export function GenerateScheduleForm() {
         const batch = writeBatch(firestore);
         let deletedCount = 0;
 
-        // Iterate over each user to query their specific schedule subcollection
         for (const user of users) {
             const userSchedulesRef = collection(firestore, 'users', user.id, 'rondaSchedules');
             const schedulesToDeleteQuery = query(

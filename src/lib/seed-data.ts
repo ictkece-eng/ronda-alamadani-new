@@ -3,10 +3,10 @@ import type { Warga } from '@/lib/types';
 type SeedWarga = Omit<Warga, 'id' | 'email'>;
 
 export const seedWarga: SeedWarga[] = [
-    { name: 'Dedi Novel', address: 'I2', phone: '0823-8709-3522', role: 'user' },
+    { name: 'Dedi Novel', address: 'I2', phone: '0823-8709-3522', role: 'user', isTeacher: true },
     { name: 'Rio Antoni', address: 'H12', phone: '0813-7447-3005', role: 'user' },
     { name: 'Mulya Trisno', address: 'I5', phone: '0823-8941-2902', role: 'user' },
-    { name: 'Bagus', address: 'H11', phone: '0813-6505-6370', role: 'user' },
+    { name: 'Bagus', address: 'H11', phone: '0813-6505-6370', role: 'user', isTeacher: true },
     { name: 'Roni Saputra', address: 'B8', phone: '0852-7885-6368', role: 'user' },
     { name: 'Randy Anugrah', address: 'F3', phone: '0852-7212-4318', role: 'user' },
     { name: 'Jumaidi', address: 'I1', phone: '0852-6546-0038', role: 'user' },
@@ -25,7 +25,7 @@ export const seedWarga: SeedWarga[] = [
     { name: 'Kasman', address: 'G10', phone: '0812-7062-5022', role: 'user' },
     { name: 'Lucky', address: 'A2', phone: '0821-7044-4464', role: 'user' },
     { name: 'Ikromi', address: 'F5', phone: '0852-7806-0633', role: 'user' },
-    { name: 'Hari susanto', address: 'H4', phone: '0813-7086-3464', role: 'user' },
+    { name: 'Hari susanto', address: 'H4', phone: '0813-7086-3464', role: 'user', isTeacher: true },
     { name: 'M. Fiqih', address: 'G4', phone: '0813-7467-6900', role: 'user' },
     { name: 'Zulfikar', address: 'C7', phone: '0852-7793-0606', role: 'user' },
     { name: 'Rahmat Hidayat', address: 'A4', phone: '0823-9099-2314', role: 'coordinator' },
@@ -41,7 +41,7 @@ export const seedWarga: SeedWarga[] = [
     { name: 'Dedi Masrul', address: 'B5', phone: '0812-6638-8312', role: 'user' },
     { name: 'Andi Julisman', address: 'G7', phone: '0853-6548-2272', role: 'user' },
     { name: 'Pitok', address: 'A8', phone: '0852-6570-9370', role: 'user' },
-    { name: 'M. Arif', address: 'I3', phone: '0852-7497-6016', role: 'user' },
+    { name: 'M. Arif', address: 'I3', phone: '0852-7497-6016', role: 'user', isTeacher: true },
     { name: 'Zulkifli', address: 'E2', phone: '0852-6301-0203', role: 'backup', includeInSchedule: false },
     { name: 'M. Fadillah', address: 'D5', phone: '0823-9026-6882', role: 'user' },
     { name: 'Kamil Hakimi', address: 'H6', phone: '0895-4013-57160', role: 'user' },

@@ -35,6 +35,10 @@
         "includeInSchedule": {
           "type": "boolean",
           "description": "Whether a user with the 'backup' role should be included in automatic schedule generation."
+        },
+        "isTeacher": {
+          "type": "boolean",
+          "description": "Whether the user is a teacher and prefers weekend (Friday/Saturday) shifts."
         }
       },
       "required": [
