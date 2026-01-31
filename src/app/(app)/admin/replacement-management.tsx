@@ -179,7 +179,7 @@ export function ReplacementManagement() {
                                                 options={[
                                                     { value: 'clear', label: '-- No Replacement --'},
                                                     ...(allUsers
-                                                            ?.filter(u => u.id !== schedule.userId)
+                                                            ?.filter(u => u.role === 'backup' && u.id !== schedule.userId)
                                                             .sort((a,b) => a.name.localeCompare(b.name))
                                                             .map(user => ({
                                                                 value: user.id,
