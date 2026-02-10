@@ -15,29 +15,30 @@ export default function AdminLayout({
   const router = useRouter();
   const firestore = useFirestore();
 
-  // Create a memoized reference to the admin role document
   const adminRoleRef = useMemoFirebase(
     () => (user && firestore ? doc(firestore, 'roles_admin', user.uid) : null),
     [user, firestore]
   );
 
-  // Use useDoc to check for the admin role
   const { data: adminRoleDoc, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
   
-  const isCheckingAuth = isUserLoading || (!!user && isAdminRoleLoading);
-  const isAdmin = !!adminRoleDoc;
-
+  // This effect handles redirection.
+  // It triggers whenever the loading states or the final admin document changes.
   React.useEffect(() => {
-    if (isCheckingAuth) {
-      return; // Wait until all loading is finished
+    const isFinishedChecking = !isUserLoading && !isAdminRoleLoading;
+    // If all checks are done and we find out the user is not logged in or not an admin...
+    if (isFinishedChecking && (!user || !adminRoleDoc)) {
+      // ...redirect them away.
+      router.replace('/dashboard');
     }
-    if (!user || !isAdmin) {
-      router.replace('/dashboard'); // Not logged in or not an admin
-    }
-  }, [user, isAdmin, isCheckingAuth, router]);
+  }, [user, adminRoleDoc, isUserLoading, isAdminRoleLoading, router]);
 
-  // While loading or if user is not an admin, show a loading screen
-  if (isCheckingAuth || !isAdmin) {
+  // Determine if we are still in a loading/verifying state.
+  const isVerifying = isUserLoading || isAdminRoleLoading;
+
+  // Show a loading spinner if we're still verifying, OR if the user is confirmed not to be an admin.
+  // This prevents a brief flash of content before the redirect effect can run.
+  if (isVerifying || !adminRoleDoc) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-muted/40">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -45,6 +46,6 @@ export default function AdminLayout({
     );
   }
 
-  // If user is admin, render the admin page content
+  // If we're past the loading checks AND we have an admin document, it's safe to render the admin content.
   return <>{children}</>;
 }
