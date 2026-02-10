@@ -33,6 +33,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
 
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
@@ -67,6 +68,10 @@ export function ScheduleRequests() {
   const [editingRequest, setEditingRequest] = useState<ScheduleRequestWithUser | null>(null);
   const [userSearch, setUserSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -85,18 +90,26 @@ export function ScheduleRequests() {
   }, [users]);
   
   const processedRequests = useMemo(() => {
-    if (!requests) return [];
+    if (!requests || !selectedMonth) return [];
+    
+    const [year, month] = selectedMonth.split('-').map(Number);
+    
     const allMapped = requests.map(req => ({
       ...req,
       userName: usersMap.get(req.userId) || 'Unknown User',
     }));
 
-    const filtered = searchQuery
-      ? allMapped.filter(req => req.userName.toLowerCase().includes(searchQuery.toLowerCase()))
-      : allMapped;
+    const filteredByMonth = allMapped.filter(req => {
+        const reqDate = new Date(req.requestedScheduleDate);
+        return reqDate.getUTCFullYear() === year && reqDate.getUTCMonth() + 1 === month;
+    });
 
-    return filtered.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
-  }, [requests, usersMap, searchQuery]);
+    const filteredByName = searchQuery
+      ? filteredByMonth.filter(req => req.userName.toLowerCase().includes(searchQuery.toLowerCase()))
+      : filteredByMonth;
+
+    return filteredByName.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+  }, [requests, usersMap, searchQuery, selectedMonth]);
 
   const isLoading = isRequestsLoading || isUsersLoading;
 
@@ -177,6 +190,18 @@ export function ScheduleRequests() {
     setEditingRequest(null);
   };
 
+  const { monthStart, monthEnd } = useMemo(() => {
+    if (!selectedMonth) return { monthStart: '', monthEnd: '' };
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    return {
+        monthStart: format(startDate, 'yyyy-MM-dd'),
+        monthEnd: format(endDate, 'yyyy-MM-dd'),
+    };
+  }, [selectedMonth]);
+
+
   // Derived state for user search
   const selectedUserId = watch('userId');
   const watchedDate = watch('requestedDate');
@@ -217,24 +242,39 @@ export function ScheduleRequests() {
                 <CardTitle>Manage Schedule Requests</CardTitle>
                 <CardDescription>Approve or reject ronda schedule change requests from warga.</CardDescription>
             </div>
-            <Button className="self-end sm:self-center" onClick={handleCreateClick}>
+            <Button className="self-end sm:self-center" onClick={handleCreateClick} disabled={!selectedMonth}>
                 <Plus className="h-4 w-4 mr-2" />
                 Request Jadwal
             </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-                placeholder="Search by name..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                }}
-            />
+        <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search by name..."
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                />
+            </div>
+            <div className="w-full sm:max-w-xs">
+                <Label htmlFor="month-picker" className="sr-only">Filter by Month</Label>
+                <Input
+                    id="month-picker"
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => {
+                        setSelectedMonth(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                    disabled={isLoading}
+                />
+            </div>
         </div>
         {requestsError && (
           <Alert variant="destructive">
@@ -305,7 +345,7 @@ export function ScheduleRequests() {
                 ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="text-center h-24">
-                       {searchQuery ? "No requests match your search." : "No schedule requests found."}
+                       {searchQuery ? "No requests match your search." : "No schedule requests found for this month."}
                     </TableCell>
                 </TableRow>
                 )}
@@ -353,7 +393,7 @@ export function ScheduleRequests() {
             <DialogHeader>
                 <DialogTitle>{editingRequest ? 'Edit' : 'Create New'} Schedule Request</DialogTitle>
                 <DialogDescription>
-                    {editingRequest ? 'Update the details for this request.' : 'Create a request on behalf of a user. This will appear in the list for approval.'}
+                    {editingRequest ? 'Update the details for this request.' : `Create a request on behalf of a user for ${format(new Date(monthStart), 'MMMM yyyy')}.`}
                 </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -407,7 +447,7 @@ export function ScheduleRequests() {
                             <FormItem>
                                 <FormLabel>Requested Change Date</FormLabel>
                                 <FormControl>
-                                    <Input type="date" {...field} />
+                                    <Input type="date" {...field} min={monthStart} max={monthEnd} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -441,7 +481,7 @@ export function ScheduleRequests() {
                     />
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsFormDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={formState.isSubmitting || requestsForSelectedDate.length >= 3}>
+                        <Button type="submit" disabled={formState.isSubmitting || (requestsForSelectedDate.length >= 3 && !editingRequest) }>
                         {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {editingRequest ? 'Save Changes' : 'Create Request'}
                         </Button>
@@ -453,5 +493,3 @@ export function ScheduleRequests() {
     </>
   );
 }
-
-    
