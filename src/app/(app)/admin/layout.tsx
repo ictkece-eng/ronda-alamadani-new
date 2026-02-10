@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import { TopNavbar } from '../top-navbar';
 
 export default function AdminLayout({
   children,
@@ -37,26 +36,18 @@ export default function AdminLayout({
   // Determine if we are still in a loading/verifying state.
   const isVerifying = isUserLoading || isAdminRoleLoading;
 
-  // Show a loading spinner if we're still verifying, OR if the user is confirmed not to be an admin.
-  // This prevents a brief flash of content before the redirect effect can run.
+  // The parent layout (app/layout.tsx) already provides the navbar and main tag.
+  // This loader will appear inside the parent's <main> tag.
+  // We calculate the height to fill the space below the 4rem (h-16) navbar.
   if (isVerifying || !adminRoleDoc) {
     return (
-      <>
-        <TopNavbar />
-        <div className="flex h-screen w-full items-center justify-center bg-muted/40 pt-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </>
+      <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   // If we're past the loading checks AND we have an admin document, it's safe to render the admin content.
-  return (
-    <div>
-        <TopNavbar />
-        <main className="pt-16">
-            {children}
-        </main>
-    </div>
-  );
+  // The parent layout will handle the navbar and main container.
+  return <>{children}</>;
 }
