@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -226,116 +225,41 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. Path-based ownership is enforced.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
       },
-      {
-        "path": "/users/{userId}/rondaSchedules/{rondaScheduleId}",
-        "definition": {
-          "entityName": "RondaSchedule",
-          "schema": {
-            "$ref": "#/backend/entities/RondaSchedule"
-          },
-          "description": "Stores ronda schedules for each user. Enables path-based ownership for security.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "rondaScheduleId",
-              "description": "The unique identifier for the ronda schedule."
-            }
-          ]
-        }
+      "description": "Stores user profiles. Path-based ownership is enforced."
+    },
+    "/users/{userId}/rondaSchedules/{rondaScheduleId}": {
+      "schema": {
+        "$ref": "#/entities/RondaSchedule"
       },
-      {
-        "path": "/users/{userId}/scheduleRequests/{scheduleRequestId}",
-        "definition": {
-          "entityName": "ScheduleRequest",
-          "schema": {
-            "$ref": "#/backend/entities/ScheduleRequest"
-          },
-          "description": "Stores schedule requests made by each user. Enables path-based ownership for security.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "scheduleRequestId",
-              "description": "The unique identifier for the schedule request."
-            }
-          ]
-        }
+      "description": "Stores ronda schedules for each user. Enables path-based ownership for security."
+    },
+    "/users/{userId}/scheduleRequests/{scheduleRequestId}": {
+      "schema": {
+        "$ref": "#/entities/ScheduleRequest"
       },
-      {
-        "path": "/users/{userId}/rondaReplacements/{rondaReplacementId}",
-        "definition": {
-          "entityName": "RondaReplacement",
-          "schema": {
-            "$ref": "#/backend/entities/RondaReplacement"
-          },
-          "description": "Stores ronda replacement requests related to a user's schedule. Enables path-based ownership for security.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "rondaReplacementId",
-              "description": "The unique identifier for the ronda replacement request."
-            }
-          ]
-        }
+      "description": "Stores schedule requests made by each user. Enables path-based ownership for security."
+    },
+    "/users/{userId}/rondaReplacements/{rondaReplacementId}": {
+      "schema": {
+        "$ref": "#/entities/RondaReplacement"
       },
-      {
-        "path": "/coordinatorAssignments/{coordinatorAssignmentId}",
-        "definition": {
-          "entityName": "CoordinatorAssignment",
-          "schema": {
-            "$ref": "#/backend/entities/CoordinatorAssignment"
-          },
-          "description": "Stores coordinator assignments. Security rules can ensure only admins or the assigned user can modify these.",
-          "params": [
-            {
-              "name": "coordinatorAssignmentId",
-              "description": "The unique identifier for the coordinator assignment."
-            }
-          ]
-        }
+      "description": "Stores ronda replacement requests related to a user's schedule. Enables path-based ownership for security."
+    },
+    "/coordinatorAssignments/{coordinatorAssignmentId}": {
+      "schema": {
+        "$ref": "#/entities/CoordinatorAssignment"
       },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Documents in this collection indicate administrative privileges for a user. Existence of a document indicates the user is an admin.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user with admin role."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User data and related entities (RondaSchedules, ScheduleRequests, RondaReplacements, CoordinatorAssignments) are organized into user-specific subcollections to leverage path-based ownership for simplified security rules. Global roles are managed using dedicated collections.\n\n**Authorization Independence:** This is achieved by using path-based ownership for user-related data. For example, `rondaSchedules` are stored under `/users/{userId}/rondaSchedules/{rondaScheduleId}`. This structure allows security rules to authorize access based on the `userId` in the path, without needing to `get()` data from other documents. The `CoordinatorAssignments` collection stores coordinator assignments, and security rules can enforce that only admins or the assigned user can modify the data.\n\n**QAPs (Rules are not Filters):**  The structure is designed to support secure `list` operations using structural segregation.  For example, listing `rondaSchedules` is performed within the user's own collection (`/users/{userId}/rondaSchedules`).  Because the data is segregated by user, the security rules can authorize the listing operation based solely on the `request.auth.uid` matching the `userId` in the path. Global roles (admins) are handled through existence checks in separate collections (`/roles_admin/{uid}`). This prevents the need for filtering based on data content within the rules.\n\n**Structure Overview:**\n\n*   `/users/{userId}`: Stores user profiles. Enables path-based ownership for user-specific data.\n*   `/users/{userId}/rondaSchedules/{rondaScheduleId}`: Stores ronda schedules for each user.\n*   `/users/{userId}/scheduleRequests/{scheduleRequestId}`: Stores schedule requests made by each user.\n*   `/users/{userId}/rondaReplacements/{rondaReplacementId}`: Stores ronda replacement requests related to a user's schedule.\n*   `/coordinatorAssignments/{coordinatorAssignmentId}`: Stores coordinator assignments.  Security rules ensure only admins or the assigned coordinator can modify these.\n*   `/roles_admin/{userId}`: Documents in this collection indicate administrative privileges for a user. Existence of a document indicates the user is an admin."
+      "description": "Stores coordinator assignments. Security rules can ensure only admins or the assigned user can modify these."
+    },
+    "/roles_admin/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Documents in this collection indicate administrative privileges for a user. Existence of a document indicates the user is an admin."
+    }
   }
 }
