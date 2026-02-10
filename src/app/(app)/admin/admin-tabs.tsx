@@ -4,15 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Activity, Users, FileText, GitPullRequest, Download } from 'lucide-react';
+import { Activity, Users, FileText, GitPullRequest, Download, History } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
+import { ScheduleHistory } from './schedule-history';
 
 export function AdminTabs() {
     return (
         <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 h-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto">
           <TabsTrigger value="generate-schedule">
             <Activity className="w-4 h-4 mr-2" />
             Generate Schedule
@@ -32,6 +33,10 @@ export function AdminTabs() {
             <TabsTrigger value="export">
                 <Download className="w-4 h-4 mr-2" />
                 Export Schedule
+            </TabsTrigger>
+            <TabsTrigger value="history">
+                <History className="w-4 h-4 mr-2" />
+                Schedule History
             </TabsTrigger>
         </TabsList>
         
@@ -69,6 +74,10 @@ export function AdminTabs() {
                     <ExportSchedule />
                 </CardContent>
             </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+            <ScheduleHistory />
         </TabsContent>
       </Tabs>
     );
