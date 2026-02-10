@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { TopNavbar } from '../top-navbar';
 
 export default function AdminLayout({
   children,
@@ -40,12 +41,22 @@ export default function AdminLayout({
   // This prevents a brief flash of content before the redirect effect can run.
   if (isVerifying || !adminRoleDoc) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-muted/40">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <>
+        <TopNavbar />
+        <div className="flex h-screen w-full items-center justify-center bg-muted/40 pt-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </>
     );
   }
 
   // If we're past the loading checks AND we have an admin document, it's safe to render the admin content.
-  return <>{children}</>;
+  return (
+    <div>
+        <TopNavbar />
+        <main className="pt-16">
+            {children}
+        </main>
+    </div>
+  );
 }

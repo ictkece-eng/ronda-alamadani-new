@@ -29,9 +29,9 @@ export function AdminTabs() {
     };
 
     return (
-        <div className="flex min-h-screen">
+        <div className="flex min-h-[calc(100vh-4rem)]">
             {/* Sidebar */}
-            <aside className="w-20 bg-card p-4 flex flex-col items-center gap-y-6 border-r sticky top-0 h-screen">
+            <aside className="w-20 bg-card p-4 flex flex-col items-center gap-y-6 border-r sticky top-16 h-[calc(100vh-4rem)]">
                 <Link href="/dashboard" className="p-2 bg-primary text-primary-foreground rounded-xl">
                     <Building className="h-6 w-6" />
                 </Link>
@@ -53,7 +53,7 @@ export function AdminTabs() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-6 sm:p-8 bg-muted/30">
+            <div className="flex-1 p-6 sm:p-8 bg-muted/30">
                 <header className="flex items-center justify-between mb-8">
                     <h1 className="text-3xl font-bold text-foreground">{getTitle()}</h1>
                     {/* Placeholder for future elements like user avatar */}
@@ -86,7 +86,7 @@ export function AdminTabs() {
                     )}
                     {view === 'history' && <ScheduleHistory />}
                 </div>
-            </main>
+            </div>
         </div>
     );
 }
