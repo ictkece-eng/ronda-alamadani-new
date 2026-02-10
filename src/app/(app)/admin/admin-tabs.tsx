@@ -1,16 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Activity, Users, FileText, GitPullRequest, Download, History, Building } from 'lucide-react';
+import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
 import { ScheduleHistory } from './schedule-history';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from '@/components/ui/button';
+
 
 export function AdminTabs() {
     const [view, setView] = useState('users');
@@ -24,26 +35,22 @@ export function AdminTabs() {
         { id: 'history', label: 'Schedule History', icon: History },
     ];
 
-    const getTitle = () => {
-        return navItems.find(item => item.id === view)?.label || 'Admin Panel';
-    };
-
     return (
-        <div className="flex">
+        <div className="flex bg-background min-h-[calc(100vh-4rem)]">
             {/* Sidebar */}
-            <aside className="w-20 bg-card p-4 flex flex-col items-center justify-between border-r sticky top-16 h-[calc(100vh-4rem)]">
+            <aside className="w-20 bg-card p-4 flex flex-col items-center justify-between border-r">
                 <div className='flex flex-col items-center gap-y-6'>
-                    <Link href="/dashboard" className="p-2 bg-primary text-primary-foreground rounded-xl">
-                        <Building className="h-6 w-6" />
-                    </Link>
-                    <nav className="flex flex-col items-center gap-y-3">
+                    <div className="h-10 w-10 bg-primary text-primary-foreground flex items-center justify-center rounded-full font-bold text-xl">
+                        S
+                    </div>
+                    <nav className="flex flex-col items-center gap-y-2">
                         {navItems.map(item => (
                              <button
                                 key={item.id}
                                 onClick={() => setView(item.id)}
                                 className={cn(
-                                    "p-3 rounded-lg transition-colors w-full",
-                                    view === item.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    "p-3 rounded-xl transition-colors w-full",
+                                    view === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                 )}
                                 title={item.label}
                             >
@@ -52,14 +59,50 @@ export function AdminTabs() {
                         ))}
                     </nav>
                 </div>
-                {/* Logout button removed as it's in the TopNavbar */}
             </aside>
 
             {/* Main Content */}
             <div className="flex-1 p-6 sm:p-8">
                 <header className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold text-foreground">{getTitle()}</h1>
+                    <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+                    <div className="flex items-center gap-4">
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search for anything..." className="pl-10" />
+                        </div>
+                        <Button variant="ghost" size="icon">
+                            <Bell className="h-5 w-5" />
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk3NDY1MTR8MA" alt="Admin" />
+                                        <AvatarFallback>A</AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56" align="end" forceMount>
+                                <DropdownMenuLabel className="font-normal">
+                                <div className="flex flex-col space-y-1">
+                                    <p className="text-sm font-medium leading-none">Admin</p>
+                                    <p className="text-xs leading-none text-muted-foreground">
+                                    tirtopbas@gmail.com
+                                    </p>
+                                </div>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem disabled>
+                                    Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem disabled>
+                                    Settings
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </header>
+                
                 <div className="grid gap-8">
                      {view === 'generate-schedule' && (
                         <Card>
