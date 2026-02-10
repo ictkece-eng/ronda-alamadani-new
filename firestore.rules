@@ -185,9 +185,7 @@ service cloud.firestore {
     match /roles_admin/{userId} {
       allow get: if isAdmin() || isOwner(userId);
       allow list: if isAdmin();
-      allow create: if (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com') || isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
+      allow write: if (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com') || isAdmin();
     }
   }
 }
