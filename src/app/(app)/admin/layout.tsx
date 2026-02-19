@@ -2,39 +2,42 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
 
-  // The specific email for the admin user
-  const ADMIN_EMAIL = 'tirtopbas@gmail.com';
+  // Create a memoized reference to the user's admin role document.
+  const adminRoleRef = useMemoFirebase(
+    () => (firestore && user ? doc(firestore, 'roles_admin', user.uid) : null),
+    [firestore, user]
+  );
 
-  const isVerifying = isUserLoading;
+  // useDoc will fetch the document and give us its state.
+  const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
 
-  // Determine if the user is the designated admin
-  const isAuthorized = !isVerifying && user?.email === ADMIN_EMAIL;
+  const isVerifying = isUserLoading || (user && isAdminRoleLoading);
+
+  // An authorized admin is one who is logged in, and for whom the admin role document exists.
+  const isAuthorized = !isVerifying && !!user && !!adminRole;
 
   React.useEffect(() => {
-    // Wait until the initial user loading is complete
+    // Wait until all loading is complete.
     if (isVerifying) {
-      return; 
+      return;
     }
 
-    // If, after loading, the user is not the authorized admin, redirect them.
+    // If, after loading, the user is not authorized, redirect them.
     if (!isAuthorized) {
       router.replace('/dashboard');
     }
   }, [isAuthorized, isVerifying, router]);
 
-  // While verifying, or if the user is not authorized, show a loader.
-  // The useEffect above will handle the redirection, preventing a flash of content.
+  // While verifying, or if not authorized, show a loader.
   if (!isAuthorized) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -43,6 +46,6 @@ export default function AdminLayout({
     );
   }
 
-  // Only when verification is complete and the user is confirmed as an admin, render the admin dashboard.
+  // Only when authorized, render the admin content.
   return <>{children}</>;
 }
