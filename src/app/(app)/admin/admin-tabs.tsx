@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
@@ -9,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell, LogOut } from 'lucide-react';
+import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell, LogOut, Menu, UserCheck } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 
 export function AdminTabs() {
@@ -61,50 +63,92 @@ export function AdminTabs() {
     ];
 
     return (
-        <div className="bg-muted/40 min-h-screen">
-             {/* Top Header Bar */}
-            <header className="bg-card shadow-sm sticky top-0 z-40 border-b">
-                <div className="container mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-                     <div className="flex items-center gap-4">
-                        <div className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
-                            S
-                        </div>
-                        <h1 className="text-xl font-bold text-foreground hidden sm:block">Admin Dashboard</h1>
-                    </div>
-
-                    {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-1">
-                        {navItems.map(item => (
-                            <Button
-                                key={item.id}
-                                variant={view === item.id ? 'secondary' : 'ghost'}
-                                size="sm"
-                                onClick={() => setView(item.id)}
+        <div className="flex min-h-screen w-full flex-col bg-muted/40">
+            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-40">
+                <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+                    <Link
+                        href="#"
+                        className="flex items-center gap-2 text-lg font-semibold md:text-base"
+                    >
+                        <UserCheck className="h-6 w-6 text-primary" />
+                        <span className="">Ronda Planner</span>
+                    </Link>
+                    {navItems.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => setView(item.id)}
+                            className={cn(
+                                "transition-colors hover:text-foreground",
+                                view === item.id ? "text-foreground font-semibold" : "text-muted-foreground"
+                            )}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                </nav>
+                
+                {/* --- MOBILE NAV --- */}
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0 md:hidden"
+                        >
+                            <Menu className="h-5 w-5" />
+                            <span className="sr-only">Toggle navigation menu</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left">
+                        <nav className="grid gap-6 text-lg font-medium">
+                            <Link
+                                href="#"
+                                className="flex items-center gap-2 text-lg font-semibold mb-4"
                             >
-                                <item.icon className="mr-2" />
-                                {item.label}
-                            </Button>
-                        ))}
-                    </nav>
+                                <UserCheck className="h-6 w-6 text-primary" />
+                                <span className="">Ronda Planner</span>
+                            </Link>
+                            {navItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setView(item.id)}
+                                    className={cn(
+                                        "flex items-center gap-4 rounded-xl px-3 py-2 transition-colors hover:text-foreground",
+                                        view === item.id ? "text-foreground bg-muted" : "text-muted-foreground"
+                                    )}
+                                >
+                                    <item.icon className="h-5 w-5" />
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
+                    </SheetContent>
+                </Sheet>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon">
-                            <Search className="h-5 w-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                            <Bell className="h-5 w-5" />
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk3NDY1MTR8MA" alt="Admin" />
-                                        <AvatarFallback>A</AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56" align="end" forceMount>
-                                <DropdownMenuLabel className="font-normal">
+                {/* --- HEADER RIGHT --- */}
+                <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
+                    <form className="ml-auto flex-1 sm:flex-initial">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search..."
+                                className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                            />
+                        </div>
+                    </form>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="secondary" size="icon" className="rounded-full">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk3NDY1MTR8MA" alt="Admin" />
+                                    <AvatarFallback>A</AvatarFallback>
+                                </Avatar>
+                                <span className="sr-only">Toggle user menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                           <DropdownMenuLabel className="font-normal">
                                 <div className="flex flex-col space-y-1">
                                     <p className="text-sm font-medium leading-none">Admin</p>
                                     <p className="text-xs leading-none text-muted-foreground">
@@ -124,31 +168,13 @@ export function AdminTabs() {
                                     <LogOut className="mr-2 h-4 w-4" />
                                     <span>Log out</span>
                                 </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-                 {/* Mobile Navigation */}
-                <nav className="md:hidden bg-card border-t">
-                    <div className="flex items-center overflow-x-auto p-2 gap-1">
-                         {navItems.map(item => (
-                            <Button
-                                key={item.id}
-                                variant={view === item.id ? 'secondary' : 'ghost'}
-                                size="sm"
-                                className="shrink-0"
-                                onClick={() => setView(item.id)}
-                            >
-                                <item.icon className="mr-2 h-4 w-4" />
-                                {item.label}
-                            </Button>
-                        ))}
-                    </div>
-                </nav>
             </header>
 
             {/* Main Content */}
-            <main className="container mx-auto p-4 sm:p-6 lg:p-8">
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                 <div className="grid gap-8">
                      {view === 'generate-schedule' && (
                         <Card>
