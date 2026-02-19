@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell, LogOut, Menu, UserCheck } from 'lucide-react';
+import { Activity, Users, FileText, GitPullRequest, Download, History, Search, LogOut, Menu, UserCheck, Home, Bell, Users2, CalendarClock } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
@@ -27,10 +27,68 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { collection, collectionGroup, query, where } from 'firebase/firestore';
+import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean }) => (
+    <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            {isLoading ? (
+                <Skeleton className="h-8 w-24" />
+            ) : (
+                <div className="text-2xl font-bold">{value}</div>
+            )}
+        </CardContent>
+    </Card>
+)
+
+const DashboardView = () => {
+    const firestore = useFirestore();
+
+    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
+
+    const requestsQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'scheduleRequests') : null, [firestore]);
+    const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
+
+    const schedulesQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'rondaSchedules') : null, [firestore]);
+    const { data: allSchedules, isLoading: isSchedulesLoading } = useCollection<RondaSchedule>(schedulesQuery);
+
+    const isLoading = isUsersLoading || isRequestsLoading || isSchedulesLoading;
+
+    const stats = useMemo(() => {
+        const [year, month] = new Date().toISOString().split('T')[0].substring(0, 7).split('-').map(Number);
+        
+        const pendingRequests = requests?.filter(r => r.status === 'pending').length ?? 0;
+        const totalUsers = users?.filter(u => u.role === 'user' || u.role === 'coordinator').length ?? 0;
+        const replacementsThisMonth = allSchedules?.filter(s => {
+            if (!s.replacementUserId) return false;
+            const scheduleDate = new Date(s.date);
+            return scheduleDate.getUTCFullYear() === year && scheduleDate.getUTCMonth() + 1 === month;
+        }).length ?? 0;
+        const totalCoordinators = users?.filter(u => u.role === 'coordinator').length ?? 0;
+
+        return { pendingRequests, totalUsers, replacementsThisMonth, totalCoordinators };
+    }, [users, requests, allSchedules]);
+
+    return (
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+            <StatCard title="Total Warga" value={stats.totalUsers} icon={Users} isLoading={isLoading} />
+            <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isLoading} />
+            <StatCard title="Permintaan Tertunda" value={stats.pendingRequests} icon={FileText} isLoading={isLoading} />
+            <StatCard title="Penggantian Bulan Ini" value={stats.replacementsThisMonth} icon={GitPullRequest} isLoading={isLoading} />
+        </div>
+    );
+};
 
 
 export function AdminTabs() {
-    const [view, setView] = useState('users');
+    const [view, setView] = useState('dashboard');
     const auth = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -40,103 +98,141 @@ export function AdminTabs() {
         try {
             await signOut(auth);
             toast({
-                title: 'Logout Berhasil',
-                description: 'Anda telah keluar dari aplikasi.',
+                title: 'Logout Successful',
+                description: 'You have been logged out.',
             });
             router.push('/dashboard');
         } catch (error) {
             toast({
-                title: 'Logout Gagal',
-                description: 'Terjadi kesalahan saat mencoba logout.',
+                title: 'Logout Failed',
+                description: 'An error occurred during logout.',
                 variant: 'destructive',
             });
         }
     };
 
     const navItems = [
-        { id: 'generate-schedule', label: 'Generate Schedule', icon: Activity },
-        { id: 'users', label: 'Users/Warga', icon: Users },
+        { id: 'dashboard', label: 'Dashboard', icon: Home },
+        { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock },
+        { id: 'users', label: 'Users/Warga', icon: Users2 },
         { id: 'requests', label: 'Schedule Requests', icon: FileText },
         { id: 'replacements', label: 'Replacements', icon: GitPullRequest },
         { id: 'export', label: 'Export Schedule', icon: Download },
         { id: 'history', label: 'Schedule History', icon: History },
     ];
 
-    return (
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-40">
-                <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-                    <Link
-                        href="#"
-                        className="flex items-center gap-2 text-lg font-semibold md:text-base"
-                    >
-                        <UserCheck className="h-6 w-6 text-primary" />
-                        <span className="">Ronda Planner</span>
-                    </Link>
-                    {navItems.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setView(item.id)}
-                            className={cn(
-                                "transition-colors hover:text-foreground",
-                                view === item.id ? "text-foreground font-semibold" : "text-muted-foreground"
-                            )}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
-                </nav>
-                
-                {/* --- MOBILE NAV --- */}
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="shrink-0 md:hidden"
-                        >
-                            <Menu className="h-5 w-5" />
-                            <span className="sr-only">Toggle navigation menu</span>
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left">
-                        <nav className="grid gap-6 text-lg font-medium">
-                            <Link
-                                href="#"
-                                className="flex items-center gap-2 text-lg font-semibold mb-4"
-                            >
-                                <UserCheck className="h-6 w-6 text-primary" />
-                                <span className="">Ronda Planner</span>
-                            </Link>
-                            {navItems.map(item => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => setView(item.id)}
-                                    className={cn(
-                                        "flex items-center gap-4 rounded-xl px-3 py-2 transition-colors hover:text-foreground",
-                                        view === item.id ? "text-foreground bg-muted" : "text-muted-foreground"
-                                    )}
-                                >
-                                    <item.icon className="h-5 w-5" />
-                                    {item.label}
-                                </button>
-                            ))}
-                        </nav>
-                    </SheetContent>
-                </Sheet>
+    const renderView = () => {
+        switch (view) {
+            case 'dashboard':
+                return <DashboardView />;
+            case 'generate-schedule':
+                return (
+                    <Card className="shadow-md">
+                        <CardHeader>
+                            <CardTitle>Automated Schedule Generation</CardTitle>
+                            <CardDescription>Generate a one-month ronda schedule automatically, then save it to the database.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <GenerateScheduleForm />
+                        </CardContent>
+                    </Card>
+                );
+            case 'users':
+                return <UserManagement />;
+            case 'requests':
+                return <ScheduleRequests />;
+            case 'replacements':
+                return <ReplacementManagement />;
+            case 'export':
+                return (
+                     <Card className="shadow-md">
+                        <CardHeader>
+                            <CardTitle>Export Schedule</CardTitle>
+                            <CardDescription>Export the monthly ronda schedule to PDF or PNG format.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ExportSchedule />
+                        </CardContent>
+                    </Card>
+                );
+            case 'history':
+                return <ScheduleHistory />;
+            default:
+                return <DashboardView />;
+        }
+    };
 
-                {/* --- HEADER RIGHT --- */}
-                <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-                    <form className="ml-auto flex-1 sm:flex-initial">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search..."
-                                className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
-                            />
-                        </div>
-                    </form>
+    const SidebarNav = () => (
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+            {navItems.map(item => (
+                <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                        view === item.id && "bg-muted text-primary"
+                    )}
+                >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                </button>
+            ))}
+        </nav>
+    );
+
+    return (
+        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <aside className="hidden border-r bg-card md:block">
+                <div className="flex h-full max-h-screen flex-col gap-2">
+                    <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                        <Link href="/admin" className="flex items-center gap-2 font-semibold text-primary">
+                            <UserCheck className="h-6 w-6" />
+                            <span className="">Ronda Planner</span>
+                        </Link>
+                    </div>
+                    <div className="flex-1 overflow-auto py-2">
+                        <SidebarNav />
+                    </div>
+                </div>
+            </aside>
+            <div className="flex flex-col">
+                <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="shrink-0 md:hidden"
+                            >
+                                <Menu className="h-5 w-5" />
+                                <span className="sr-only">Toggle navigation menu</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="flex flex-col p-0">
+                             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                                <Link href="/admin" className="flex items-center gap-2 font-semibold text-primary">
+                                    <UserCheck className="h-6 w-6" />
+                                    <span className="">Ronda Planner</span>
+                                </Link>
+                            </div>
+                             <div className="flex-1 overflow-auto py-2">
+                                <SidebarNav />
+                             </div>
+                        </SheetContent>
+                    </Sheet>
+
+                    <div className="w-full flex-1">
+                        <form>
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search..."
+                                    className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
+                                />
+                            </div>
+                        </form>
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="secondary" size="icon" className="rounded-full">
@@ -148,62 +244,22 @@ export function AdminTabs() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuLabel className="font-normal">
-                                <div className="flex flex-col space-y-1">
-                                    <p className="text-sm font-medium leading-none">Admin</p>
-                                    <p className="text-xs leading-none text-muted-foreground">
-                                    tirtopbas@gmail.com
-                                    </p>
-                                </div>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem disabled>
-                                    Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem disabled>
-                                    Settings
-                                </DropdownMenuItem>
-                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={handleLogout}>
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>Log out</span>
-                                </DropdownMenuItem>
+                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+                            <DropdownMenuItem disabled>Support</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleLogout}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                <span>Logout</span>
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-                <div className="grid gap-8">
-                     {view === 'generate-schedule' && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Automated Schedule Generation</CardTitle>
-                                <CardDescription>Generate a one-month ronda schedule automatically using AI, then save it to the database.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <GenerateScheduleForm />
-                            </CardContent>
-                        </Card>
-                    )}
-                    {view === 'users' && <UserManagement />}
-                    {view === 'requests' && <ScheduleRequests />}
-                    {view === 'replacements' && <ReplacementManagement />}
-                    {view === 'export' && (
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>Export Schedule</CardTitle>
-                                <CardDescription>Export the monthly ronda schedule to PDF or PNG format.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <ExportSchedule />
-                            </CardContent>
-                        </Card>
-                    )}
-                    {view === 'history' && <ScheduleHistory />}
-                </div>
-            </main>
+                </header>
+                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-muted/40">
+                    {renderView()}
+                </main>
+            </div>
         </div>
     );
 }
