@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -13,32 +12,30 @@ export default function AdminLayout({
 }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
 
-  const adminRoleRef = useMemoFirebase(
-    () => (user && firestore ? doc(firestore, 'roles_admin', user.uid) : null),
-    [user, firestore]
-  );
+  // The specific email for the admin user
+  const ADMIN_EMAIL = 'tirtopbas@gmail.com';
 
-  const { data: adminRoleDoc, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
-  
-  const isVerifying = isUserLoading || isAdminRoleLoading;
+  const isVerifying = isUserLoading;
+
+  // Determine if the user is the designated admin
+  const isAuthorized = !isVerifying && user?.email === ADMIN_EMAIL;
 
   React.useEffect(() => {
-    // Wait until the loading process is complete before making a decision.
+    // Wait until the initial user loading is complete
     if (isVerifying) {
       return; 
     }
 
-    // After loading, if the user is not logged in or doesn't have the admin role doc, redirect them.
-    if (!user || !adminRoleDoc) {
+    // If, after loading, the user is not the authorized admin, redirect them.
+    if (!isAuthorized) {
       router.replace('/dashboard');
     }
-  }, [user, adminRoleDoc, isVerifying, router]);
+  }, [isAuthorized, isVerifying, router]);
 
-  // While verifying, or if the checks determine the user is not an admin, show a full-screen loader.
-  // The useEffect will handle the eventual redirection.
-  if (isVerifying || !adminRoleDoc) {
+  // While verifying, or if the user is not authorized, show a loader.
+  // The useEffect above will handle the redirection, preventing a flash of content.
+  if (!isAuthorized) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
