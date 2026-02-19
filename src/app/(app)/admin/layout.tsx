@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [isAuthorized, setIsAuthorized] = React.useState(false);
   const [isVerifying, setIsVerifying] = React.useState(true);
@@ -60,7 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     checkAdminStatus();
     
-  }, [user, isUserLoading, firestore, router]);
+  }, [user, isUserLoading, firestore, router, toast]);
 
   // While verifying, show a full-page loader.
   if (isVerifying) {
@@ -84,7 +86,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     );
 }
-
-// Added a toast reference for the layout.
-const { toast } = useToast();
-import { useToast } from '@/hooks/use-toast';
