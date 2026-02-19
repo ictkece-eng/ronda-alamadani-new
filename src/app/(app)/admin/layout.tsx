@@ -22,32 +22,30 @@ export default function AdminLayout({
 
   const { data: adminRoleDoc, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
   
-  // This effect handles redirection.
-  // It triggers whenever the loading states or the final admin document changes.
-  React.useEffect(() => {
-    const isFinishedChecking = !isUserLoading && !isAdminRoleLoading;
-    // If all checks are done and we find out the user is not logged in or not an admin...
-    if (isFinishedChecking && (!user || !adminRoleDoc)) {
-      // ...redirect them away.
-      router.replace('/dashboard');
-    }
-  }, [user, adminRoleDoc, isUserLoading, isAdminRoleLoading, router]);
-
-  // Determine if we are still in a loading/verifying state.
   const isVerifying = isUserLoading || isAdminRoleLoading;
 
-  // The parent layout (app/layout.tsx) already provides the navbar and main tag.
-  // This loader will appear inside the parent's <main> tag.
-  // We calculate the height to fill the space below the 4rem (h-16) navbar.
+  React.useEffect(() => {
+    // Wait until the loading process is complete before making a decision.
+    if (isVerifying) {
+      return; 
+    }
+
+    // After loading, if the user is not logged in or doesn't have the admin role doc, redirect them.
+    if (!user || !adminRoleDoc) {
+      router.replace('/dashboard');
+    }
+  }, [user, adminRoleDoc, isVerifying, router]);
+
+  // While verifying, or if the checks determine the user is not an admin, show a full-screen loader.
+  // The useEffect will handle the eventual redirection.
   if (isVerifying || !adminRoleDoc) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // If we're past the loading checks AND we have an admin document, it's safe to render the admin content.
-  // The parent layout will handle the navbar and main container.
+  // Only when verification is complete and the user is confirmed as an admin, render the admin dashboard.
   return <>{children}</>;
 }

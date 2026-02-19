@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell } from 'lucide-react';
+import { Activity, Users, FileText, GitPullRequest, Download, History, Search, Bell, LogOut } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
@@ -25,6 +29,27 @@ import { Button } from '@/components/ui/button';
 
 export function AdminTabs() {
     const [view, setView] = useState('users');
+    const auth = useAuth();
+    const { toast } = useToast();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        if (!auth) return;
+        try {
+            await signOut(auth);
+            toast({
+                title: 'Logout Berhasil',
+                description: 'Anda telah keluar dari aplikasi.',
+            });
+            router.push('/dashboard');
+        } catch (error) {
+            toast({
+                title: 'Logout Gagal',
+                description: 'Terjadi kesalahan saat mencoba logout.',
+                variant: 'destructive',
+            });
+        }
+    };
 
     const navItems = [
         { id: 'generate-schedule', label: 'Generate Schedule', icon: Activity },
@@ -36,7 +61,7 @@ export function AdminTabs() {
     ];
 
     return (
-        <div className="flex bg-background min-h-[calc(100vh-4rem)]">
+        <div className="flex bg-background min-h-screen">
             {/* Sidebar */}
             <aside className="w-20 bg-card p-4 flex flex-col items-center justify-between border-r">
                 <div className='flex flex-col items-center gap-y-6'>
@@ -58,6 +83,15 @@ export function AdminTabs() {
                             </button>
                         ))}
                     </nav>
+                </div>
+                 <div>
+                    <button
+                        onClick={handleLogout}
+                        className="p-3 rounded-xl transition-colors w-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        title="Logout"
+                    >
+                        <LogOut className="h-5 w-5 mx-auto" />
+                    </button>
                 </div>
             </aside>
 
