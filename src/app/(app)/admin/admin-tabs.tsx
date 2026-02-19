@@ -61,49 +61,36 @@ export function AdminTabs() {
     ];
 
     return (
-        <div className="flex bg-background min-h-screen">
-            {/* Sidebar */}
-            <aside className="w-20 bg-card p-4 flex flex-col items-center justify-between border-r">
-                <div className='flex flex-col items-center gap-y-6'>
-                    <div className="h-10 w-10 bg-primary text-primary-foreground flex items-center justify-center rounded-full font-bold text-xl">
-                        S
+        <div className="bg-muted/40 min-h-screen">
+             {/* Top Header Bar */}
+            <header className="bg-card shadow-sm sticky top-0 z-40 border-b">
+                <div className="container mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+                     <div className="flex items-center gap-4">
+                        <div className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
+                            S
+                        </div>
+                        <h1 className="text-xl font-bold text-foreground hidden sm:block">Admin Dashboard</h1>
                     </div>
-                    <nav className="flex flex-col items-center gap-y-2">
+
+                    {/* Desktop Navigation */}
+                    <nav className="hidden md:flex items-center gap-1">
                         {navItems.map(item => (
-                             <button
+                            <Button
                                 key={item.id}
+                                variant={view === item.id ? 'secondary' : 'ghost'}
+                                size="sm"
                                 onClick={() => setView(item.id)}
-                                className={cn(
-                                    "p-3 rounded-xl transition-colors w-full",
-                                    view === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                )}
-                                title={item.label}
                             >
-                                <item.icon className="h-5 w-5 mx-auto" />
-                            </button>
+                                <item.icon className="mr-2" />
+                                {item.label}
+                            </Button>
                         ))}
                     </nav>
-                </div>
-                 <div>
-                    <button
-                        onClick={handleLogout}
-                        className="p-3 rounded-xl transition-colors w-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        title="Logout"
-                    >
-                        <LogOut className="h-5 w-5 mx-auto" />
-                    </button>
-                </div>
-            </aside>
 
-            {/* Main Content */}
-            <div className="flex-1 p-6 sm:p-8">
-                <header className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-                    <div className="flex items-center gap-4">
-                        <div className="relative w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search for anything..." className="pl-10" />
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon">
+                            <Search className="h-5 w-5" />
+                        </Button>
                         <Button variant="ghost" size="icon">
                             <Bell className="h-5 w-5" />
                         </Button>
@@ -132,11 +119,36 @@ export function AdminTabs() {
                                 <DropdownMenuItem disabled>
                                     Settings
                                 </DropdownMenuItem>
+                                 <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleLogout}>
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span>Log out</span>
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
-                </header>
-                
+                </div>
+                 {/* Mobile Navigation */}
+                <nav className="md:hidden bg-card border-t">
+                    <div className="flex items-center overflow-x-auto p-2 gap-1">
+                         {navItems.map(item => (
+                            <Button
+                                key={item.id}
+                                variant={view === item.id ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className="shrink-0"
+                                onClick={() => setView(item.id)}
+                            >
+                                <item.icon className="mr-2 h-4 w-4" />
+                                {item.label}
+                            </Button>
+                        ))}
+                    </div>
+                </nav>
+            </header>
+
+            {/* Main Content */}
+            <main className="container mx-auto p-4 sm:p-6 lg:p-8">
                 <div className="grid gap-8">
                      {view === 'generate-schedule' && (
                         <Card>
@@ -165,7 +177,7 @@ export function AdminTabs() {
                     )}
                     {view === 'history' && <ScheduleHistory />}
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
