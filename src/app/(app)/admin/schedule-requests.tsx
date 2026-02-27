@@ -190,18 +190,6 @@ export function ScheduleRequests() {
     setEditingRequest(null);
   };
 
-  const { monthStart, monthEnd } = useMemo(() => {
-    if (!selectedMonth) return { monthStart: '', monthEnd: '' };
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-    return {
-        monthStart: format(startDate, 'yyyy-MM-dd'),
-        monthEnd: format(endDate, 'yyyy-MM-dd'),
-    };
-  }, [selectedMonth]);
-
-
   // Derived state for user search
   const selectedUserId = watch('userId');
   const watchedDate = watch('requestedDate');
@@ -222,16 +210,19 @@ export function ScheduleRequests() {
   }, [userSearch, users, selectedUser]);
   
   const requestsForSelectedDate = useMemo(() => {
-    if (!watchedDate || !processedRequests) return [];
+    if (!watchedDate || !requests) return [];
     const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
-    return processedRequests.filter(req => {
+    return requests.filter(req => {
         // Exclude the currently editing request from the count
         if (editingRequest && req.id === editingRequest.id) return false;
         
         const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
         return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
-    });
-  }, [watchedDate, processedRequests, editingRequest]);
+    }).map(req => ({
+        ...req,
+        userName: usersMap.get(req.userId) || 'Unknown User'
+    }));
+  }, [watchedDate, requests, usersMap, editingRequest]);
 
   return (
     <>
@@ -242,12 +233,12 @@ export function ScheduleRequests() {
                 <CardTitle>Manage Schedule Requests</CardTitle>
                 <CardDescription>Approve or reject ronda schedule change requests from warga.</CardDescription>
             </div>
-            <Button className="self-end sm:self-center" onClick={handleCreateClick} disabled={!selectedMonth}>
+            <Button className="self-end sm:self-center" onClick={handleCreateClick}>
                 <Plus className="h-4 w-4 mr-2" />
                 Request Jadwal
             </Button>
         </div>
-      </CardHeader>
+      </Header>
       <CardContent className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative w-full sm:max-w-xs">
@@ -393,7 +384,7 @@ export function ScheduleRequests() {
             <DialogHeader>
                 <DialogTitle>{editingRequest ? 'Edit' : 'Create New'} Schedule Request</DialogTitle>
                 <DialogDescription>
-                    {editingRequest ? 'Update the details for this request.' : `Create a request on behalf of a user for ${format(new Date(monthStart), 'MMMM yyyy')}.`}
+                    {editingRequest ? 'Update the details for this request.' : 'Create a request on behalf of a user for any date.'}
                 </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -447,7 +438,7 @@ export function ScheduleRequests() {
                             <FormItem>
                                 <FormLabel>Requested Change Date</FormLabel>
                                 <FormControl>
-                                    <Input type="date" {...field} min={monthStart} max={monthEnd} />
+                                    <Input type="date" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
