@@ -28,13 +28,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
-
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
 
@@ -119,14 +119,10 @@ export function ScheduleRequests() {
     return processedRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [processedRequests, currentPage]);
 
-
   const handleUpdateStatus = (request: ScheduleRequest, status: 'approved' | 'rejected') => {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
-    
-    // In a real scenario, you'd also update the main schedule here if approved
     setDocumentNonBlocking(requestRef, { status: status }, { merge: true });
-    
     toast({ title: 'Success', description: `Request status updated to ${status}.` });
   };
 
@@ -143,18 +139,16 @@ export function ScheduleRequests() {
     setUserSearch(user?.name || '');
     reset({
         userId: req.userId,
-        // Format date for the input type="date" which expects 'yyyy-MM-dd'
         requestedDate: format(new Date(req.requestedScheduleDate), 'yyyy-MM-dd'),
         reason: req.reason,
     });
     setIsFormDialogOpen(true);
-  }
+  };
 
   const onSubmit = async (values: RequestFormValues) => {
     if (!firestore) return;
 
     if (editingRequest) {
-      // Update existing request
       const requestRef = doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id);
       const updatedData = {
           requestedScheduleDate: new Date(values.requestedDate).toISOString(),
@@ -166,7 +160,6 @@ export function ScheduleRequests() {
         description: 'The schedule change request has been updated.',
       });
     } else {
-      // Create new request
       const { userId, requestedDate, reason } = values;
       const requestsCol = collection(firestore, 'users', userId, 'scheduleRequests');
       const newRequestRef = doc(requestsCol);
@@ -190,7 +183,6 @@ export function ScheduleRequests() {
     setEditingRequest(null);
   };
 
-  // Derived state for user search
   const selectedUserId = watch('userId');
   const watchedDate = watch('requestedDate');
   
@@ -213,9 +205,7 @@ export function ScheduleRequests() {
     if (!watchedDate || !requests) return [];
     const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
     return requests.filter(req => {
-        // Exclude the currently editing request from the count
         if (editingRequest && req.id === editingRequest.id) return false;
-        
         const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
         return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
     }).map(req => ({
@@ -238,7 +228,7 @@ export function ScheduleRequests() {
                 Request Jadwal
             </Button>
         </div>
-      </Header>
+      </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative w-full sm:max-w-xs">
@@ -297,7 +287,7 @@ export function ScheduleRequests() {
                 paginatedRequests.map((req) => (
                     <TableRow key={req.id}>
                         <TableCell className="font-medium">{req.userName}</TableCell>
-                        <TableCell>{format(new Date(req.requestedScheduleDate), 'PPP')}</TableCell>
+                        <TableCell>{format(new Date(req.requestedScheduleDate), 'PPP', { locale: idLocale })}</TableCell>
                         <TableCell className='hidden md:table-cell'>{req.reason}</TableCell>
                         <TableCell>
                              <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}
