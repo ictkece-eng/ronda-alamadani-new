@@ -364,21 +364,22 @@ export function GenerateScheduleForm() {
     try {
         const batch = writeBatch(firestore);
 
-        // --- 1. Find and delete existing entries for the month using a single collectionGroup query ---
-        const [year, monthNum] = month.split('-').map(Number);
-        const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
-        const endDate = new Date(Date.UTC(year, monthNum, 1));
-        
-        const schedulesToDeleteQuery = query(
-            collectionGroup(firestore, 'rondaSchedules'),
-            where('date', '>=', startDate.toISOString()),
-            where('date', '<', endDate.toISOString())
-        );
-        
-        const oldSchedulesSnapshot = await getDocs(schedulesToDeleteQuery);
-        oldSchedulesSnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-        });
+        // --- 1. Filter existing entries for the month from our loaded data (avoiding collectionGroup with where) ---
+        if (allSchedules) {
+            const [year, monthNum] = month.split('-').map(Number);
+            const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+            const endDate = new Date(Date.UTC(year, monthNum, 1));
+            
+            const toDelete = allSchedules.filter(s => {
+                const d = new Date(s.date);
+                return d >= startDate && d < endDate;
+            });
+
+            toDelete.forEach(s => {
+                const ref = doc(firestore, 'users', s.userId, 'rondaSchedules', s.id);
+                batch.delete(ref);
+            });
+        }
 
         // --- 2. Add new entries from the generatedSchedule state ---
         for (const day of generatedSchedule) {
@@ -427,14 +428,13 @@ export function GenerateScheduleForm() {
 
         const batch = writeBatch(firestore);
 
-        const schedulesToDeleteQuery = query(
-            collectionGroup(firestore, 'rondaSchedules'),
-            where('date', '>=', startDate.toISOString()),
-            where('date', '<', endDate.toISOString())
-        );
-        
-        const querySnapshot = await getDocs(schedulesToDeleteQuery);
-        const deletedCount = querySnapshot.size;
+        // Filter dari data yang sudah di-load di memori (menghindari error index)
+        const toDelete = allSchedules?.filter(s => {
+            const d = new Date(s.date);
+            return d >= startDate && d < endDate;
+        }) || [];
+
+        const deletedCount = toDelete.length;
 
         if (deletedCount === 0) {
             toast({ title: "No data", description: "No schedule data found for the selected month to clear." });
@@ -442,8 +442,9 @@ export function GenerateScheduleForm() {
             return;
         }
 
-        querySnapshot.forEach(doc => {
-            batch.delete(doc.ref);
+        toDelete.forEach(s => {
+            const ref = doc(firestore, 'users', s.userId, 'rondaSchedules', s.id);
+            batch.delete(ref);
         });
 
         await batch.commit();
@@ -456,7 +457,7 @@ export function GenerateScheduleForm() {
         
     } catch (error) {
         console.error("Error clearing schedule:", error);
-        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database. This might be a permission issue.', variant: 'destructive' });
+        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database.', variant: 'destructive' });
     } finally {
         setIsClearing(false);
     }
