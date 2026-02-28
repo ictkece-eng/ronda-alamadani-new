@@ -12,7 +12,6 @@ service cloud.firestore {
     }
 
     // Helper: Jalur VIP Master Admin (Boss)
-    // Menggunakan UID permanen untuk stabilitas tinggi tanpa bergantung pada verifikasi email.
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == "hKUvl9TWZ8eR4wwjMFsTP49xfG22" || 
@@ -32,7 +31,6 @@ service cloud.firestore {
 
     // ------------------------------------------------------------------------
     // GLOBAL MASTER BYPASS (VIP ACCESS FOR BOSS)
-    // Aturan ini berada paling atas untuk memastikan Boss tidak pernah terblokir.
     // ------------------------------------------------------------------------
     match /{document=**} {
       allow read, write: if isMaster();
@@ -43,7 +41,6 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
-      // Izinkan baca publik agar dashboard bisa menampilkan nama warga
       allow read: if true;
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
@@ -54,7 +51,6 @@ service cloud.firestore {
     }
 
     match /users/{userId}/scheduleRequests/{id} {
-      // Izinkan admin mengupdate status pengajuan
       allow read: if isSignedIn();
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }

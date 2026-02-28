@@ -9,6 +9,7 @@ import {
   useFirestore,
   useMemoFirebase,
   updateDocumentNonBlocking,
+  setDocumentNonBlocking,
   deleteDocumentNonBlocking,
   useUser,
 } from '@/firebase';
@@ -139,7 +140,8 @@ export function ScheduleRequests() {
                 status: 'pending',
             };
 
-            updateDocumentNonBlocking(newDocRef, dataToSave);
+            // Use setDocumentNonBlocking for direct creation in database
+            setDocumentNonBlocking(newDocRef, dataToSave, { merge: true });
             toast({ title: 'Berhasil', description: 'Permintaan jadwal berhasil ditambahkan.' });
         }
         
