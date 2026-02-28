@@ -1,4 +1,3 @@
-
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -11,19 +10,19 @@ export function initializeFirebase() {
   // SSR Guard: Ensure Firebase is only initialized in the browser
   if (typeof window === 'undefined') {
     return {
-      firebaseApp: null as any,
-      auth: null as any,
-      firestore: null as any
+      firebaseApp: null,
+      auth: null,
+      firestore: null
     };
   }
 
   if (!getApps().length) {
     let firebaseApp;
     try {
-      firebaseApp = initializeApp();
+      firebaseApp = initializeApp(firebaseConfig);
     } catch (e) {
       if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
+        console.warn('Initialization failed.', e);
       }
       firebaseApp = initializeApp(firebaseConfig);
     }
