@@ -5,23 +5,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogIn as LogInIcon } from 'lucide-react';
+import { Loader2, LogIn as LogInIcon, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
-
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
 
-  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
@@ -29,53 +31,77 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         toast({
             variant: "destructive",
             title: 'Error',
-            description: 'Firebase not initialized correctly.',
+            description: 'Firebase belum siap. Silakan refresh halaman.',
         });
         setIsLoading(false);
         return;
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
-      const uid = userCredential.user.uid;
-      const userEmail = userCredential.user.email?.toLowerCase().trim();
+      if (mode === 'signup') {
+        // Proses Pendaftaran
+        const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        const uid = userCredential.user.uid;
 
-      // Check Role
-      const adminRoleRef = doc(firestore, 'roles_admin', uid);
-      const adminSnap = await getDoc(adminRoleRef);
-      
-      const userRef = doc(firestore, 'users', uid);
-      const userSnap = await getDoc(userRef);
-      
-      let role = 'user';
-      if (adminSnap.exists()) {
-        role = 'admin';
-      } else if (userSnap.exists()) {
-        role = userSnap.data().role || 'user';
-      } else if (userEmail) {
-        // Fallback check by email
-        const q = query(collection(firestore, 'users'), where('email', '==', userEmail), limit(1));
-        const qSnap = await getDocs(q);
-        if (!qSnap.empty) {
-            role = qSnap.docs[0].data().role || 'user';
-        }
-      }
+        // Buat profil warga default di Firestore
+        const userRef = doc(firestore, 'users', uid);
+        await setDoc(userRef, {
+            id: uid,
+            name: cleanEmail.split('@')[0],
+            email: cleanEmail,
+            phone: '-',
+            address: '-',
+            role: 'user', // Default sebagai user biasa
+        }, { merge: true });
 
-      if (role === 'admin' || role === 'coordinator') {
-        toast({ title: 'Login Berhasil', description: `Selamat datang kembali.` });
-        router.push('/admin');
+        toast({ title: 'Pendaftaran Berhasil', description: 'Akun Anda telah dibuat. Silakan login.' });
+        setMode('login');
       } else {
-        toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard.' });
-        router.push('/dashboard');
+        // Proses Login
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        const uid = userCredential.user.uid;
+
+        // Cek Role untuk pengalihan halaman
+        const adminRoleRef = doc(firestore, 'roles_admin', uid);
+        const adminSnap = await getDoc(adminRoleRef);
+        
+        const userRef = doc(firestore, 'users', uid);
+        const userSnap = await getDoc(userRef);
+        
+        let role = 'user';
+        if (adminSnap.exists()) {
+          role = 'admin';
+        } else if (userSnap.exists()) {
+          role = userSnap.data()?.role || 'user';
+        }
+
+        if (role === 'admin' || role === 'coordinator') {
+          toast({ title: 'Login Berhasil', description: `Selamat datang kembali, Koordinator.` });
+          router.push('/admin');
+        } else {
+          toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard warga.' });
+          router.push('/dashboard');
+        }
+        onLoginSuccess?.();
+      }
+    } catch (error: any) {
+      // Menangani error secara spesifik agar tidak memicu overlay NextJS
+      let message = 'Terjadi kesalahan. Silakan coba lagi.';
+      
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        message = 'Email atau password salah. Pastikan akun sudah terdaftar.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        message = 'Email sudah terdaftar. Silakan gunakan email lain atau login.';
+      } else if (error.code === 'auth/weak-password') {
+        message = 'Password terlalu lemah (minimal 6 karakter).';
       }
 
-      onLoginSuccess?.();
-    } catch (error: any) {
-      console.error("Login error:", error);
       toast({
         variant: "destructive",
-        title: 'Login Gagal',
-        description: 'Email atau password salah.',
+        title: mode === 'login' ? 'Login Gagal' : 'Pendaftaran Gagal',
+        description: message,
       });
     } finally {
       setIsLoading(false);
@@ -83,35 +109,56 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   };
 
   return (
-    <form onSubmit={handleEmailSubmit} className="space-y-4">
-        <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-            id="email"
-            type="email"
-            placeholder="admin@contoh.com"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading}
-            />
-        </div>
-        <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-            id="password"
-            type="password"
-            required
-            placeholder="******"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
-            />
-        </div>
-        <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogInIcon />}
-            Masuk
-        </Button>
-    </form>
+    <div className="space-y-4">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Masuk</TabsTrigger>
+                <TabsTrigger value="signup">Daftar</TabsTrigger>
+            </TabsList>
+            
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        placeholder="nama@email.com"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={isLoading}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                        id="password"
+                        type="password"
+                        required
+                        placeholder="******"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isLoading}
+                    />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : mode === 'login' ? (
+                        <LogInIcon className="mr-2 h-4 w-4" />
+                    ) : (
+                        <UserPlus className="mr-2 h-4 w-4" />
+                    )}
+                    {mode === 'login' ? 'Masuk' : 'Daftar Akun Baru'}
+                </Button>
+            </form>
+        </Tabs>
+        
+        {mode === 'signup' && (
+            <p className="text-[10px] text-muted-foreground text-center italic">
+                *Setelah daftar, Admin harus memberikan akses manual di database agar Anda bisa masuk ke menu Admin.
+            </p>
+        )}
+    </div>
   );
 }
