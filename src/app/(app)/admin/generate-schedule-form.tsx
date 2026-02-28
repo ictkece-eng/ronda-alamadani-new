@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, Info, UserRoundPen } from 'lucide-react';
+import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, UserRoundPen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
@@ -46,7 +46,6 @@ export function GenerateScheduleForm() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  const [hasExistingSchedule, setHasExistingSchedule] = useState(false);
 
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -114,12 +113,12 @@ export function GenerateScheduleForm() {
     return Object.entries(grouped).map(([date, participants]) => ({
         date,
         participants: participants.sort((a, b) => a.name.localeCompare(b.name))
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    })).sort((a, b) => a.date.compare(b.date));
   }, [month, allSchedules, usersIdMap]);
 
-  useEffect(() => {
-    setHasExistingSchedule(!!existingScheduleData);
-  }, [existingScheduleData]);
+  const hasExistingSchedule = !!existingScheduleData;
+  const displayData = generatedSchedule || existingScheduleData;
+  const isPreview = !!generatedSchedule;
 
   const handleGenerateClick = () => {
     if (!month) {
@@ -155,6 +154,7 @@ export function GenerateScheduleForm() {
 
             const assignedUserIds = new Set<string>();
 
+            // 1. Fill from requests
             approvedRequestsForMonth.forEach(req => {
                 const user = usersIdMap.get(req.userId);
                 if (user && !assignedUserIds.has(user.id)) {
@@ -167,10 +167,12 @@ export function GenerateScheduleForm() {
                 }
             });
 
+            // 2. Fill sisa warga (Anti-Double Shift)
             let remainingWarga = allParticipants
                 .filter(u => !assignedUserIds.has(u.id))
                 .sort(() => Math.random() - 0.5);
 
+            // Fill each night to at least 2 people if possible
             for (let d = 0; d < daysInMonth; d++) {
                 while (dailyAssignments[d].length < 2 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
@@ -181,6 +183,7 @@ export function GenerateScheduleForm() {
                 }
             }
 
+            // Fill to 3 people if sisa masih ada
             for (let d = 0; d < daysInMonth; d++) {
                 while (dailyAssignments[d].length < 3 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
@@ -219,12 +222,14 @@ export function GenerateScheduleForm() {
         const start = new Date(Date.UTC(year, monthNum - 1, 1));
         const end = new Date(Date.UTC(year, monthNum, 1));
 
+        // Delete existing for this month
         const toDelete = (allSchedules || []).filter(s => {
             const d = new Date(s.date);
             return d >= start && d < end;
         });
         toDelete.forEach(s => batch.delete(doc(firestore, 'users', s.userId, 'rondaSchedules', s.id)));
 
+        // Add new
         for (const day of generatedSchedule) {
             for (const participant of day.participants) {
                 const ref = doc(collection(firestore, 'users', participant.userId, 'rondaSchedules'));
@@ -234,7 +239,6 @@ export function GenerateScheduleForm() {
                     date: new Date(day.date + 'T00:00:00Z').toISOString(),
                     startTime: '22:00',
                     endTime: '06:00',
-                    // Jika saat pratinjau diganti, pastikan nama tetap benar
                     replacementUserId: null,
                     replacementUserName: null,
                 });
@@ -280,9 +284,9 @@ export function GenerateScheduleForm() {
       const newUser = usersIdMap.get(newUserId);
       if (!newUser) return;
 
-      if (generatedSchedule) {
+      if (isPreview) {
           // Update local preview state
-          const updated = generatedSchedule.map(day => {
+          const updated = (generatedSchedule || []).map(day => {
               if (day.date === date) {
                   return {
                       ...day,
@@ -294,7 +298,7 @@ export function GenerateScheduleForm() {
               return day;
           });
           setGeneratedSchedule(updated);
-          toast({ title: "Berhasil", description: `Pratinjau diubah menjadi ${newUser.name}` });
+          toast({ title: "Berhasil", description: `Pratinjau diubah: ${newUser.name}` });
       } else if (docId && firestore) {
           // Update directly to DB via replacement mechanism
           const scheduleRef = doc(firestore, 'users', oldUserId, 'rondaSchedules', docId);
@@ -305,9 +309,6 @@ export function GenerateScheduleForm() {
           toast({ title: "Berhasil", description: `${newUser.name} kini menggantikan warga di database.` });
       }
   };
-
-  const displayData = generatedSchedule || existingScheduleData;
-  const isPreview = !!generatedSchedule;
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
