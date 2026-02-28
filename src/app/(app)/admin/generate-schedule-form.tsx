@@ -64,28 +64,14 @@ export function GenerateScheduleForm() {
   
   const isLoading = isUsersLoading || isRequestsLoading || isSchedulesLoading;
 
-  const availableParticipants = useMemo(() => {
-    if (!users) return [];
-    return users.filter(u => 
-        u.role === 'user' || 
-        u.role === 'coordinator' ||
-        (u.role === 'backup' && u.includeInSchedule === true)
-    ).map(u => ({ ...u, name: u.name.trim() }));
-  }, [users]);
-
-  const usersMap = useMemo(() => {
-    const map = new Map<string, Warga>();
-    availableParticipants.forEach(p => map.set(p.name.toLowerCase().trim(), p));
-    return map;
-  }, [availableParticipants]);
-  
   const usersIdMap = useMemo(() => {
     if (!users) return new Map<string, Warga>();
     return new Map(users.map((user) => [user.id, user]));
   }, [users]);
 
+  // Check if schedule already exists for this month
   useEffect(() => {
-    if (!month || !allSchedules || !usersIdMap.size) {
+    if (!month || !allSchedules) {
         setHasExistingSchedule(false);
         return;
     }
@@ -100,7 +86,7 @@ export function GenerateScheduleForm() {
     });
 
     setHasExistingSchedule(schedulesForMonth.length > 0);
-  }, [month, allSchedules, usersIdMap]);
+  }, [month, allSchedules]);
 
   const handleGenerateClick = () => {
     if (!month) {
@@ -108,7 +94,7 @@ export function GenerateScheduleForm() {
         return;
     }
     
-    if (availableParticipants.length < 2) {
+    if (!users || users.length < 2) {
         toast({ title: "Error", description: "Minimal harus ada 2 warga ronda untuk generate jadwal.", variant: "destructive" });
         return;
     }
@@ -116,82 +102,71 @@ export function GenerateScheduleForm() {
     setIsGenerating(true);
     setGeneratedSchedule(null);
 
-    // Use a short timeout to allow UI to show loader and prevent freezing
+    // Short timeout to let UI update
     setTimeout(() => {
         try {
             const [year, monthNum] = month.split('-').map(Number);
             const daysInMonth = new Date(year, monthNum, 0).getDate();
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
 
-            // 1. Handle Approved Requests (Prioritas Utama)
-            const approvedRequests = requests?.filter(req => {
+            // 1. Ambil semua warga yang berpartisipasi dalam jadwal (bukan backup yang dikecualikan)
+            let allParticipants = users.filter(u => 
+                u.role === 'user' || 
+                u.role === 'coordinator' ||
+                (u.role === 'backup' && u.includeInSchedule === true)
+            ).map(u => ({ ...u, name: u.name.trim() }));
+
+            // 2. Handle Approved Requests (Prioritas Utama)
+            const approvedRequestsForMonth = (requests || []).filter(req => {
                 if (req.status !== 'approved') return false;
                 const reqDate = new Date(req.requestedScheduleDate);
                 return reqDate.getUTCFullYear() === year && reqDate.getUTCMonth() + 1 === monthNum;
-            }) || [];
+            });
 
-            approvedRequests.forEach(req => {
+            const assignedUserIds = new Set<string>();
+
+            approvedRequestsForMonth.forEach(req => {
                 const user = usersIdMap.get(req.userId);
-                if (!user) return;
-                const dayIndex = new Date(req.requestedScheduleDate).getUTCDate() - 1;
-                if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                    if (!dailyAssignments[dayIndex].includes(user.name)) {
-                        dailyAssignments[dayIndex].push(user.name);
+                if (user) {
+                    const dayIndex = new Date(req.requestedScheduleDate).getUTCDate() - 1;
+                    if (dayIndex >= 0 && dayIndex < daysInMonth) {
+                        if (!dailyAssignments[dayIndex].includes(user.name)) {
+                            dailyAssignments[dayIndex].push(user.name);
+                            assignedUserIds.add(user.id);
+                        }
                     }
                 }
             });
 
-            // 2. Fill to ensure min 2 per night (Full Month Safety)
-            let residentsPool = [...availableParticipants].sort(() => Math.random() - 0.5);
-            let poolIndex = 0;
+            // 3. Sisanya adalah warga yang belum dijadwalkan (Anti-Double Shift)
+            let remainingWarga = allParticipants
+                .filter(u => !assignedUserIds.has(u.id))
+                .sort(() => Math.random() - 0.5); // Shuffle
 
-            const getNextFromPool = (dayIdx: number) => {
-                let attempts = 0;
-                while (attempts < availableParticipants.length) {
-                    const candidate = residentsPool[poolIndex];
-                    poolIndex = (poolIndex + 1) % residentsPool.length;
-                    
-                    if (poolIndex === 0) {
-                        residentsPool = [...residentsPool].sort(() => Math.random() - 0.5);
-                    }
-
-                    if (!dailyAssignments[dayIdx].includes(candidate.name)) {
-                        return candidate.name;
-                    }
-                    attempts++;
-                }
-                // Jika sudah mencoba semua tapi masih gagal (karena warga sangat sedikit), 
-                // paksa ambil yang sudah ada asal bukan duplikat di malam yang sama
-                const fallback = availableParticipants.find(p => !dailyAssignments[dayIdx].includes(p.name));
-                return fallback ? fallback.name : null;
-            };
-
-            // First pass: Fill every day to at least 2 people
+            // 4. Distribusi Sisa Warga (Min 2, Max 3)
+            // Langkah pertama: Pastikan setiap hari punya minimal 2 orang jika warga cukup
             for (let d = 0; d < daysInMonth; d++) {
-                while (dailyAssignments[d].length < 2) {
-                    const name = getNextFromPool(d);
-                    if (name) dailyAssignments[d].push(name);
-                    else break; 
+                while (dailyAssignments[d].length < 2 && remainingWarga.length > 0) {
+                    const candidate = remainingWarga.pop();
+                    if (candidate) dailyAssignments[d].push(candidate.name);
                 }
             }
 
-            // Second pass: Distribute any remaining residents to reach max 3 if possible
-            const totalSlotsFilled = dailyAssignments.reduce((acc, curr) => acc + curr.length, 0);
-            if (availableParticipants.length > totalSlotsFilled) {
-                const remainingPeople = availableParticipants.filter(p => 
-                    !dailyAssignments.some(day => day.includes(p.name))
-                ).sort(() => Math.random() - 0.5);
-
-                for (const person of remainingPeople) {
-                    const dayWithLeast = dailyAssignments
-                        .map((day, idx) => ({ length: day.length, idx }))
-                        .filter(d => d.length < 3 && !dailyAssignments[d.idx].includes(person.name))
-                        .sort((a, b) => a.length - b.length)[0];
-                    
-                    if (dayWithLeast) {
-                        dailyAssignments[dayWithLeast.idx].push(person.name);
-                    }
+            // Langkah kedua: Jika masih ada warga sisa, tambahkan ke hari-hari sampai maksimal 3 orang
+            for (let d = 0; d < daysInMonth; d++) {
+                while (dailyAssignments[d].length < 3 && remainingWarga.length > 0) {
+                    const candidate = remainingWarga.pop();
+                    if (candidate) dailyAssignments[d].push(candidate.name);
                 }
+            }
+
+            // Peringatan jika warga kurang
+            if (dailyAssignments.some(day => day.length < 2)) {
+                toast({ 
+                    title: "Peringatan: Warga Kurang", 
+                    description: "Jumlah warga tidak cukup untuk mengisi 2 orang per malam tanpa double shift. Beberapa hari mungkin hanya berisi 1 orang.",
+                    variant: "destructive"
+                });
             }
 
             const newSchedule: GeneratedSchedule[] = dailyAssignments.map((participants, i) => {
@@ -203,11 +178,11 @@ export function GenerateScheduleForm() {
             });
 
             setGeneratedSchedule(newSchedule);
-            toast({ title: "Berhasil!", description: "Jadwal sebulan penuh telah dibuat (2-3 orang/malam)." });
+            toast({ title: "Berhasil!", description: "Pratinjau jadwal dibuat tanpa ada warga yang ronda ganda." });
 
         } catch (e) {
-            console.error(e);
-            toast({ title: "Error", description: "Terjadi kesalahan saat mengolah JSON jadwal.", variant: "destructive" });
+            console.error("Generate error:", e);
+            toast({ title: "Error", description: "Terjadi kesalahan saat memproses data jadwal.", variant: "destructive" });
         } finally {
             setIsGenerating(false);
         }
@@ -217,6 +192,11 @@ export function GenerateScheduleForm() {
   const handleSaveSchedule = async () => {
     if (!generatedSchedule || !firestore || !month) return;
     setIsSaving(true);
+    
+    // Map names back to IDs for saving
+    const usersByName = new Map<string, string>();
+    users?.forEach(u => usersByName.set(u.name.toLowerCase().trim(), u.id));
+
     try {
         const batch = writeBatch(firestore);
         const [year, monthNum] = month.split('-').map(Number);
@@ -224,21 +204,21 @@ export function GenerateScheduleForm() {
         const end = new Date(Date.UTC(year, monthNum, 1));
 
         // Delete existing for this month first
-        const toDelete = allSchedules?.filter(s => {
+        const toDelete = (allSchedules || []).filter(s => {
             const d = new Date(s.date);
             return d >= start && d < end;
-        }) || [];
+        });
         toDelete.forEach(s => batch.delete(doc(firestore, 'users', s.userId, 'rondaSchedules', s.id)));
 
         // Save new
         for (const day of generatedSchedule) {
             for (const pName of day.participants) {
-                const user = usersMap.get(pName.toLowerCase().trim());
-                if (user) {
-                    const ref = doc(collection(firestore, 'users', user.id, 'rondaSchedules'));
+                const userId = usersByName.get(pName.toLowerCase().trim());
+                if (userId) {
+                    const ref = doc(collection(firestore, 'users', userId, 'rondaSchedules'));
                     batch.set(ref, {
                         id: ref.id,
-                        userId: user.id,
+                        userId: userId,
                         date: new Date(day.date + 'T00:00:00Z').toISOString(),
                         startTime: '22:00',
                         endTime: '06:00',
@@ -246,11 +226,13 @@ export function GenerateScheduleForm() {
                 }
             }
         }
+        
         await batch.commit();
         setGeneratedSchedule(null);
-        toast({ title: 'Berhasil!', description: 'Jadwal telah disimpan ke database.' });
+        toast({ title: 'Berhasil!', description: 'Jadwal telah disimpan dan diaktifkan.' });
     } catch (e) {
-        toast({ title: 'Error', description: 'Gagal menyimpan jadwal. Cek koneksi Anda.', variant: 'destructive' });
+        console.error("Save error:", e);
+        toast({ title: 'Error', description: 'Gagal menyimpan jadwal. Cek koneksi atau izin database.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
@@ -272,13 +254,14 @@ export function GenerateScheduleForm() {
 
         if (toDelete.length === 0) {
             toast({ title: "Info", description: "Tidak ada jadwal untuk dihapus di bulan ini." });
+            setIsClearing(false);
             return;
         }
 
         toDelete.forEach(s => batch.delete(doc(firestore, 'users', s.userId, 'rondaSchedules', s.id)));
         await batch.commit();
         setGeneratedSchedule(null);
-        toast({ title: 'Berhasil!', description: 'Jadwal bulan ini telah dihapus dari database.' });
+        toast({ title: 'Berhasil!', description: 'Jadwal bulan ini telah dihapus.' });
     } catch (e) {
         toast({ title: 'Error', description: 'Gagal menghapus data.', variant: 'destructive' });
     } finally {
@@ -312,13 +295,13 @@ export function GenerateScheduleForm() {
                       <AlertDialogHeader>
                           <AlertDialogTitle>Hapus Jadwal?</AlertDialogTitle>
                           <AlertDialogDescription>
-                              Ini akan menghapus semua jadwal ronda yang sudah tersimpan untuk bulan {month} secara permanen dari database.
+                              Ini akan menghapus jadwal permanen dari database untuk bulan {month}. Tindakan ini tidak bisa dibatalkan.
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
                           <AlertDialogAction onClick={handleClearDatabase} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Hapus Permanen
+                              Ya, Hapus
                           </AlertDialogAction>
                       </AlertDialogFooter>
                   </AlertDialogContent>
@@ -334,11 +317,11 @@ export function GenerateScheduleForm() {
 
         <Alert className="bg-primary/5 border-primary/20">
             <AlertCircle className="h-4 w-4 text-primary" />
-            <AlertTitle>Aturan Penjadwalan Otomatis</AlertTitle>
+            <AlertTitle>Aturan Penjadwalan Adil</AlertTitle>
             <AlertDescription className="text-xs space-y-1 mt-1">
-                <p>• <b>Garansi:</b> Setiap malam diisi 2-3 orang tanpa ada hari yang kosong.</p>
-                <p>• <b>Prioritas:</b> Mengunci "Request Schedule" yang sudah disetujui.</p>
-                <p>• <b>Adil:</b> Warga akan dijadwalkan secara merata.</p>
+                <p>• <b>Satu Orang Satu Kali:</b> Menjamin warga tidak ronda ganda dalam sebulan.</p>
+                <p>• <b>Keamanan Terjaga:</b> Target 2-3 orang per malam selama stok warga mencukupi.</p>
+                <p>• <b>Prioritas Request:</b> Mengunci tanggal bagi warga yang pengajuannya sudah disetujui.</p>
             </AlertDescription>
         </Alert>
       </div>
@@ -363,11 +346,11 @@ export function GenerateScheduleForm() {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
-                                        {day.participants.map(p => (
+                                        {day.participants.length > 0 ? day.participants.map(p => (
                                             <span key={p} className="px-2 py-0.5 bg-background border rounded text-[10px] font-medium">
                                                 {p}
                                             </span>
-                                        ))}
+                                        )) : <span className="text-destructive text-[10px] italic">Warga tidak cukup</span>}
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -380,16 +363,13 @@ export function GenerateScheduleForm() {
                     {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
                     Simpan ke Database
                 </Button>
-                <p className="text-[10px] text-muted-foreground text-center italic">
-                    *Menyimpan akan menimpa jadwal lama di bulan yang sama.
-                </p>
             </CardFooter>
           </Card>
         ) : (
           <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl opacity-50 bg-muted/20">
               <Wand2 className="h-12 w-12 mb-4 text-muted-foreground" />
               <p className="text-sm font-medium">Belum ada pratinjau</p>
-              <p className="text-xs text-muted-foreground text-center mt-1">Pilih bulan dan klik Generate untuk melihat simulasi jadwal satu bulan penuh.</p>
+              <p className="text-xs text-muted-foreground text-center mt-1">Klik Generate untuk membagi warga ke jadwal sebulan penuh tanpa ada yang ganda.</p>
           </div>
         )}
       </div>
