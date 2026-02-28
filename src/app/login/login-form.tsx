@@ -66,10 +66,9 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // ULTIMATE ADMIN SYNC: Paksa sinkronisasi status admin setiap kali login
+        // ULTIMATE ADMIN SYNC
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // Gunakan setDoc tanpa await agar proses login tidak terhambat jika rules belum update
                 setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
                 setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
