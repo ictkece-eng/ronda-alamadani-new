@@ -88,7 +88,6 @@ export function UserManagement() {
     if (!users) return { total: 0, active: 0, backups: 0, admins: 0 };
     return {
         total: users.length,
-        // RONDA card counts User, Coordinator, AND Backups that are included in schedule
         active: users.filter(u => 
             u.role === 'user' || 
             u.role === 'coordinator' || 
@@ -116,11 +115,17 @@ export function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
+    const query = searchQuery.toLowerCase();
     return users.filter(user => {
+      // Safe access with fallback to empty string to prevent toLowerCase() errors
+      const name = (user.name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const address = (user.address || '').toLowerCase();
+
       const matchesSearch = 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.address.toLowerCase().includes(searchQuery.toLowerCase());
+        name.includes(query) ||
+        email.includes(query) ||
+        address.includes(query);
 
       let matchesCategory = true;
       if (activeFilter === 'active') {
@@ -226,8 +231,8 @@ export function UserManagement() {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
                             <div>
-                                <p>{user.name}</p>
-                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                                <p>{user.name || 'No Name'}</p>
+                                <p className="text-xs text-muted-foreground">{user.email || 'No Email'}</p>
                             </div>
                         </TableCell>
                         <TableCell>

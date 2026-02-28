@@ -44,7 +44,6 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // Create profile
         const userRef = doc(firestore, 'users', uid);
         await setDoc(userRef, {
             id: uid,
@@ -55,7 +54,6 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
             role: (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') ? 'admin' : 'user',
         }, { merge: true });
 
-        // Auto-promote master admin
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
         }
@@ -66,10 +64,8 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // ULTIMATE ADMIN SYNC
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // Pastikan dokumen admin dan user profile selalu sinkron sebagai Admin Utama
                 await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
                 await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
@@ -79,7 +75,6 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 
         toast({ title: 'Login Berhasil', description: 'Selamat datang kembali!' });
         
-        // Check role for redirect
         const userSnap = await getDoc(doc(firestore, 'users', uid));
         const userData = userSnap.data();
         const role = userData?.role || 'user';

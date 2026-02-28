@@ -119,7 +119,6 @@ export function ScheduleRequests() {
     if (!firestore) return;
     try {
         if (editingRequest) {
-            // Update existing request
             const requestRef = doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id);
             updateDocumentNonBlocking(requestRef, {
                 requestedScheduleDate: new Date(values.requestedDate).toISOString(),
@@ -127,7 +126,6 @@ export function ScheduleRequests() {
             });
             toast({ title: 'Berhasil', description: 'Permintaan jadwal diperbarui.' });
         } else {
-            // Create new request
             const requestsCol = collection(firestore, 'users', values.userId, 'scheduleRequests');
             const newDocRef = doc(requestsCol);
             
@@ -140,7 +138,6 @@ export function ScheduleRequests() {
                 status: 'pending',
             };
 
-            // Use setDocumentNonBlocking for direct creation in database
             setDocumentNonBlocking(newDocRef, dataToSave, { merge: true });
             toast({ title: 'Berhasil', description: 'Permintaan jadwal berhasil ditambahkan.' });
         }

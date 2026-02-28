@@ -6,12 +6,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Utama: Cek apakah user sudah login
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper: Jalur VIP Master Admin (Boss)
+    // VIP Access for Master Admin
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == "hKUvl9TWZ8eR4wwjMFsTP49xfG22" || 
@@ -19,12 +18,10 @@ service cloud.firestore {
       );
     }
 
-    // Helper: Cek Admin (Master atau terdaftar di roles_admin)
     function isAdmin() {
       return isMaster() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    // Helper: Cek pemilik dokumen
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -37,7 +34,7 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
-    // Aturan Spesifik untuk Pengguna Lain
+    // Specific Rules
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
@@ -51,12 +48,12 @@ service cloud.firestore {
     }
 
     match /users/{userId}/scheduleRequests/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaReplacements/{id} {
-      allow read: if isMaster() || isOwner(userId) || isAdmin();
+      allow read: if true;
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
@@ -66,13 +63,12 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isMaster();
     }
 
-    // Collection Group Rules agar query global tidak error
     match /{path=**}/scheduleRequests/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
     
     match /{path=**}/rondaSchedules/{id} {
