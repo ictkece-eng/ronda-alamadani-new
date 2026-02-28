@@ -65,10 +65,15 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // Ensure master admin has the record in roles_admin and profile
+        // CRITICAL: Ensure master admin has the record in roles_admin and profile on EVERY login
         if (cleanEmail === 'tirtopbas@gmail.com') {
-            await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
-            await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
+            try {
+                // We use setDoc here to bootstrap/ensure the admin role exists
+                await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
+                await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
+            } catch (e) {
+                console.warn("Could not auto-provision admin record, but hardcoded rules should still apply.");
+            }
         }
 
         const adminRoleRef = doc(firestore, 'roles_admin', uid);

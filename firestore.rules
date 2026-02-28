@@ -1,7 +1,6 @@
 /**
  * This ruleset enforces a strict, user-centric security model for the Ronda Planner application,
- * with an overlay for administrative access. It is designed for rapid prototyping, focusing on
- * strong authorization while maintaining flexibility in data schemas.
+ * with an overlay for administrative access. Optimized for Master Admin control.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -15,44 +14,32 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDoc();
-    }
-    
-    function isAdmin() {
+    // Master Admin check based on hardcoded ID and Email
+    function isMaster() {
       return isSignedIn() && (
         request.auth.token.email == 'tirtopbas@gmail.com' ||
-        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' ||
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22'
       );
+    }
+
+    function isAdmin() {
+      return isMaster() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // ------------------------------------------------------------------------
     // Collection Group Rules
     // ------------------------------------------------------------------------
 
-    /**
-     * @description Grants access to collection group queries for schedule requests.
-     * @allow (list) All signed-in users can list requests to see date availability.
-     */
-    match /{path=**}/scheduleRequests/{scheduleRequestId} {
-      allow list: if isSignedIn();
+    match /{path=**}/scheduleRequests/{id} {
+      allow read: if isSignedIn();
     }
     
-    /**
-     * @description Grants read-only access to all ronda schedules for any user.
-     * @allow (list) Any user can list all schedules to populate the main dashboard.
-     */
-    match /{path=**}/rondaSchedules/{rondaScheduleId} {
-        allow list: if true;
+    match /{path=**}/rondaSchedules/{id} {
+        allow read: if true;
     }
 
     // ------------------------------------------------------------------------
@@ -60,45 +47,33 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get, list: if true; 
-      allow create: if isOwner(userId) && request.resource.data.id == userId || isAdmin();
-      allow update: if (isOwner(userId) || isAdmin()) && isExistingDoc();
-      allow delete: if isOwner(userId) || isAdmin();
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
     }
 
-    match /users/{userId}/rondaSchedules/{rondaScheduleId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if (isOwner(userId) && request.resource.data.userId == userId) || isAdmin();
-      allow update: if (isExistingOwner(userId) && request.resource.data.userId == resource.data.userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+    match /users/{userId}/rondaSchedules/{id} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
     }
 
-    match /users/{userId}/scheduleRequests/{scheduleRequestId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isOwner(userId) || isAdmin();
+    match /users/{userId}/scheduleRequests/{id} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
-    match /users/{userId}/rondaReplacements/{rondaReplacementId} {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if (isOwner(userId) || isAdmin());
-      allow update: if (isExistingOwner(userId) || isAdmin());
-      allow delete: if (isExistingOwner(userId) || isAdmin());
+    match /users/{userId}/rondaReplacements/{id} {
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    match /coordinatorAssignments/{coordinatorAssignmentId} {
-      allow get: if isAdmin() || (isExistingDoc() && isOwner(resource.data.userId));
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
+    match /coordinatorAssignments/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /roles_admin/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow write: if isOwner(userId) || isAdmin() || (isSignedIn() && request.auth.token.email == 'tirtopbas@gmail.com');
+      allow read: if isOwner(userId) || isAdmin();
+      // Allow Master Admin to bootstrap the roles_admin collection
+      allow write: if isMaster() || isAdmin();
     }
   }
 }
