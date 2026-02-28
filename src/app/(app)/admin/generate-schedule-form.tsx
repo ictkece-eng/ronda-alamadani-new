@@ -10,7 +10,7 @@ import { Loader2, Wand2, Save, Trash2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
-import { collection, writeBatch, doc, query, collectionGroup, deleteDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -25,6 +25,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type GeneratedSchedule = {
   date: string;
@@ -82,7 +84,6 @@ export function GenerateScheduleForm() {
     return new Map(users.map((user) => [user.id, user]));
   }, [users]);
 
-  // Check if schedule exists for selected month
   useEffect(() => {
     if (!month || !allSchedules || !usersIdMap.size) {
         setHasExistingSchedule(false);
@@ -107,40 +108,20 @@ export function GenerateScheduleForm() {
         return;
     }
     
-    const residentCount = availableParticipants.length;
-    if (residentCount < 1) {
-        toast({ title: "Error", description: "Tidak ada warga untuk dijadwalkan.", variant: "destructive" });
+    if (availableParticipants.length < 2) {
+        toast({ title: "Error", description: "Minimal harus ada 2 warga ronda untuk generate jadwal.", variant: "destructive" });
         return;
     }
 
     setIsGenerating(true);
     setGeneratedSchedule(null);
 
+    // Use a short timeout to allow UI to show loader and prevent freezing
     setTimeout(() => {
         try {
             const [year, monthNum] = month.split('-').map(Number);
             const daysInMonth = new Date(year, monthNum, 0).getDate();
-            
-            // LOGIC: Every day MUST HAVE at least 2 people, max 3.
-            // Total slots needed = residentCount (since 1:1)
-            // But if residentCount < daysInMonth * 2, we must repeat.
-            const minTotalSlots = daysInMonth * 2;
-            const targetTotalSlots = Math.max(residentCount, minTotalSlots);
-            
-            // Plan distribution: fill 2 per night first
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
-            let residentsPool = [...availableParticipants].sort(() => Math.random() - 0.5);
-
-            // If we need to repeat people to meet minimum
-            if (residentCount < minTotalSlots) {
-                toast({
-                    title: "Info Kuota",
-                    description: "Warga kurang untuk minimal 2 orang/malam. Sistem akan mengulang beberapa warga.",
-                });
-                while (residentsPool.length < targetTotalSlots) {
-                    residentsPool = residentsPool.concat([...availableParticipants].sort(() => Math.random() - 0.5));
-                }
-            }
 
             // 1. Handle Approved Requests (Prioritas Utama)
             const approvedRequests = requests?.filter(req => {
@@ -156,32 +137,60 @@ export function GenerateScheduleForm() {
                 if (dayIndex >= 0 && dayIndex < daysInMonth) {
                     if (!dailyAssignments[dayIndex].includes(user.name)) {
                         dailyAssignments[dayIndex].push(user.name);
-                        // Remove from pool to keep it 1:1 as much as possible
-                        const poolIdx = residentsPool.findIndex(r => r.id === user.id);
-                        if (poolIdx !== -1) residentsPool.splice(poolIdx, 1);
                     }
                 }
             });
 
-            // 2. Fill to ensure min 2 per night
+            // 2. Fill to ensure min 2 per night (Full Month Safety)
+            let residentsPool = [...availableParticipants].sort(() => Math.random() - 0.5);
+            let poolIndex = 0;
+
+            const getNextFromPool = (dayIdx: number) => {
+                let attempts = 0;
+                while (attempts < availableParticipants.length) {
+                    const candidate = residentsPool[poolIndex];
+                    poolIndex = (poolIndex + 1) % residentsPool.length;
+                    
+                    if (poolIndex === 0) {
+                        residentsPool = [...residentsPool].sort(() => Math.random() - 0.5);
+                    }
+
+                    if (!dailyAssignments[dayIdx].includes(candidate.name)) {
+                        return candidate.name;
+                    }
+                    attempts++;
+                }
+                // Jika sudah mencoba semua tapi masih gagal (karena warga sangat sedikit), 
+                // paksa ambil yang sudah ada asal bukan duplikat di malam yang sama
+                const fallback = availableParticipants.find(p => !dailyAssignments[dayIdx].includes(p.name));
+                return fallback ? fallback.name : null;
+            };
+
+            // First pass: Fill every day to at least 2 people
             for (let d = 0; d < daysInMonth; d++) {
-                while (dailyAssignments[d].length < 2 && residentsPool.length > 0) {
-                    const alreadyInDay = dailyAssignments[d].map(n => n.toLowerCase());
-                    const nextIdx = residentsPool.findIndex(r => !alreadyInDay.includes(r.name.toLowerCase()));
-                    if (nextIdx !== -1) {
-                        dailyAssignments[d].push(residentsPool.splice(nextIdx, 1)[0].name);
-                    } else break;
+                while (dailyAssignments[d].length < 2) {
+                    const name = getNextFromPool(d);
+                    if (name) dailyAssignments[d].push(name);
+                    else break; 
                 }
             }
 
-            // 3. Distribute remaining residents (up to max 3 per night)
-            for (let d = 0; d < daysInMonth; d++) {
-                while (dailyAssignments[d].length < 3 && residentsPool.length > 0) {
-                    const alreadyInDay = dailyAssignments[d].map(n => n.toLowerCase());
-                    const nextIdx = residentsPool.findIndex(r => !alreadyInDay.includes(r.name.toLowerCase()));
-                    if (nextIdx !== -1) {
-                        dailyAssignments[d].push(residentsPool.splice(nextIdx, 1)[0].name);
-                    } else break;
+            // Second pass: Distribute any remaining residents to reach max 3 if possible
+            const totalSlotsFilled = dailyAssignments.reduce((acc, curr) => acc + curr.length, 0);
+            if (availableParticipants.length > totalSlotsFilled) {
+                const remainingPeople = availableParticipants.filter(p => 
+                    !dailyAssignments.some(day => day.includes(p.name))
+                ).sort(() => Math.random() - 0.5);
+
+                for (const person of remainingPeople) {
+                    const dayWithLeast = dailyAssignments
+                        .map((day, idx) => ({ length: day.length, idx }))
+                        .filter(d => d.length < 3 && !dailyAssignments[d.idx].includes(person.name))
+                        .sort((a, b) => a.length - b.length)[0];
+                    
+                    if (dayWithLeast) {
+                        dailyAssignments[dayWithLeast.idx].push(person.name);
+                    }
                 }
             }
 
@@ -194,15 +203,15 @@ export function GenerateScheduleForm() {
             });
 
             setGeneratedSchedule(newSchedule);
-            toast({ title: "Berhasil!", description: "Pratinjau jadwal dibuat (Minimal 2 orang/malam)." });
+            toast({ title: "Berhasil!", description: "Jadwal sebulan penuh telah dibuat (2-3 orang/malam)." });
 
         } catch (e) {
             console.error(e);
-            toast({ title: "Error", description: "Gagal membuat jadwal.", variant: "destructive" });
+            toast({ title: "Error", description: "Terjadi kesalahan saat mengolah JSON jadwal.", variant: "destructive" });
         } finally {
             setIsGenerating(false);
         }
-    }, 100);
+    }, 50);
   };
 
   const handleSaveSchedule = async () => {
@@ -241,7 +250,7 @@ export function GenerateScheduleForm() {
         setGeneratedSchedule(null);
         toast({ title: 'Berhasil!', description: 'Jadwal telah disimpan ke database.' });
     } catch (e) {
-        toast({ title: 'Error', description: 'Gagal menyimpan jadwal.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Gagal menyimpan jadwal. Cek koneksi Anda.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
@@ -271,7 +280,7 @@ export function GenerateScheduleForm() {
         setGeneratedSchedule(null);
         toast({ title: 'Berhasil!', description: 'Jadwal bulan ini telah dihapus dari database.' });
     } catch (e) {
-        toast({ title: 'Error', description: 'Gagal menghapus jadwal.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Gagal menghapus data.', variant: 'destructive' });
     } finally {
         setIsClearing(false);
     }
@@ -325,11 +334,11 @@ export function GenerateScheduleForm() {
 
         <Alert className="bg-primary/5 border-primary/20">
             <AlertCircle className="h-4 w-4 text-primary" />
-            <AlertTitle>Aturan Penjadwalan</AlertTitle>
+            <AlertTitle>Aturan Penjadwalan Otomatis</AlertTitle>
             <AlertDescription className="text-xs space-y-1 mt-1">
-                <p>• Minimal 2 orang, maksimal 3 orang per malam.</p>
-                <p>• Memprioritaskan "Request Schedule" yang sudah disetujui.</p>
-                <p>• Mengutamakan pembagian merata (1 warga = 1 shift).</p>
+                <p>• <b>Garansi:</b> Setiap malam diisi 2-3 orang tanpa ada hari yang kosong.</p>
+                <p>• <b>Prioritas:</b> Mengunci "Request Schedule" yang sudah disetujui.</p>
+                <p>• <b>Adil:</b> Warga akan dijadwalkan secara merata.</p>
             </AlertDescription>
         </Alert>
       </div>
@@ -380,23 +389,10 @@ export function GenerateScheduleForm() {
           <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl opacity-50 bg-muted/20">
               <Wand2 className="h-12 w-12 mb-4 text-muted-foreground" />
               <p className="text-sm font-medium">Belum ada pratinjau</p>
-              <p className="text-xs text-muted-foreground text-center mt-1">Pilih bulan dan klik Generate untuk melihat simulasi jadwal.</p>
+              <p className="text-xs text-muted-foreground text-center mt-1">Pilih bulan dan klik Generate untuk melihat simulasi jadwal satu bulan penuh.</p>
           </div>
         )}
       </div>
     </div>
   );
-}
-
-const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, variant?: 'default' | 'secondary' }) => (
-    <span className={cn(
-        "px-2 py-0.5 rounded-full text-[10px] font-bold",
-        variant === 'default' ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-    )}>
-        {children}
-    </span>
-);
-
-function cn(...inputs: any[]) {
-    return inputs.filter(Boolean).join(' ');
 }
