@@ -65,13 +65,10 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // Ensure master admin has the record in roles_admin
+        // Ensure master admin has the record in roles_admin and profile
         if (cleanEmail === 'tirtopbas@gmail.com') {
             await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
-            
-            // Also ensure their profile role is set correctly
-            const userRef = doc(firestore, 'users', uid);
-            await setDoc(userRef, { role: 'admin' }, { merge: true });
+            await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
         }
 
         const adminRoleRef = doc(firestore, 'roles_admin', uid);
@@ -88,7 +85,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         }
 
         if (role === 'admin' || role === 'coordinator') {
-          toast({ title: 'Login Berhasil', description: `Selamat datang kembali, Koordinator.` });
+          toast({ title: 'Login Berhasil', description: `Selamat datang kembali, Admin.` });
           router.push('/admin');
         } else {
           toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard warga.' });
