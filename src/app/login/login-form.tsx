@@ -52,7 +52,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
             email: cleanEmail,
             phone: '-',
             address: '-',
-            role: (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjmfstP49xfG22') ? 'admin' : 'user',
+            role: (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') ? 'admin' : 'user',
         }, { merge: true });
 
         // Auto-promote master admin
