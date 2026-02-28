@@ -40,8 +40,8 @@ export function RequestForm() {
   const watchedDate = watch('requestedDate');
 
   const requestsQuery = useMemoFirebase(
-    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
-    [firestore]
+    () => (firestore && user ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore, user]
   );
   const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
 
@@ -106,11 +106,16 @@ export function RequestForm() {
   };
 
   if (isLoading) {
-    return <div className='flex justify-center'><Loader2 className='animate-spin'/></div>
+    return <div className='flex justify-center p-8'><Loader2 className='animate-spin h-8 w-8 text-primary'/></div>
   }
 
   if (!user) {
-    return <p className='text-center text-muted-foreground'>Please log in to request a schedule change.</p>
+    return (
+        <Alert variant="destructive">
+            <AlertTitle>Akses Dibatasi</AlertTitle>
+            <AlertDescription>Silakan login terlebih dahulu untuk mengajukan permintaan perubahan jadwal.</AlertDescription>
+        </Alert>
+    );
   }
 
 
@@ -158,7 +163,7 @@ export function RequestForm() {
                     </FormItem>
                 )}
             />
-            <Button type="submit" disabled={formState.isSubmitting || isLoading || requestsForSelectedDate.length >= 3}>
+            <Button type="submit" className="w-full" disabled={formState.isSubmitting || isLoading || requestsForSelectedDate.length >= 3}>
                 {formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit Request
             </Button>

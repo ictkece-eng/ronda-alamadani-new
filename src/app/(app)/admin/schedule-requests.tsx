@@ -9,8 +9,9 @@ import {
   useFirestore,
   useMemoFirebase,
   updateDocumentNonBlocking,
+  useUser,
 } from '@/firebase';
-import { collection, collectionGroup, doc, query, addDoc } from 'firebase/firestore';
+import { collection, collectionGroup, doc, query } from 'firebase/firestore';
 import type { ScheduleRequest, Warga } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,9 +44,13 @@ type RequestFormValues = z.infer<typeof requestSchema>;
 
 export function ScheduleRequests() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
-  const requestsQuery = useMemoFirebase(() => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null), [firestore]);
+  const requestsQuery = useMemoFirebase(
+    () => (firestore && user ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore, user]
+  );
   const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
   
   const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);

@@ -24,7 +24,7 @@ import { Loader2, ThumbsDown, ThumbsUp, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ScheduleRequest, Warga } from '@/lib/types';
 import { handleGetCoordinatorSuggestion } from '@/lib/actions';
-import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, collectionGroup, doc, query } from 'firebase/firestore';
 import { format } from 'date-fns';
 
@@ -36,10 +36,11 @@ export function CoordinatorView() {
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const requestsQuery = useMemoFirebase(
-    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
-    [firestore]
+    () => (firestore && user ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore, user]
   );
   const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
 

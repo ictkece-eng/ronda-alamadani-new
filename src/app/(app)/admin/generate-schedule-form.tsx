@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo } from 'react';
 import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, UserRoundPen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
 import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
 import {
@@ -49,6 +49,7 @@ export function GenerateScheduleForm() {
 
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const usersCollection = useMemoFirebase(
     () => (firestore ? collection(firestore, 'users') : null),
@@ -57,8 +58,8 @@ export function GenerateScheduleForm() {
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersCollection);
 
   const requestsQuery = useMemoFirebase(
-    () => (firestore ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
-    [firestore]
+    () => (firestore && user ? query(collectionGroup(firestore, 'scheduleRequests')) : null),
+    [firestore, user]
   );
   const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
 
