@@ -69,7 +69,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         // ULTIMATE ADMIN SYNC
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // Ensure synchronization for the Boss
+                // Pastikan dokumen admin dan user profile selalu sinkron sebagai Admin Utama
                 await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
                 await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
@@ -81,7 +81,8 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         
         // Check role for redirect
         const userSnap = await getDoc(doc(firestore, 'users', uid));
-        const role = userSnap.data()?.role || 'user';
+        const userData = userSnap.data();
+        const role = userData?.role || 'user';
 
         if (role === 'admin' || role === 'coordinator' || cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
           router.push('/admin');
