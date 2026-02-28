@@ -49,14 +49,12 @@ const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, valu
     </Card>
 )
 
-const DashboardView = () => {
+const DashboardView = ({ userData }: { userData: Warga | null }) => {
     const firestore = useFirestore();
 
     const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
     const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
-    // We can't use collectionGroup easily here without index, so we just use the users we have to infer stats
-    // Or just show total users and coordinators which is accurate from the users collection
     const isLoading = isUsersLoading;
 
     const stats = useMemo(() => {
@@ -70,11 +68,13 @@ const DashboardView = () => {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight text-primary">Hi, welcome back!</h2>
-                <p className="text-muted-foreground mt-1 text-lg">Ringkasan aktivitas ronda lingkungan Anda hari ini.</p>
+                <h2 className="text-3xl font-bold tracking-tight text-primary">Hi, {userData?.name || 'Warga'}!</h2>
+                <p className="text-muted-foreground mt-1 text-lg">
+                    {userData?.role === 'coordinator' ? 'Dashboard Koordinator Ronda' : 'Dashboard Admin Ronda'}
+                </p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Total Warga" value={stats.totalUsers} icon={Users} isLoading={isLoading} />
+                <StatCard title="Total Warga Ronda" value={stats.totalUsers} icon={Users} isLoading={isLoading} />
                 <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isLoading} />
                 <StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isLoading} />
             </div>
@@ -91,12 +91,10 @@ export function AdminTabs() {
     const { toast } = useToast();
     const router = useRouter();
 
-    // Strategy 1: Look up profile by UID
     const userDocRef = useMemoFirebase(() => (firestore && authUser ? doc(firestore, 'users', authUser.uid) : null), [firestore, authUser]);
     const { data: userDataByUid, isLoading: isUidLoading } = useDoc<Warga>(userDocRef);
 
-    // Strategy 2: Look up profile by Email (fallback for manual firestore entries)
-    const userEmailQuery = useMemoFirebase(() => (firestore && authUser?.email ? query(collection(firestore, 'users'), where('email', '==', authUser.email.toLowerCase()), limit(1)) : null), [firestore, authUser]);
+    const userEmailQuery = useMemoFirebase(() => (firestore && authUser?.email ? query(collection(firestore, 'users'), where('email', '==', authUser.email.toLowerCase().trim()), limit(1)) : null), [firestore, authUser]);
     const { data: userDataByEmail, isLoading: isEmailLoading } = useCollection<Warga>(userEmailQuery);
 
     const userData = userDataByUid || (userDataByEmail && userDataByEmail[0]) || null;
@@ -109,24 +107,17 @@ export function AdminTabs() {
         if (!auth) return;
         try {
             await signOut(auth);
-            toast({
-                title: 'Logout Berhasil',
-                description: 'Anda telah keluar dari aplikasi.',
-            });
+            toast({ title: 'Logout Berhasil', description: 'Anda telah keluar dari aplikasi.' });
             router.push('/dashboard');
         } catch (error) {
-            toast({
-                title: 'Logout Gagal',
-                description: 'An error occurred during logout.',
-                variant: 'destructive',
-            });
+            toast({ title: 'Logout Gagal', description: 'An error occurred during logout.', variant: 'destructive' });
         }
     };
 
     const navItems = useMemo(() => {
         const items = [
             { id: 'dashboard', label: 'Dashboard', icon: Home, show: true },
-            { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock, show: isAdmin },
+            { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock, show: isAdmin || isCoordinator },
             { id: 'users', label: 'Users/Warga', icon: Users2, show: true },
             { id: 'requests', label: 'Schedule Requests', icon: FileText, show: true },
             { id: 'replacements', label: 'Replacements', icon: GitPullRequest, show: true },
@@ -134,16 +125,16 @@ export function AdminTabs() {
             { id: 'history', label: 'Schedule History', icon: History, show: true },
         ];
         return items.filter(i => i.show);
-    }, [isAdmin]);
+    }, [isAdmin, isCoordinator]);
 
     const renderView = () => {
         if (isRoleLoading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
 
         switch (view) {
             case 'dashboard':
-                return <DashboardView />;
+                return <DashboardView userData={userData} />;
             case 'generate-schedule':
-                return isAdmin ? (
+                return (
                     <Card className="shadow-lg border-none">
                         <CardHeader>
                             <CardTitle>Automated Schedule Generation</CardTitle>
@@ -153,7 +144,7 @@ export function AdminTabs() {
                             <GenerateScheduleForm />
                         </CardContent>
                     </Card>
-                ) : <DashboardView />;
+                );
             case 'users':
                 return <UserManagement readOnly={isCoordinator} />;
             case 'requests':
@@ -175,7 +166,7 @@ export function AdminTabs() {
             case 'history':
                 return <ScheduleHistory />;
             default:
-                return <DashboardView />;
+                return <DashboardView userData={userData} />;
         }
     };
 
@@ -269,12 +260,8 @@ export function AdminTabs() {
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem disabled>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled>
-                                Support
-                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+                            <DropdownMenuItem disabled>Support</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10">
                                 <LogOut className="mr-2 h-4 w-4" />
@@ -285,7 +272,6 @@ export function AdminTabs() {
                  </div>
             </header>
 
-            {/* Sub Nav / Nav Tabs */}
             <div className="hidden lg:block border-b bg-card px-4 md:px-6">
                 <MainNav />
             </div>

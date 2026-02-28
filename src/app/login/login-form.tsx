@@ -9,7 +9,7 @@ import { Loader2, LogIn as LogInIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
@@ -36,10 +36,12 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
       const uid = userCredential.user.uid;
-      const userEmail = userCredential.user.email;
+      const userEmail = userCredential.user.email?.toLowerCase().trim();
       
+      if (!userEmail) throw new Error("Email not found");
+
       // 1. Handle Special Super Admin Email
       if (userEmail === 'tirtopbas@gmail.com') {
         const adminRoleRef = doc(firestore, 'roles_admin', uid);
@@ -51,44 +53,38 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         return;
       }
 
-      // 2. Lookup and Migrate User Data by Email
+      // 2. Lookup and CLEANUP/MIGRATE User Data by Email to prevent duplicates
       const usersRef = collection(firestore, 'users');
       const q = query(usersRef, where('email', '==', userEmail));
       const querySnap = await getDocs(q);
 
       if (!querySnap.empty) {
-        const userDoc = querySnap.docs[0];
-        const userData = userDoc.data();
-        const role = userData.role || 'user';
+        const batch = writeBatch(firestore);
+        let primaryUserData = querySnap.docs[0].data();
+        let role = primaryUserData.role || 'user';
 
-        // Migrate ID to UID for direct lookups in the future if they don't match
-        if (userDoc.id !== uid) {
-          await setDoc(doc(firestore, 'users', uid), { ...userData, id: uid }, { merge: true });
-          // Only delete if it's a different document ID to prevent accidental deletion
-          if (userDoc.id !== uid) {
-            await deleteDoc(doc(firestore, 'users', userDoc.id));
-          }
-        }
+        // Delete ALL existing documents with this email that are NOT the new UID
+        querySnap.docs.forEach(userDoc => {
+            if (userDoc.id !== uid) {
+                batch.delete(doc(firestore, 'users', userDoc.id));
+            }
+        });
+
+        // Set/Update the document with ID = UID
+        const targetRef = doc(firestore, 'users', uid);
+        batch.set(targetRef, { ...primaryUserData, id: uid, email: userEmail }, { merge: true });
+        
+        await batch.commit();
 
         if (role === 'admin' || role === 'coordinator') {
-          toast({
-            title: 'Login Berhasil',
-            description: `Selamat datang, ${role}.`,
-          });
+          toast({ title: 'Login Berhasil', description: `Selamat datang, ${role}.` });
           router.push('/admin');
         } else {
-          toast({
-            title: 'Login Berhasil',
-            description: 'Anda akan diarahkan ke dashboard warga.',
-          });
+          toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard warga.' });
           router.push('/dashboard');
         }
       } else {
-        // No Firestore doc found, fallback to dashboard or create a default user doc
-        toast({
-            title: 'Login Berhasil',
-            description: 'Profil Anda belum terdaftar di sistem warga.',
-        });
+        toast({ title: 'Login Berhasil', description: 'Profil Anda belum terdaftar di sistem warga.' });
         router.push('/dashboard');
       }
 
