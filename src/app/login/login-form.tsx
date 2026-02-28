@@ -69,6 +69,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         // ULTIMATE ADMIN SYNC
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
+                // We don't await this to keep login fast, but it ensures synchronization
                 setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
                 setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
@@ -82,7 +83,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userSnap = await getDoc(doc(firestore, 'users', uid));
         const role = userSnap.data()?.role || 'user';
 
-        if (role === 'admin' || role === 'coordinator' || cleanEmail === 'tirtopbas@gmail.com') {
+        if (role === 'admin' || role === 'coordinator' || cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
           router.push('/admin');
         } else {
           router.push('/dashboard');

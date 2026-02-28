@@ -11,11 +11,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper: Jalur Sakti Master Admin (Boss) - Menggunakan UID permanen
+    // Helper: Jalur Sakti Master Admin (Boss) - Menggunakan UID permanen secara literal
+    // UID: hKUvl9TWZ8eR4wwjMFsTP49xfG22 (Master Boss)
     function isMaster() {
       return isSignedIn() && (
-        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' || 
-        request.auth.token.email == 'tirtopbas@gmail.com'
+        request.auth.uid == "hKUvl9TWZ8eR4wwjMFsTP49xfG22" || 
+        request.auth.token.email == "tirtopbas@gmail.com"
       );
     }
 
