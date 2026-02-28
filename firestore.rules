@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     // Helper: Jalur Sakti Master Admin (Boss)
-    // Jalur ini menggunakan UID dan Email permanen untuk bypass semua aturan.
+    // Menggunakan UID permanen untuk bypass semua aturan dengan stabilitas tinggi.
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == "hKUvl9TWZ8eR4wwjMFsTP49xfG22" || 
@@ -38,15 +38,17 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
-    // Aturan Spesifik untuk Pengguna Lain
+    // Aturan Spesifik untuk Pengguna Lain & Dashboard
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      // Izinkan baca publik agar dashboard bisa menampilkan nama warga tanpa error login
+      allow read: if true;
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaSchedules/{id} {
+      // Izinkan baca publik agar jadwal bisa dilihat semua orang
       allow read: if true;
       allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
