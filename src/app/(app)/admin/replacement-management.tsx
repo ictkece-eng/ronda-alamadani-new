@@ -20,7 +20,11 @@ type ScheduleWithUser = RondaSchedule & {
     userAddress: string;
 };
 
-export function ReplacementManagement() {
+interface ReplacementManagementProps {
+    readOnly?: boolean;
+}
+
+export function ReplacementManagement({ readOnly = false }: ReplacementManagementProps) {
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -91,7 +95,7 @@ export function ReplacementManagement() {
     }, [allSchedules, usersMap, selectedMonth]);
 
     const handleReplacementChange = (schedule: ScheduleWithUser, newReplacementId: string) => {
-        if (!firestore) return;
+        if (!firestore || readOnly) return;
 
         const isClearing = newReplacementId === 'clear' || !newReplacementId;
         const replacementUser = isClearing ? null : usersMap.get(newReplacementId);
@@ -131,7 +135,7 @@ export function ReplacementManagement() {
     };
 
     return (
-        <Card>
+        <Card className="shadow-lg border-none">
             <CardHeader>
                 <CardTitle>Manage Replacements</CardTitle>
                 <CardDescription>Assign replacement users for scheduled ronda duties.</CardDescription>
@@ -142,13 +146,14 @@ export function ReplacementManagement() {
                     <Input
                         id="month-picker"
                         type="month"
+                        className="rounded-xl bg-muted/50 border-none h-10 mt-1"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
                         disabled={isLoading}
                     />
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
+                <div className="border rounded-lg overflow-hidden bg-background">
                     <Table>
                         <TableHeader>
                             <TableRow>

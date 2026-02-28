@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil, Search } from 'lucide-react';
+import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil, Search, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -47,7 +47,11 @@ const requestSchema = z.object({
 });
 type RequestFormValues = z.infer<typeof requestSchema>;
 
-export function ScheduleRequests() {
+interface ScheduleRequestsProps {
+    readOnly?: boolean;
+}
+
+export function ScheduleRequests({ readOnly = false }: ScheduleRequestsProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -203,11 +207,11 @@ export function ScheduleRequests() {
   
   const requestsForSelectedDate = useMemo(() => {
     if (!watchedDate || !requests) return [];
-    const selectedDateStr = new Date(watchedDate).toISOString().split('T')[0];
+    const normalizedSelectedDate = new Date(watchedDate).toISOString().split('T')[0];
     return requests.filter(req => {
         if (editingRequest && req.id === editingRequest.id) return false;
-        const reqDateStr = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
-        return reqDateStr === selectedDateStr && (req.status === 'pending' || req.status === 'approved');
+        const normalizedReqDate = new Date(req.requestedScheduleDate).toISOString().split('T')[0];
+        return normalizedReqDate === normalizedSelectedDate && (req.status === 'pending' || req.status === 'approved');
     }).map(req => ({
         ...req,
         userName: usersMap.get(req.userId) || 'Unknown User'
@@ -216,17 +220,19 @@ export function ScheduleRequests() {
 
   return (
     <>
-    <Card>
+    <Card className="shadow-lg border-none">
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <CardTitle>Manage Schedule Requests</CardTitle>
                 <CardDescription>Approve or reject ronda schedule change requests from warga.</CardDescription>
             </div>
-            <Button className="self-end sm:self-center" onClick={handleCreateClick}>
-                <Plus className="h-4 w-4 mr-2" />
-                Request Jadwal
-            </Button>
+            {!readOnly && (
+                <Button className="self-end sm:self-center" onClick={handleCreateClick}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Request Jadwal
+                </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -265,7 +271,7 @@ export function ScheduleRequests() {
             </AlertDescription>
           </Alert>
         )}
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-hidden bg-background">
             <Table>
             <TableHeader>
                 <TableRow>
@@ -297,25 +303,29 @@ export function ScheduleRequests() {
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                           <div className="flex gap-1 justify-end">
-                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(req)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
+                           <div className="flex gap-2 justify-end">
+                                {!readOnly && (
+                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(req)} className="h-8 w-8">
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                )}
                                 {req.status === 'pending' && (
                                     <>
                                         <Button
                                         size="sm"
                                         variant="outline"
+                                        className="h-8 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
                                         onClick={() => handleUpdateStatus(req, 'approved')}
                                         >
-                                        <ThumbsUp className="h-4 w-4" />
+                                            <ThumbsUp className="h-4 w-4" />
                                         </Button>
                                         <Button
                                         size="sm"
-                                        variant="destructive"
+                                        variant="outline"
+                                        className="h-8 border-destructive text-destructive hover:bg-destructive hover:text-white"
                                         onClick={() => handleUpdateStatus(req, 'rejected')}
                                         >
-                                        <ThumbsDown className="h-4 w-4" />
+                                            <ThumbsDown className="h-4 w-4" />
                                         </Button>
                                     </>
                                 )}
@@ -335,7 +345,7 @@ export function ScheduleRequests() {
         </div>
       </CardContent>
         {totalPages > 1 && (
-            <CardFooter className='justify-between'>
+            <CardFooter className='justify-between border-t p-6'>
                  <div className="text-xs text-muted-foreground">
                     Showing <strong>{paginatedRequests.length}</strong> of <strong>{processedRequests.length}</strong> requests
                 </div>

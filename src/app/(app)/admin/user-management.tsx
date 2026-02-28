@@ -78,7 +78,11 @@ const ITEMS_PER_PAGE = 10;
 
 type FilterType = 'all' | 'active' | 'backup' | 'admin';
 
-export function UserManagement() {
+interface UserManagementProps {
+    readOnly?: boolean;
+}
+
+export function UserManagement({ readOnly = false }: UserManagementProps) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
@@ -227,7 +231,7 @@ export function UserManagement() {
   const toggleFilter = (filter: FilterType) => {
     setActiveFilter(prev => {
         const next = prev === filter ? 'all' : filter;
-        setCurrentPage(1); // Reset page on filter change
+        setCurrentPage(1); 
         return next;
     });
   };
@@ -235,81 +239,81 @@ export function UserManagement() {
   return (
     <div className="space-y-6">
       {/* Stat Cards as Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <Card 
             className={cn(
-                "cursor-pointer transition-all hover:shadow-md border-primary/20",
-                activeFilter === 'all' ? "bg-primary/10 ring-2 ring-primary" : "bg-primary/5 shadow-sm"
+                "cursor-pointer transition-all hover:shadow-md border-none",
+                activeFilter === 'all' ? "bg-primary text-white ring-4 ring-primary/20" : "bg-card shadow-sm"
             )}
             onClick={() => toggleFilter('all')}
           >
-              <CardContent className="p-4 flex items-center justify-between">
+              <CardContent className="p-6 flex items-center justify-between">
                   <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Warga</p>
-                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.total}</h3>
+                      <p className={cn("text-xs font-bold uppercase tracking-widest", activeFilter === 'all' ? "text-white/80" : "text-muted-foreground")}>Total Warga</p>
+                      <h3 className="text-3xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.total}</h3>
                   </div>
-                  <div className="bg-primary/10 p-2 rounded-lg">
-                    <Users className="h-5 w-5 text-primary" />
+                  <div className={cn("p-3 rounded-xl", activeFilter === 'all' ? "bg-white/20" : "bg-primary/10")}>
+                    <Users className={cn("h-6 w-6", activeFilter === 'all' ? "text-white" : "text-primary")} />
                   </div>
               </CardContent>
           </Card>
 
           <Card 
             className={cn(
-                "cursor-pointer transition-all hover:shadow-md border-green-500/20",
-                activeFilter === 'active' ? "bg-green-500/10 ring-2 ring-green-500" : "bg-green-500/5 shadow-sm"
+                "cursor-pointer transition-all hover:shadow-md border-none",
+                activeFilter === 'active' ? "bg-green-600 text-white ring-4 ring-green-600/20" : "bg-card shadow-sm"
             )}
             onClick={() => toggleFilter('active')}
           >
-              <CardContent className="p-4 flex items-center justify-between">
+              <CardContent className="p-6 flex items-center justify-between">
                   <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">User Ronda</p>
-                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.active}</h3>
+                      <p className={cn("text-xs font-bold uppercase tracking-widest", activeFilter === 'active' ? "text-white/80" : "text-muted-foreground")}>User Ronda</p>
+                      <h3 className="text-3xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.active}</h3>
                   </div>
-                  <div className="bg-green-500/10 p-2 rounded-lg">
-                    <UserCheck className="h-5 w-5 text-green-600" />
+                  <div className={cn("p-3 rounded-xl", activeFilter === 'active' ? "bg-white/20" : "bg-green-100")}>
+                    <UserCheck className={cn("h-6 w-6", activeFilter === 'active' ? "text-white" : "text-green-600")} />
                   </div>
               </CardContent>
           </Card>
 
           <Card 
             className={cn(
-                "cursor-pointer transition-all hover:shadow-md border-orange-500/20",
-                activeFilter === 'backup' ? "bg-orange-500/10 ring-2 ring-orange-500" : "bg-orange-500/5 shadow-sm"
+                "cursor-pointer transition-all hover:shadow-md border-none",
+                activeFilter === 'backup' ? "bg-orange-500 text-white ring-4 ring-orange-500/20" : "bg-card shadow-sm"
             )}
             onClick={() => toggleFilter('backup')}
           >
-              <CardContent className="p-4 flex items-center justify-between">
+              <CardContent className="p-6 flex items-center justify-between">
                   <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Backup</p>
-                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.backups}</h3>
+                      <p className={cn("text-xs font-bold uppercase tracking-widest", activeFilter === 'backup' ? "text-white/80" : "text-muted-foreground")}>Backup</p>
+                      <h3 className="text-3xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.backups}</h3>
                   </div>
-                  <div className="bg-orange-500/10 p-2 rounded-lg">
-                    <LifeBuoy className="h-5 w-5 text-orange-600" />
+                  <div className={cn("p-3 rounded-xl", activeFilter === 'backup' ? "bg-white/20" : "bg-orange-100")}>
+                    <LifeBuoy className={cn("h-6 w-6", activeFilter === 'backup' ? "text-white" : "text-orange-600")} />
                   </div>
               </CardContent>
           </Card>
 
           <Card 
             className={cn(
-                "cursor-pointer transition-all hover:shadow-md border-blue-500/20",
-                activeFilter === 'admin' ? "bg-blue-500/10 ring-2 ring-blue-500" : "bg-blue-500/5 shadow-sm"
+                "cursor-pointer transition-all hover:shadow-md border-none",
+                activeFilter === 'admin' ? "bg-blue-600 text-white ring-4 ring-blue-600/20" : "bg-card shadow-sm"
             )}
             onClick={() => toggleFilter('admin')}
           >
-              <CardContent className="p-4 flex items-center justify-between">
+              <CardContent className="p-6 flex items-center justify-between">
                   <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Admin</p>
-                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.admins}</h3>
+                      <p className={cn("text-xs font-bold uppercase tracking-widest", activeFilter === 'admin' ? "text-white/80" : "text-muted-foreground")}>Admin</p>
+                      <h3 className="text-3xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.admins}</h3>
                   </div>
-                  <div className="bg-blue-500/10 p-2 rounded-lg">
-                    <ShieldCheck className="h-5 w-5 text-blue-600" />
+                  <div className={cn("p-3 rounded-xl", activeFilter === 'admin' ? "bg-white/20" : "bg-blue-100")}>
+                    <ShieldCheck className={cn("h-6 w-6", activeFilter === 'admin' ? "text-white" : "text-blue-600")} />
                   </div>
               </CardContent>
           </Card>
       </div>
 
-      <Card className="shadow-lg">
+      <Card className="shadow-lg border-none">
         <CardHeader>
           <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
             <div>
@@ -327,10 +331,10 @@ export function UserManagement() {
         <CardContent className="space-y-4">
           <div className='flex flex-col sm:flex-row justify-between items-center gap-2'>
               <div className="relative w-full sm:max-w-xs">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                       placeholder="Search users..."
-                      className="pl-8"
+                      className="pl-8 rounded-xl bg-muted/50 border-none h-10"
                       value={searchQuery}
                       onChange={(e) => {
                           setSearchQuery(e.target.value);
@@ -338,11 +342,13 @@ export function UserManagement() {
                       }}
                   />
               </div>
-              <div className='flex gap-2 self-end'>
-                  <Button onClick={handleAddNew}>
-                      <Plus className="mr-2 h-4 w-4" /> Add User
-                  </Button>
-              </div>
+              {!readOnly && (
+                <div className='flex gap-2 self-end'>
+                    <Button onClick={handleAddNew} className="rounded-xl">
+                        <Plus className="mr-2 h-4 w-4" /> Add User
+                    </Button>
+                </div>
+              )}
           </div>
 
           <div className="border rounded-lg overflow-hidden bg-background">
@@ -401,28 +407,32 @@ export function UserManagement() {
                           </div>
                       </TableCell>
                       <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} className="h-8 w-8">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10'>
-                                  <Trash className="h-3.5 w-3.5" />
-                              </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                              <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the user account.
-                              </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
-                              </AlertDialogFooter>
-                          </AlertDialogContent>
-                          </AlertDialog>
+                          {!readOnly && (
+                            <>
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} className="h-8 w-8">
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10'>
+                                        <Trash className="h-3.5 w-3.5" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the user account.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            </>
+                          )}
                       </TableCell>
                       </TableRow>
                   ))

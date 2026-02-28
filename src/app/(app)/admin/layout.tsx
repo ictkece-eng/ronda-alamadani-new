@@ -17,42 +17,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isVerifying, setIsVerifying] = React.useState(true);
 
   React.useEffect(() => {
-    // Don't do anything until we know who the user is.
-    if (isUserLoading) {
-      return;
-    }
+    if (isUserLoading) return;
 
-    // If there's no user after loading, they are not logged in. Redirect.
     if (!user) {
       router.replace('/dashboard');
       return;
     }
 
-    // If Firebase isn't ready, wait.
     if (!firestore) {
         setIsVerifying(true);
         return;
     }
 
-    const checkAdminStatus = async () => {
+    const checkStatus = async () => {
       try {
+        // 1. Check Admin Collection
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-        const docSnap = await getDoc(adminRoleRef);
+        const adminSnap = await getDoc(adminRoleRef);
         
-        if (docSnap.exists()) {
+        if (adminSnap.exists()) {
           setIsAuthorized(true);
+          setIsVerifying(false);
+          return;
+        }
+
+        // 2. Check User Role in Profile
+        const userRef = doc(firestore, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData.role === 'admin' || userData.role === 'coordinator') {
+            setIsAuthorized(true);
+          } else {
+            setIsAuthorized(false);
+            toast({
+              title: 'Akses Ditolak',
+              description: 'Anda tidak memiliki hak akses untuk halaman ini.',
+              variant: 'destructive',
+            });
+            router.replace('/dashboard');
+          }
         } else {
-          // User is logged in but doesn't have an admin role doc.
           setIsAuthorized(false);
-          toast({
-            title: 'Akses Ditolak',
-            description: 'Anda tidak memiliki hak akses untuk halaman ini.',
-            variant: 'destructive',
-          });
           router.replace('/dashboard');
         }
       } catch (error) {
-        console.error("Error verifying admin status:", error);
+        console.error("Error verifying status:", error);
         setIsAuthorized(false);
         router.replace('/dashboard');
       } finally {
@@ -60,26 +71,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     };
 
-    checkAdminStatus();
+    checkStatus();
     
   }, [user, isUserLoading, firestore, router, toast]);
 
-  // While verifying, show a full-page loader.
   if (isVerifying) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className='ml-2'>Verifying access...</p>
+        <p className='ml-2 text-muted-foreground'>Memverifikasi hak akses...</p>
       </div>
     );
   }
 
-  // If verification is complete and user is authorized, show the admin content.
   if (isAuthorized) {
     return <>{children}</>;
   }
 
-  // If not authorized after verification, show a loader while redirecting.
   return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
