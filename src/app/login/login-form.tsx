@@ -9,7 +9,7 @@ import { Loader2, LogIn as LogInIcon, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
@@ -41,11 +41,9 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 
     try {
       if (mode === 'signup') {
-        // Proses Pendaftaran
         const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // Buat profil warga default di Firestore
         const userRef = doc(firestore, 'users', uid);
         await setDoc(userRef, {
             id: uid,
@@ -53,17 +51,25 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
             email: cleanEmail,
             phone: '-',
             address: '-',
-            role: 'user', // Default sebagai user biasa
+            role: 'user',
         }, { merge: true });
+
+        // Auto-promote master admin
+        if (cleanEmail === 'tirtopbas@gmail.com') {
+            await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail });
+        }
 
         toast({ title: 'Pendaftaran Berhasil', description: 'Akun Anda telah dibuat. Silakan login.' });
         setMode('login');
       } else {
-        // Proses Login
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // Cek Role untuk pengalihan halaman
+        // Ensure master admin has the record in roles_admin
+        if (cleanEmail === 'tirtopbas@gmail.com') {
+            await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
+        }
+
         const adminRoleRef = doc(firestore, 'roles_admin', uid);
         const adminSnap = await getDoc(adminRoleRef);
         
@@ -71,7 +77,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userSnap = await getDoc(userRef);
         
         let role = 'user';
-        if (adminSnap.exists()) {
+        if (adminSnap.exists() || cleanEmail === 'tirtopbas@gmail.com') {
           role = 'admin';
         } else if (userSnap.exists()) {
           role = userSnap.data()?.role || 'user';
@@ -87,7 +93,6 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         onLoginSuccess?.();
       }
     } catch (error: any) {
-      // Menangani error secara spesifik agar tidak memicu overlay NextJS
       let message = 'Terjadi kesalahan. Silakan coba lagi.';
       
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
@@ -156,7 +161,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         
         {mode === 'signup' && (
             <p className="text-[10px] text-muted-foreground text-center italic">
-                *Setelah daftar, Admin harus memberikan akses manual di database agar Anda bisa masuk ke menu Admin.
+                *Akun tirtopbas@gmail.com akan otomatis menjadi Admin Utama.
             </p>
         )}
     </div>
