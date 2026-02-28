@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop } from 'lucide-react';
+import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, Info, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
@@ -88,7 +88,7 @@ export function GenerateScheduleForm() {
     monthSchedules.forEach(s => {
         const dateStr = new Date(s.date).toISOString().split('T')[0];
         if (!grouped[dateStr]) grouped[dateStr] = [];
-        const userName = usersIdMap.get(s.userId)?.name || 'Unknown';
+        const userName = s.replacementUserName || usersIdMap.get(s.userId)?.name || 'Unknown';
         grouped[dateStr].push(userName);
     });
 
@@ -306,6 +306,14 @@ export function GenerateScheduleForm() {
               </Button>
           )}
         </div>
+
+        <Alert className="bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-600">Info Perubahan Satuan</AlertTitle>
+            <AlertDescription className="text-xs text-blue-800">
+                Jika ingin mengganti <b>satu nama warga saja</b> di tanggal tertentu, silakan gunakan menu <b>Replacements</b> di samping kiri. Menu ini khusus untuk pembuatan jadwal massal.
+            </AlertDescription>
+        </Alert>
 
         <Alert className="bg-primary/5 border-primary/20">
             <AlertCircle className="h-4 w-4 text-primary" />
