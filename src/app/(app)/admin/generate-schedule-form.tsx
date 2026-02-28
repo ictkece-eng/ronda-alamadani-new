@@ -74,7 +74,7 @@ export function GenerateScheduleForm() {
         u.role === 'coordinator' ||
         (u.role === 'backup' && u.includeInSchedule === true)
       )
-      .map(u => u.name);
+      .map(u => u.name.trim());
       
     const uniqueNames = new Map<string, string>();
     for (const name of participantNames) {
@@ -90,7 +90,7 @@ export function GenerateScheduleForm() {
 
   const usersMap = useMemo(() => {
     if (!users) return new Map<string, Warga>();
-    return new Map(users.map((user) => [user.name.toLowerCase(), user]));
+    return new Map(users.map((user) => [user.name.trim().toLowerCase(), user]));
   }, [users]);
   
   const usersIdMap = useMemo(() => {
@@ -125,7 +125,7 @@ export function GenerateScheduleForm() {
                 acc[dateStr] = [];
             }
             const userName = usersIdMap.get(schedule.userId)?.name;
-            if (userName && !acc[dateStr].includes(userName)) {
+            if (userName && !acc[dateStr].map(n => n.toLowerCase().trim()).includes(userName.toLowerCase().trim())) {
                 acc[dateStr].push(userName);
             }
             return acc;
@@ -184,16 +184,19 @@ export function GenerateScheduleForm() {
 
             approvedRequestsForMonth.forEach(req => {
                 const user = usersIdMap.get(req.userId);
-                if (!user) return; // User might have been deleted
+                if (!user) return; 
 
                 const reqDate = new Date(req.requestedScheduleDate);
                 const dayIndex = reqDate.getUTCDate() - 1;
+                const userNameTrimmed = user.name.trim();
 
-                if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(user.name) && !dailyAssignments[dayIndex].map(name => name.toLowerCase()).includes(user.name.toLowerCase())) {
-                    // Cap assignments at 3 per day
-                    if (dailyAssignments[dayIndex].length < 3) {
-                        dailyAssignments[dayIndex].push(user.name);
-                        shiftCounts.set(user.name, (shiftCounts.get(user.name) ?? 0) + 1);
+                if (dayIndex >= 0 && dayIndex < daysInMonth && availableParticipants.includes(userNameTrimmed)) {
+                    // Check for existing assignment to prevent duplicates
+                    const isAlreadyAssigned = dailyAssignments[dayIndex].some(name => name.toLowerCase().trim() === userNameTrimmed.toLowerCase());
+                    
+                    if (!isAlreadyAssigned && dailyAssignments[dayIndex].length < 3) {
+                        dailyAssignments[dayIndex].push(userNameTrimmed);
+                        shiftCounts.set(userNameTrimmed, (shiftCounts.get(userNameTrimmed) ?? 0) + 1);
                     }
                 }
             });
@@ -203,29 +206,32 @@ export function GenerateScheduleForm() {
             for (let day = 0; day < daysInMonth; day++) {
                 const currentDate = new Date(Date.UTC(year, monthNum - 1, day + 1));
                 const dayOfWeek = currentDate.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat
-                const isWeekendShift = dayOfWeek === 5 || dayOfWeek === 6; // Friday or Saturday
+                const isWeekendShift = dayOfWeek === 5 || dayOfWeek === 6; 
                 const targetParticipants = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) ? 3 : 2;
                 
                 let needed = targetParticipants - dailyAssignments[day].length;
 
                 if (needed > 0) {
-                    let candidates = [...availableParticipants].filter(p => !dailyAssignments[day].map(name => name.toLowerCase()).includes(p.toLowerCase()));
+                    // Filter candidates to EXCLUDE anyone already assigned for this specific day
+                    let candidates = [...availableParticipants].filter(p => 
+                        !dailyAssignments[day].some(name => name.toLowerCase().trim() === p.toLowerCase().trim())
+                    );
                     
                     const assignedBlocksThisDay = new Set(
                         dailyAssignments[day].map(name => {
-                            const user = usersMap.get(name.toLowerCase());
+                            const user = usersMap.get(name.toLowerCase().trim());
                             return user?.address ? user.address.charAt(0).toUpperCase() : null;
                         }).filter(Boolean)
                     );
 
-                    let dayAlreadyHasTeacher = dailyAssignments[day].some(name => !!usersMap.get(name.toLowerCase())?.isTeacher);
+                    let dayAlreadyHasTeacher = dailyAssignments[day].some(name => !!usersMap.get(name.toLowerCase().trim())?.isTeacher);
 
                     for (let i = 0; i < needed; i++) {
                         if (candidates.length === 0) break;
 
                         candidates.sort((a, b) => {
-                            const userA = usersMap.get(a.toLowerCase());
-                            const userB = usersMap.get(b.toLowerCase());
+                            const userA = usersMap.get(a.toLowerCase().trim());
+                            const userB = usersMap.get(b.toLowerCase().trim());
                             
                             const isATeacher = !!userA?.isTeacher;
                             const isBTeacher = !!userB?.isTeacher;
@@ -240,10 +246,10 @@ export function GenerateScheduleForm() {
                             let teacherScoreB = 0;
 
                             if (isWeekendShift) {
-                                if (!isATeacher) teacherScoreA = 1; // Non-teacher gets penalty
+                                if (!isATeacher) teacherScoreA = 1; 
                                 if (!isBTeacher) teacherScoreB = 1;
                             } else {
-                                if (isATeacher) teacherScoreA = 1; // Teacher gets penalty on weekdays
+                                if (isATeacher) teacherScoreA = 1; 
                                 if (isBTeacher) teacherScoreB = 1;
                             }
 
@@ -261,10 +267,10 @@ export function GenerateScheduleForm() {
                             }
 
                             // --- Previous Day Penalty ---
-                            const wasAOnYesterday = day > 0 && dailyAssignments[day - 1].map(n => n.toLowerCase()).includes(a.toLowerCase());
-                            const wasBOnYesterday = day > 0 && dailyAssignments[day - 1].map(n => n.toLowerCase()).includes(b.toLowerCase());
-                            if (wasAOnYesterday && !wasBOnYesterday) return 1; // Penalize A
-                            if (!wasAOnYesterday && wasBOnYesterday) return -1; // Penalize B
+                            const wasAOnYesterday = day > 0 && dailyAssignments[day - 1].some(n => n.toLowerCase().trim() === a.toLowerCase().trim());
+                            const wasBOnYesterday = day > 0 && dailyAssignments[day - 1].some(n => n.toLowerCase().trim() === b.toLowerCase().trim());
+                            if (wasAOnYesterday && !wasBOnYesterday) return 1; 
+                            if (!wasAOnYesterday && wasBOnYesterday) return -1; 
 
                             // --- Shift Count Score ---
                             const countA = shiftCounts.get(a) ?? 0;
@@ -283,7 +289,7 @@ export function GenerateScheduleForm() {
                         dailyAssignments[day].push(bestCandidate);
                         shiftCounts.set(bestCandidate, (shiftCounts.get(bestCandidate) ?? 0) + 1);
 
-                        const bestCandidateUser = usersMap.get(bestCandidate.toLowerCase());
+                        const bestCandidateUser = usersMap.get(bestCandidate.toLowerCase().trim());
                         const bestCandidateBlock = bestCandidateUser?.address ? bestCandidateUser.address.charAt(0).toUpperCase() : null;
                         if (bestCandidateBlock) {
                             assignedBlocksThisDay.add(bestCandidateBlock);
@@ -301,22 +307,22 @@ export function GenerateScheduleForm() {
                 const date = new Date(Date.UTC(year, monthNum - 1, day + 1));
                 newSchedule.push({
                     date: date.toISOString().split('T')[0],
-                    participants: dailyAssignments[day].sort(), // Sort names alphabetically for consistency
+                    participants: dailyAssignments[day].sort(), 
                 });
             }
 
             setGeneratedSchedule(newSchedule);
             setHasExistingSchedule(newSchedule.length > 0);
             toast({
-                title: "Success!",
-                description: "Schedule generated, incorporating approved requests and avoiding block clashes.",
+                title: "Berhasil!",
+                description: "Jadwal telah digenerate tanpa ada nama ganda di hari yang sama.",
             });
 
         } catch (e) {
             console.error("Failed to generate schedule locally:", e);
             toast({
                 title: "Error",
-                description: "Could not generate the schedule. Please check the console for details.",
+                description: "Gagal membuat jadwal. Silakan cek konsol.",
                 variant: "destructive",
             });
         } finally {
@@ -326,7 +332,9 @@ export function GenerateScheduleForm() {
   };
 
   const handleParticipantChange = (dayIndex: number, participantIndex: number, newParticipant: string) => {
-    if (!newParticipant) return; // Don't allow clearing a slot
+    if (!newParticipant) return; 
+
+    const trimmedNewParticipant = newParticipant.trim();
 
     setGeneratedSchedule(currentSchedule => {
         if (!currentSchedule) return null;
@@ -335,18 +343,22 @@ export function GenerateScheduleForm() {
         const targetDay = { ...newSchedule[dayIndex] };
         const newParticipants = [...targetDay.participants];
         
-        // Check for duplicates on the same day
-        if (newParticipants.filter((p, i) => i !== participantIndex).includes(newParticipant)) {
+        // Check for duplicates on the same day (case-insensitive and trimmed)
+        const isDuplicate = newParticipants.some((p, i) => 
+            i !== participantIndex && p.toLowerCase().trim() === trimmedNewParticipant.toLowerCase()
+        );
+
+        if (isDuplicate) {
             toast({
-                title: "Duplicate Participant",
-                description: `${newParticipant} is already scheduled for this day.`,
+                title: "Nama Ganda",
+                description: `${trimmedNewParticipant} sudah terdaftar pada hari ini.`,
                 variant: "destructive",
             });
-            return currentSchedule; // Don't update state
+            return currentSchedule; 
         }
 
-        newParticipants[participantIndex] = newParticipant;
-        targetDay.participants = newParticipants.sort(); // Keep it sorted
+        newParticipants[participantIndex] = trimmedNewParticipant;
+        targetDay.participants = newParticipants.sort(); 
         newSchedule[dayIndex] = targetDay;
         
         return newSchedule;
@@ -356,7 +368,7 @@ export function GenerateScheduleForm() {
 
   const handleSaveSchedule = async () => {
     if (!generatedSchedule || !firestore || !usersMap.size || !month) {
-        toast({ title: 'Error', description: 'No schedule to save, user data not loaded, or month not selected.', variant: 'destructive'});
+        toast({ title: 'Error', description: 'Tidak ada jadwal untuk disimpan.', variant: 'destructive'});
         return;
     }
 
@@ -364,7 +376,7 @@ export function GenerateScheduleForm() {
     try {
         const batch = writeBatch(firestore);
 
-        // --- 1. Filter existing entries for the month from our loaded data (avoiding collectionGroup with where) ---
+        // --- 1. Filter existing entries for the month from our loaded data ---
         if (allSchedules) {
             const [year, monthNum] = month.split('-').map(Number);
             const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
@@ -388,7 +400,7 @@ export function GenerateScheduleForm() {
             if (isNaN(utcDate.getTime())) continue;
 
             for (const participantName of day.participants) {
-                const user = usersMap.get(participantName.toLowerCase());
+                const user = usersMap.get(participantName.toLowerCase().trim());
                 if (user) {
                     const newScheduleRef = doc(collection(firestore, 'users', user.id, 'rondaSchedules'));
                     const scheduleData = {
@@ -404,11 +416,11 @@ export function GenerateScheduleForm() {
         }
         
         await batch.commit();
-        toast({ title: 'Success!', description: 'Ronda schedule has been saved to the database.' });
+        toast({ title: 'Berhasil!', description: 'Jadwal ronda telah disimpan ke database.' });
         setHasExistingSchedule(true);
     } catch (error) {
         console.error("Error saving schedule:", error);
-        toast({ title: 'Save Failed', description: 'Could not save the schedule to the database.', variant: 'destructive' });
+        toast({ title: 'Gagal Menyimpan', description: 'Terjadi kesalahan saat menyimpan ke database.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
@@ -416,7 +428,7 @@ export function GenerateScheduleForm() {
 
   const handleClearSchedule = async () => {
     if (!month || !firestore) {
-        toast({ title: "Error", description: "Please select a month to clear.", variant: "destructive" });
+        toast({ title: "Error", description: "Pilih bulan yang ingin dihapus.", variant: "destructive" });
         return;
     }
 
@@ -428,7 +440,6 @@ export function GenerateScheduleForm() {
 
         const batch = writeBatch(firestore);
 
-        // Filter dari data yang sudah di-load di memori (menghindari error index)
         const toDelete = allSchedules?.filter(s => {
             const d = new Date(s.date);
             return d >= startDate && d < endDate;
@@ -437,7 +448,7 @@ export function GenerateScheduleForm() {
         const deletedCount = toDelete.length;
 
         if (deletedCount === 0) {
-            toast({ title: "No data", description: "No schedule data found for the selected month to clear." });
+            toast({ title: "Tidak ada data", description: "Tidak ditemukan jadwal pada bulan tersebut." });
             setIsClearing(false);
             return;
         }
@@ -449,15 +460,15 @@ export function GenerateScheduleForm() {
 
         await batch.commit();
         toast({
-            title: "Success!",
-            description: `Successfully deleted ${deletedCount} schedule entries for ${month}.`,
+            title: "Berhasil!",
+            description: `Berhasil menghapus ${deletedCount} entri jadwal untuk bulan ${month}.`,
         });
         setGeneratedSchedule(null);
         setHasExistingSchedule(false);
         
     } catch (error) {
         console.error("Error clearing schedule:", error);
-        toast({ title: 'Clear Failed', description: 'Could not clear the schedule from the database.', variant: 'destructive' });
+        toast({ title: 'Gagal Menghapus', description: 'Terjadi kesalahan saat menghapus jadwal.', variant: 'destructive' });
     } finally {
         setIsClearing(false);
     }
@@ -495,36 +506,36 @@ export function GenerateScheduleForm() {
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>Hapus Jadwal?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete all schedule entries for <strong>{month}</strong>. Are you sure you want to proceed?
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus semua jadwal untuk bulan <strong>{month}</strong> secara permanen.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearSchedule}>Continue</AlertDialogAction>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearSchedule}>Hapus Sekarang</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
 
         {isLoading && (
-            <p className="text-sm text-muted-foreground">Loading user and schedule data...</p>
+            <p className="text-sm text-muted-foreground">Loading data warga dan jadwal...</p>
         )}
         {!isLoading && !month && (
              <Alert>
                 <Wand2 className="h-4 w-4" />
-                <AlertTitle>Select a Month</AlertTitle>
+                <AlertTitle>Pilih Bulan</AlertTitle>
                 <AlertDescription>
-                Please select a month to view, generate, or manage a schedule.
+                Pilih bulan untuk melihat, membuat, atau mengelola jadwal ronda.
                 </AlertDescription>
             </Alert>
         )}
         {!isLoading && month && (availableParticipants.length < 3) && (
             <Alert variant="destructive">
-                <AlertTitle>Missing Data</AlertTitle>
+                <AlertTitle>Data Kurang</AlertTitle>
                 <AlertDescription>
-                Not enough participants. Please ensure there are at least 3 users with roles 'user', 'coordinator', or 'backup' (with 'Include in Schedule' checked).
+                Peserta tidak cukup. Pastikan ada minimal 3 warga dengan role 'user', 'coordinator', atau 'backup' (yang dicentang 'Include in Schedule').
                 </AlertDescription>
             </Alert>
         )}
@@ -583,9 +594,9 @@ export function GenerateScheduleForm() {
         ) : ( month && !isLoading &&
              <Alert>
                 <Wand2 className="h-4 w-4" />
-                <AlertTitle>Awaiting Generation</AlertTitle>
+                <AlertTitle>Menunggu Pembuatan</AlertTitle>
                 <AlertDescription>
-                {hasExistingSchedule ? 'Loading schedule...' : "No schedule exists for this month. Click 'Generate' to create a fair and balanced ronda schedule."}
+                {hasExistingSchedule ? 'Memuat jadwal...' : "Tidak ada jadwal untuk bulan ini. Klik 'Generate' untuk membuat jadwal ronda yang adil."}
                 </AlertDescription>
             </Alert>
         )}
