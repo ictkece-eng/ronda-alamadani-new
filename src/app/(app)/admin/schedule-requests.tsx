@@ -8,9 +8,9 @@ import {
   useCollection,
   useFirestore,
   useMemoFirebase,
-  setDocumentNonBlocking,
+  updateDocumentNonBlocking,
 } from '@/firebase';
-import { collection, collectionGroup, doc, query } from 'firebase/firestore';
+import { collection, collectionGroup, doc, query, addDoc } from 'firebase/firestore';
 import type { ScheduleRequest, Warga } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,24 +22,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ThumbsDown, ThumbsUp, Plus, Pencil, Search, X } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { ThumbsDown, ThumbsUp, Plus, Search, Loader2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
 
 const requestSchema = z.object({
-  userId: z.string().min(1),
-  requestedDate: z.string().min(1),
-  reason: z.string().min(1),
+  userId: z.string().min(1, 'Pilih warga'),
+  requestedDate: z.string().min(1, 'Pilih tanggal'),
+  reason: z.string().min(1, 'Alasan wajib diisi'),
 });
 type RequestFormValues = z.infer<typeof requestSchema>;
 
@@ -54,7 +52,6 @@ export function ScheduleRequests() {
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [editingRequest, setEditingRequest] = useState<ScheduleRequestWithUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const form = useForm<RequestFormValues>({
@@ -74,76 +71,168 @@ export function ScheduleRequests() {
   const handleUpdateStatus = (request: ScheduleRequest, status: 'approved' | 'rejected') => {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
-    setDocumentNonBlocking(requestRef, { status }, { merge: true });
-    toast({ title: 'Success', description: `Status updated to ${status}.` });
+    updateDocumentNonBlocking(requestRef, { status });
+    toast({ 
+      title: 'Status Diperbarui', 
+      description: `Permintaan dari ${usersMap.get(request.userId)} telah ${status === 'approved' ? 'disetujui' : 'ditolak'}.` 
+    });
   };
 
   const onSubmit = async (values: RequestFormValues) => {
     if (!firestore) return;
-    const requestRef = editingRequest 
-      ? doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id)
-      : doc(collection(firestore, 'users', values.userId, 'scheduleRequests'));
-    
-    setDocumentNonBlocking(requestRef, {
-        id: requestRef.id,
-        userId: values.userId,
-        requestDate: new Date().toISOString(),
-        requestedScheduleDate: new Date(values.requestedDate).toISOString(),
-        reason: values.reason,
-        status: editingRequest?.status || 'pending',
-    }, { merge: true });
-    
-    setIsFormDialogOpen(false);
-    toast({ title: 'Success', description: 'Request saved.' });
+    try {
+        const requestsCol = collection(firestore, 'users', values.userId, 'scheduleRequests');
+        const newDocRef = doc(requestsCol);
+        
+        const dataToSave: ScheduleRequest = {
+            id: newDocRef.id,
+            userId: values.userId,
+            requestDate: new Date().toISOString(),
+            requestedScheduleDate: new Date(values.requestedDate).toISOString(),
+            reason: values.reason,
+            status: 'pending',
+        };
+
+        updateDocumentNonBlocking(newDocRef, dataToSave);
+        
+        setIsFormDialogOpen(false);
+        form.reset();
+        toast({ title: 'Berhasil', description: 'Permintaan jadwal berhasil ditambahkan.' });
+    } catch (e) {
+        toast({ title: 'Error', description: 'Gagal menambahkan permintaan.', variant: 'destructive' });
+    }
   };
 
   return (
     <Card className="shadow-lg border-none">
       <CardHeader className="flex flex-row justify-between items-center">
-        <CardTitle>Manage Schedule Requests</CardTitle>
+        <div className="space-y-1">
+            <CardTitle>Schedule Change Requests</CardTitle>
+            <p className="text-sm text-muted-foreground">Kelola permintaan perubahan jadwal ronda dari warga.</p>
+        </div>
         <Button onClick={() => setIsFormDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Request</Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Input placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-        <div className="border rounded-lg overflow-hidden">
+        <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+                placeholder="Cari berdasarkan nama warga..." 
+                className="pl-8"
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+            />
+        </div>
+
+        <div className="border rounded-xl overflow-hidden bg-card">
             <Table>
-            <TableHeader><TableRow><TableHead>Warga</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+            <TableHeader className="bg-muted/50">
+                <TableRow>
+                    <TableHead>Warga</TableHead>
+                    <TableHead>Tanggal Diminta</TableHead>
+                    <TableHead>Alasan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+            </TableHeader>
             <TableBody>
-                {isRequestsLoading ? <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow> : processedRequests.map((req) => (
-                    <TableRow key={req.id}>
-                        <TableCell className="font-medium">{req.userName}</TableCell>
-                        <TableCell>{format(new Date(req.requestedScheduleDate), 'PPP', { locale: idLocale })}</TableCell>
-                        <TableCell><Badge variant={req.status === 'pending' ? 'secondary' : 'default'}>{req.status}</Badge></TableCell>
-                        <TableCell className="text-right flex justify-end gap-2">
-                            {req.status === 'pending' && (
-                                <>
-                                    <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(req, 'approved')}><ThumbsUp className="h-4 w-4" /></Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(req, 'rejected')}><ThumbsDown className="h-4 w-4" /></Button>
-                                </>
-                            )}
+                {isRequestsLoading || isUsersLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10">
+                            <Loader2 className="animate-spin h-6 w-6 mx-auto text-primary" />
+                            <p className="mt-2 text-sm text-muted-foreground">Memuat data...</p>
                         </TableCell>
                     </TableRow>
-                ))}
+                ) : processedRequests.length > 0 ? (
+                    processedRequests.map((req) => (
+                        <TableRow key={req.id} className="hover:bg-muted/30">
+                            <TableCell className="font-semibold">{req.userName}</TableCell>
+                            <TableCell>{format(new Date(req.requestedScheduleDate), 'PPP', { locale: idLocale })}</TableCell>
+                            <TableCell className="max-w-[200px] truncate">{req.reason}</TableCell>
+                            <TableCell>
+                                <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}
+                                    className={req.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''}
+                                >
+                                    {req.status.toUpperCase()}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                    {req.status === 'pending' && (
+                                        <>
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                className="border-green-600 text-green-600 hover:bg-green-50"
+                                                onClick={() => handleUpdateStatus(req, 'approved')}
+                                            >
+                                                <ThumbsUp className="h-4 w-4" />
+                                            </Button>
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                className="border-destructive text-destructive hover:bg-destructive/5"
+                                                onClick={() => handleUpdateStatus(req, 'rejected')}
+                                            >
+                                                <ThumbsDown className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
+                            Belum ada permintaan jadwal.
+                        </TableCell>
+                    </TableRow>
+                )}
             </TableBody>
             </Table>
         </div>
       </CardContent>
 
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-          <DialogContent>
-              <DialogHeader><DialogTitle>Schedule Request</DialogTitle></DialogHeader>
-              <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField control={form.control} name="userId" render={({ field }) => (
-                      <FormItem><FormLabel>User ID</FormLabel><Input {...field} /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="requestedDate" render={({ field }) => (
-                      <FormItem><FormLabel>Date</FormLabel><Input type="date" {...field} /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="reason" render={({ field }) => (
-                      <FormItem><FormLabel>Reason</FormLabel><Textarea {...field} /></FormItem>
-                  )} />
-                  <Button type="submit" className="w-full">Submit</Button>
-              </form></Form>
+          <DialogContent className="max-w-md">
+              <DialogHeader>
+                  <DialogTitle>Buat Permintaan Baru</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField control={form.control} name="userId" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Pilih Warga</FormLabel>
+                              <FormControl>
+                                  <select {...field} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                      <option value="">-- Pilih Warga --</option>
+                                      {users?.map(u => (
+                                          <option key={u.id} value={u.id}>{u.name} ({u.address})</option>
+                                      ))}
+                                  </select>
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                      <FormField control={form.control} name="requestedDate" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Tanggal Yang Diminta</FormLabel>
+                              <FormControl><Input type="date" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                      <FormField control={form.control} name="reason" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Alasan Perubahan</FormLabel>
+                              <FormControl><Textarea placeholder="Contoh: Ada urusan keluarga" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                      <DialogFooter>
+                          <Button type="submit" className="w-full">Kirim Permintaan</Button>
+                      </DialogFooter>
+                  </form>
+              </Form>
           </DialogContent>
       </Dialog>
     </Card>
