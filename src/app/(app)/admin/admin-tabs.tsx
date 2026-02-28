@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
@@ -28,7 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { collection, doc, query, where, limit } from 'firebase/firestore';
-import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
+import type { Warga } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean }) => (
@@ -55,8 +54,6 @@ const DashboardView = ({ userData }: { userData: Warga | null }) => {
     const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
     const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
-    const isLoading = isUsersLoading;
-
     const stats = useMemo(() => {
         const totalUsers = users?.filter(u => u.role === 'user' || u.role === 'coordinator').length ?? 0;
         const totalCoordinators = users?.filter(u => u.role === 'coordinator').length ?? 0;
@@ -69,14 +66,12 @@ const DashboardView = ({ userData }: { userData: Warga | null }) => {
         <div className="space-y-6">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight text-primary">Hi, {userData?.name || 'Warga'}!</h2>
-                <p className="text-muted-foreground mt-1 text-lg">
-                    {userData?.role === 'coordinator' ? 'Dashboard Koordinator Ronda' : 'Dashboard Admin Ronda'}
-                </p>
+                <p className="text-muted-foreground mt-1 text-lg">Dashboard Admin Ronda</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Total Warga Ronda" value={stats.totalUsers} icon={Users} isLoading={isLoading} />
-                <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isLoading} />
-                <StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isLoading} />
+                <StatCard title="Total Warga Ronda" value={stats.totalUsers} icon={Users} isLoading={isUsersLoading} />
+                <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isUsersLoading} />
+                <StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isUsersLoading} />
             </div>
         </div>
     );
@@ -100,9 +95,6 @@ export function AdminTabs() {
     const userData = userDataByUid || (userDataByEmail && userDataByEmail[0]) || null;
     const isRoleLoading = isUidLoading || isEmailLoading;
 
-    const isAdmin = userData?.role === 'admin';
-    const isCoordinator = userData?.role === 'coordinator';
-
     const handleLogout = async () => {
         if (!auth) return;
         try {
@@ -114,18 +106,15 @@ export function AdminTabs() {
         }
     };
 
-    const navItems = useMemo(() => {
-        const items = [
-            { id: 'dashboard', label: 'Dashboard', icon: Home, show: true },
-            { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock, show: isAdmin || isCoordinator },
-            { id: 'users', label: 'Users/Warga', icon: Users2, show: true },
-            { id: 'requests', label: 'Schedule Requests', icon: FileText, show: true },
-            { id: 'replacements', label: 'Replacements', icon: GitPullRequest, show: true },
-            { id: 'export', label: 'Export Schedule', icon: Download, show: true },
-            { id: 'history', label: 'Schedule History', icon: History, show: true },
-        ];
-        return items.filter(i => i.show);
-    }, [isAdmin, isCoordinator]);
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Home },
+        { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock },
+        { id: 'users', label: 'Users/Warga', icon: Users2 },
+        { id: 'requests', label: 'Schedule Requests', icon: FileText },
+        { id: 'replacements', label: 'Replacements', icon: GitPullRequest },
+        { id: 'export', label: 'Export Schedule', icon: Download },
+        { id: 'history', label: 'Schedule History', icon: History },
+    ];
 
     const renderView = () => {
         if (isRoleLoading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
@@ -138,7 +127,7 @@ export function AdminTabs() {
                     <Card className="shadow-lg border-none">
                         <CardHeader>
                             <CardTitle>Automated Schedule Generation</CardTitle>
-                            <CardDescription>Generate a one-month ronda schedule automatically, then save it to the database.</CardDescription>
+                            <CardDescription>Generate a one-month ronda schedule automatically.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <GenerateScheduleForm />
@@ -146,11 +135,11 @@ export function AdminTabs() {
                     </Card>
                 );
             case 'users':
-                return <UserManagement readOnly={isCoordinator} />;
+                return <UserManagement />;
             case 'requests':
-                return <ScheduleRequests readOnly={isCoordinator} />;
+                return <ScheduleRequests />;
             case 'replacements':
-                return <ReplacementManagement readOnly={isCoordinator} />;
+                return <ReplacementManagement />;
             case 'export':
                 return (
                      <Card className="shadow-lg border-none">
@@ -193,7 +182,6 @@ export function AdminTabs() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            {/* Main Header */}
             <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 shadow-sm">
                  <Sheet>
                     <SheetTrigger asChild>
@@ -247,7 +235,7 @@ export function AdminTabs() {
                             className="relative h-10 w-10 rounded-full border-2 border-primary/20 p-0 overflow-hidden"
                             >
                                 <Avatar className="h-full w-full">
-                                    <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk3NDY1MTR8MA" alt="User" />
+                                    <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg" alt="User" />
                                     <AvatarFallback>U</AvatarFallback>
                                 </Avatar>
                             </Button>
@@ -256,7 +244,7 @@ export function AdminTabs() {
                             <DropdownMenuLabel className="font-normal">
                                 <div className="flex flex-col space-y-1">
                                     <p className="text-sm font-medium leading-none">{userData?.name || authUser?.email || 'User'}</p>
-                                    <p className="text-xs leading-none text-muted-foreground uppercase">{userData?.role || 'Role'}</p>
+                                    <p className="text-xs leading-none text-muted-foreground uppercase">{userData?.role || 'Admin'}</p>
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />

@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const checkStatus = async () => {
       try {
-        // 1. Check Admin Collection (Strongest check)
+        // 1. Check Admin Collection
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
         const adminSnap = await getDoc(adminRoleRef);
         
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // 2. Check User Role in Profile by UID
+        // 2. Check User Role in Profile
         const userRef = doc(firestore, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         
@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }
         }
 
-        // 3. Robust Fallback: Check User Role by Email
+        // 3. Fallback by Email
         if (user.email) {
             const usersRef = collection(firestore, 'users');
             const q = query(usersRef, where('email', '==', user.email.toLowerCase()), limit(1));
@@ -70,11 +70,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
         }
 
-        // Final rejection
+        // Rejection
         setIsAuthorized(false);
         toast({
             title: 'Akses Ditolak',
-            description: 'Anda tidak memiliki hak akses untuk halaman admin.',
+            description: 'Anda tidak memiliki hak akses halaman ini.',
             variant: 'destructive',
         });
         router.replace('/dashboard');

@@ -9,7 +9,7 @@ import { Loader2, LogIn as LogInIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
@@ -39,52 +39,33 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       const userCredential = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
       const uid = userCredential.user.uid;
       const userEmail = userCredential.user.email?.toLowerCase().trim();
-      
-      if (!userEmail) throw new Error("Email not found");
 
-      // 1. Handle Special Super Admin Email
-      if (userEmail === 'tirtopbas@gmail.com') {
-        const adminRoleRef = doc(firestore, 'roles_admin', uid);
-        await setDoc(adminRoleRef, { userId: uid }, { merge: true });
-        
-        toast({ title: 'Login Admin Berhasil', description: 'Selamat datang, Super Admin.' });
-        router.push('/admin');
-        onLoginSuccess?.();
-        return;
+      // Check Role
+      const adminRoleRef = doc(firestore, 'roles_admin', uid);
+      const adminSnap = await getDoc(adminRoleRef);
+      
+      const userRef = doc(firestore, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      
+      let role = 'user';
+      if (adminSnap.exists()) {
+        role = 'admin';
+      } else if (userSnap.exists()) {
+        role = userSnap.data().role || 'user';
+      } else if (userEmail) {
+        // Fallback check by email
+        const q = query(collection(firestore, 'users'), where('email', '==', userEmail), limit(1));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+            role = qSnap.docs[0].data().role || 'user';
+        }
       }
 
-      // 2. Lookup and CLEANUP/MIGRATE User Data by Email to prevent duplicates
-      const usersRef = collection(firestore, 'users');
-      const q = query(usersRef, where('email', '==', userEmail));
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        const batch = writeBatch(firestore);
-        let primaryUserData = querySnap.docs[0].data();
-        let role = primaryUserData.role || 'user';
-
-        // Delete ALL existing documents with this email that are NOT the new UID
-        querySnap.docs.forEach(userDoc => {
-            if (userDoc.id !== uid) {
-                batch.delete(doc(firestore, 'users', userDoc.id));
-            }
-        });
-
-        // Set/Update the document with ID = UID
-        const targetRef = doc(firestore, 'users', uid);
-        batch.set(targetRef, { ...primaryUserData, id: uid, email: userEmail }, { merge: true });
-        
-        await batch.commit();
-
-        if (role === 'admin' || role === 'coordinator') {
-          toast({ title: 'Login Berhasil', description: `Selamat datang, ${role}.` });
-          router.push('/admin');
-        } else {
-          toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard warga.' });
-          router.push('/dashboard');
-        }
+      if (role === 'admin' || role === 'coordinator') {
+        toast({ title: 'Login Berhasil', description: `Selamat datang kembali.` });
+        router.push('/admin');
       } else {
-        toast({ title: 'Login Berhasil', description: 'Profil Anda belum terdaftar di sistem warga.' });
+        toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard.' });
         router.push('/dashboard');
       }
 
@@ -94,7 +75,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       toast({
         variant: "destructive",
         title: 'Login Gagal',
-        description: 'Email atau password salah atau akun belum terdaftar.',
+        description: 'Email atau password salah.',
       });
     } finally {
       setIsLoading(false);
