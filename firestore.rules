@@ -11,7 +11,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper: Jalur Sakti Master Admin (Boss)
+    // Helper: Jalur Sakti Master Admin (Boss) - Menggunakan UID permanen
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' || 
@@ -30,7 +30,7 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
-    // GLOBAL MASTER BYPASS (PENTING: Jangan diubah, ini akses buat Boss)
+    // GLOBAL MASTER BYPASS (VIP ACCESS FOR BOSS)
     // ------------------------------------------------------------------------
     match /{document=**} {
       allow read, write: if isMaster();
