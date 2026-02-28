@@ -53,11 +53,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Pencil, Plus, Trash, Search, Users, UserCheck, ShieldCheck, LifeBuoy } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash, Search, Users, UserCheck, ShieldCheck, LifeBuoy, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 
 const wargaSchema = z.object({
@@ -74,11 +75,14 @@ type WargaFormValues = z.infer<typeof wargaSchema>;
 
 const ITEMS_PER_PAGE = 10;
 
+type FilterType = 'all' | 'active' | 'backup' | 'admin';
+
 export function UserManagement() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [canFetch, setCanFetch] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -128,12 +132,27 @@ export function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
-    return users.filter(user =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.address.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [users, searchQuery]);
+    
+    return users.filter(user => {
+      // 1. Text Search Filter
+      const matchesSearch = 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.address.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // 2. Category Card Filter
+      let matchesCategory = true;
+      if (activeFilter === 'active') {
+        matchesCategory = user.role === 'user' || user.role === 'coordinator';
+      } else if (activeFilter === 'backup') {
+        matchesCategory = user.role === 'backup';
+      } else if (activeFilter === 'admin') {
+        matchesCategory = user.role === 'admin';
+      }
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [users, searchQuery, activeFilter]);
 
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const paginatedUsers = useMemo(() => {
@@ -203,12 +222,26 @@ export function UserManagement() {
     deleteDocumentNonBlocking(adminRoleRef);
     toast({ title: 'Success', description: 'User deleted successfully.' });
   };
+
+  const toggleFilter = (filter: FilterType) => {
+    setActiveFilter(prev => {
+        const next = prev === filter ? 'all' : filter;
+        setCurrentPage(1); // Reset page on filter change
+        return next;
+    });
+  };
   
   return (
     <div className="space-y-6">
-      {/* Stat Cards */}
+      {/* Stat Cards as Filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-primary/5 border-primary/20 shadow-sm">
+          <Card 
+            className={cn(
+                "cursor-pointer transition-all hover:shadow-md border-primary/20",
+                activeFilter === 'all' ? "bg-primary/10 ring-2 ring-primary" : "bg-primary/5 shadow-sm"
+            )}
+            onClick={() => toggleFilter('all')}
+          >
               <CardContent className="p-4 flex items-center justify-between">
                   <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Warga</p>
@@ -219,7 +252,14 @@ export function UserManagement() {
                   </div>
               </CardContent>
           </Card>
-          <Card className="bg-green-500/5 border-green-500/20 shadow-sm">
+
+          <Card 
+            className={cn(
+                "cursor-pointer transition-all hover:shadow-md border-green-500/20",
+                activeFilter === 'active' ? "bg-green-500/10 ring-2 ring-green-500" : "bg-green-500/5 shadow-sm"
+            )}
+            onClick={() => toggleFilter('active')}
+          >
               <CardContent className="p-4 flex items-center justify-between">
                   <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">User Ronda</p>
@@ -230,7 +270,14 @@ export function UserManagement() {
                   </div>
               </CardContent>
           </Card>
-          <Card className="bg-orange-500/5 border-orange-500/20 shadow-sm">
+
+          <Card 
+            className={cn(
+                "cursor-pointer transition-all hover:shadow-md border-orange-500/20",
+                activeFilter === 'backup' ? "bg-orange-500/10 ring-2 ring-orange-500" : "bg-orange-500/5 shadow-sm"
+            )}
+            onClick={() => toggleFilter('backup')}
+          >
               <CardContent className="p-4 flex items-center justify-between">
                   <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Backup</p>
@@ -241,7 +288,14 @@ export function UserManagement() {
                   </div>
               </CardContent>
           </Card>
-          <Card className="bg-blue-500/5 border-blue-500/20 shadow-sm">
+
+          <Card 
+            className={cn(
+                "cursor-pointer transition-all hover:shadow-md border-blue-500/20",
+                activeFilter === 'admin' ? "bg-blue-500/10 ring-2 ring-blue-500" : "bg-blue-500/5 shadow-sm"
+            )}
+            onClick={() => toggleFilter('admin')}
+          >
               <CardContent className="p-4 flex items-center justify-between">
                   <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Admin</p>
@@ -256,8 +310,18 @@ export function UserManagement() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Manage Users / Warga</CardTitle>
-          <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
+          <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
+            <div>
+              <CardTitle>Manage Users / Warga</CardTitle>
+              <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
+            </div>
+            {activeFilter !== 'all' && (
+              <Badge variant="secondary" className="gap-1 px-3 py-1 bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer" onClick={() => setActiveFilter('all')}>
+                Filter: <span className="capitalize font-bold">{activeFilter}</span>
+                <X className="h-3 w-3 ml-1" />
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className='flex flex-col sm:flex-row justify-between items-center gap-2'>
@@ -364,7 +428,9 @@ export function UserManagement() {
                   ) : (
                   <TableRow>
                       <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                          {searchQuery ? "No users found for your search." : "No users found. Click 'Add User' to add initial data."}
+                          {searchQuery || activeFilter !== 'all' 
+                            ? "No users found for your current filters." 
+                            : "No users found. Click 'Add User' to add initial data."}
                       </TableCell>
                   </TableRow>
                   )}
