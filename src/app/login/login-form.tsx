@@ -64,6 +64,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
+        // Force sync admin status on login for Master Account
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
                 await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });

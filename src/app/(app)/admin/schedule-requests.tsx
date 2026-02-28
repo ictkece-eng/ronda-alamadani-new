@@ -76,12 +76,23 @@ export function ScheduleRequests() {
     defaultValues: { userId: '', requestedDate: '', reason: '' },
   });
 
-  const usersMap = useMemo(() => new Map(users?.map(user => [user.id, user.name])), [users]);
+  const usersMap = useMemo(() => {
+      const map = new Map();
+      if (users) {
+          users.forEach(u => map.set(u.id, u.name || 'Tanpa Nama'));
+      }
+      return map;
+  }, [users]);
   
+  const sortedUsersForDropdown = useMemo(() => {
+      if (!users) return [];
+      return [...users].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [users]);
+
   const processedRequests = useMemo(() => {
     if (!requests) return [];
     return requests.map(req => ({ ...req, userName: usersMap.get(req.userId) || 'Unknown' }))
-      .filter(req => req.userName.toLowerCase().includes(searchQuery.toLowerCase()))
+      .filter(req => (req.userName || '').toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
   }, [requests, usersMap, searchQuery]);
 
@@ -312,8 +323,10 @@ export function ScheduleRequests() {
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                       <option value="">-- Pilih Warga --</option>
-                                      {users?.map(u => (
-                                          <option key={u.id} value={u.id}>{u.name} ({u.address})</option>
+                                      {sortedUsersForDropdown.map(u => (
+                                          <option key={u.id} value={u.id}>
+                                              {(u.name || 'Tanpa Nama')} ({u.address || '-'})
+                                          </option>
                                       ))}
                                   </select>
                               </FormControl>

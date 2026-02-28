@@ -39,6 +39,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormDescription as FormDesc,
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -152,11 +153,11 @@ export function UserManagement() {
   const handleEdit = (user: Warga) => {
     setCurrentUser(user);
     form.reset({
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        address: user.address,
-        role: user.role,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        role: user.role || 'user',
         includeInSchedule: user.includeInSchedule || false,
         isTeacher: user.isTeacher || false,
     });
@@ -302,7 +303,7 @@ export function UserManagement() {
                                 <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 <div className="space-y-1 leading-none">
                                     <FormLabel>Status Guru</FormLabel>
-                                    <FormDescription>Jika aktif, sistem akan memprioritaskan jadwal di akhir pekan.</FormDescription>
+                                    <FormDesc>Jika aktif, sistem akan memprioritaskan jadwal di akhir pekan.</FormDesc>
                                 </div>
                             </FormItem>
                         )} />
@@ -313,7 +314,7 @@ export function UserManagement() {
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                     <div className="space-y-1 leading-none">
                                         <FormLabel>Masukkan ke Jadwal Ronda</FormLabel>
-                                        <FormDescription>Jika aktif, warga backup ini akan ikut diundi dalam jadwal bulanan.</FormDescription>
+                                        <FormDesc>Jika aktif, warga backup ini akan ikut diundi dalam jadwal bulanan.</FormDesc>
                                     </div>
                                 </FormItem>
                             )} />
