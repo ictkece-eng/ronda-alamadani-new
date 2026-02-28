@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -87,13 +88,7 @@ export function AdminTabs() {
     const router = useRouter();
 
     const userDocRef = useMemoFirebase(() => (firestore && authUser ? doc(firestore, 'users', authUser.uid) : null), [firestore, authUser]);
-    const { data: userDataByUid, isLoading: isUidLoading } = useDoc<Warga>(userDocRef);
-
-    const userEmailQuery = useMemoFirebase(() => (firestore && authUser?.email ? query(collection(firestore, 'users'), where('email', '==', authUser.email.toLowerCase().trim()), limit(1)) : null), [firestore, authUser]);
-    const { data: userDataByEmail, isLoading: isEmailLoading } = useCollection<Warga>(userEmailQuery);
-
-    const userData = userDataByUid || (userDataByEmail && userDataByEmail[0]) || null;
-    const isRoleLoading = isUidLoading || isEmailLoading;
+    const { data: userData, isLoading: isRoleLoading } = useDoc<Warga>(userDocRef);
 
     const handleLogout = async () => {
         if (!auth) return;
