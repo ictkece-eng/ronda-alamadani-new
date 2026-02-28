@@ -1,6 +1,6 @@
 /**
- * This ruleset enforces a strict, user-centric security model for the Ronda Planner application,
- * with an overlay for administrative access. Optimized for Master Admin control.
+ * Ultimate Security Rules for Ronda Planner.
+ * Enforces a strict model with a Master Admin bypass for the owner.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -14,11 +14,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Master Admin check based on hardcoded ID and Email
+    // Master Admin check - The most powerful check
     function isMaster() {
       return isSignedIn() && (
-        request.auth.token.email == 'tirtopbas@gmail.com' ||
-        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22'
+        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' ||
+        request.auth.token.email == 'tirtopbas@gmail.com'
       );
     }
 
@@ -31,49 +31,53 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
-    // Collection Group Rules
+    // GLOBAL MASTER BYPASS (POWER FULL ACCESS)
+    // ------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if isMaster();
+    }
+
+    // ------------------------------------------------------------------------
+    // Specific Collection Rules (For non-master users)
     // ------------------------------------------------------------------------
 
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /users/{userId}/rondaSchedules/{id} {
+      allow read: if true;
+      allow create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /users/{userId}/scheduleRequests/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /users/{userId}/rondaReplacements/{id} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /coordinatorAssignments/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /roles_admin/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isMaster() || isAdmin();
+    }
+
+    // Collection Group Rules
     match /{path=**}/scheduleRequests/{id} {
       allow read: if isSignedIn();
     }
     
     match /{path=**}/rondaSchedules/{id} {
         allow read: if true;
-    }
-
-    // ------------------------------------------------------------------------
-    // Collection Rules
-    // ------------------------------------------------------------------------
-
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    match /users/{userId}/rondaSchedules/{id} {
-      allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    match /users/{userId}/scheduleRequests/{id} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    match /users/{userId}/rondaReplacements/{id} {
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-
-    match /coordinatorAssignments/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /roles_admin/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      // Allow Master Admin to bootstrap the roles_admin collection
-      allow write: if isMaster() || isAdmin();
     }
   }
 }

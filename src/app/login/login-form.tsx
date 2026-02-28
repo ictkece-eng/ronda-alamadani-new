@@ -51,11 +51,11 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
             email: cleanEmail,
             phone: '-',
             address: '-',
-            role: cleanEmail === 'tirtopbas@gmail.com' ? 'admin' : 'user',
+            role: (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') ? 'admin' : 'user',
         }, { merge: true });
 
         // Auto-promote master admin
-        if (cleanEmail === 'tirtopbas@gmail.com') {
+        if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
         }
 
@@ -66,9 +66,9 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const uid = userCredential.user.uid;
 
         // CRITICAL: Ensure master admin has the record in roles_admin and profile on EVERY login
-        if (cleanEmail === 'tirtopbas@gmail.com') {
+        if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // We use setDoc here to bootstrap/ensure the admin role exists
+                // Force sync for master admin
                 await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
                 await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
@@ -83,7 +83,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userSnap = await getDoc(userRef);
         
         let role = 'user';
-        if (adminSnap.exists() || cleanEmail === 'tirtopbas@gmail.com') {
+        if (adminSnap.exists() || cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
           role = 'admin';
         } else if (userSnap.exists()) {
           role = userSnap.data()?.role || 'user';
