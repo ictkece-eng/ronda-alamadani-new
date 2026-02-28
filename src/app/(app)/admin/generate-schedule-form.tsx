@@ -6,9 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, Info, ArrowRight } from 'lucide-react';
+import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, Info, UserRoundPen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
 import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
 import {
@@ -27,10 +27,17 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Combobox } from '@/components/ui/combobox';
+
+type ParticipantInfo = {
+    userId: string;
+    name: string;
+    docId?: string; // Hanya ada jika sudah di DB
+};
 
 type GeneratedSchedule = {
   date: string;
-  participants: string[];
+  participants: ParticipantInfo[];
 };
 
 export function GenerateScheduleForm() {
@@ -69,6 +76,14 @@ export function GenerateScheduleForm() {
     return new Map(users.map((user) => [user.id, user]));
   }, [users]);
 
+  const userOptions = useMemo(() => {
+      if (!users) return [];
+      return users.map(u => ({
+          value: u.id,
+          label: `${u.name} (${u.role === 'backup' ? 'Backup' : u.address})`
+      })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [users]);
+
   // Derive existing schedule data from database for the selected month
   const existingScheduleData = useMemo(() => {
     if (!month || !allSchedules || !usersIdMap.size) return null;
@@ -84,17 +99,21 @@ export function GenerateScheduleForm() {
 
     if (monthSchedules.length === 0) return null;
 
-    const grouped: { [key: string]: string[] } = {};
+    const grouped: { [key: string]: ParticipantInfo[] } = {};
     monthSchedules.forEach(s => {
         const dateStr = new Date(s.date).toISOString().split('T')[0];
         if (!grouped[dateStr]) grouped[dateStr] = [];
-        const userName = s.replacementUserName || usersIdMap.get(s.userId)?.name || 'Unknown';
-        grouped[dateStr].push(userName);
+        
+        grouped[dateStr].push({
+            userId: s.userId,
+            name: s.replacementUserName || usersIdMap.get(s.userId)?.name || 'Unknown',
+            docId: s.id
+        });
     });
 
     return Object.entries(grouped).map(([date, participants]) => ({
         date,
-        participants: participants.sort()
+        participants: participants.sort((a, b) => a.name.localeCompare(b.name))
     })).sort((a, b) => a.date.localeCompare(b.date));
   }, [month, allSchedules, usersIdMap]);
 
@@ -120,7 +139,7 @@ export function GenerateScheduleForm() {
         try {
             const [year, monthNum] = month.split('-').map(Number);
             const daysInMonth = new Date(year, monthNum, 0).getDate();
-            const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
+            const dailyAssignments: ParticipantInfo[][] = Array.from({ length: daysInMonth }, () => []);
 
             let allParticipants = users.filter(u => 
                 u.role === 'user' || 
@@ -142,7 +161,7 @@ export function GenerateScheduleForm() {
                     const reqDate = new Date(req.requestedScheduleDate);
                     const dayIndex = reqDate.getUTCDate() - 1;
                     if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                        dailyAssignments[dayIndex].push(user.name);
+                        dailyAssignments[dayIndex].push({ userId: user.id, name: user.name });
                         assignedUserIds.add(user.id);
                     }
                 }
@@ -156,7 +175,7 @@ export function GenerateScheduleForm() {
                 while (dailyAssignments[d].length < 2 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
                     if (candidate) {
-                        dailyAssignments[d].push(candidate.name);
+                        dailyAssignments[d].push({ userId: candidate.id, name: candidate.name });
                         assignedUserIds.add(candidate.id);
                     }
                 }
@@ -166,7 +185,7 @@ export function GenerateScheduleForm() {
                 while (dailyAssignments[d].length < 3 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
                     if (candidate) {
-                        dailyAssignments[d].push(candidate.name);
+                        dailyAssignments[d].push({ userId: candidate.id, name: candidate.name });
                         assignedUserIds.add(candidate.id);
                     }
                 }
@@ -176,7 +195,7 @@ export function GenerateScheduleForm() {
                 const date = new Date(Date.UTC(year, monthNum - 1, i + 1));
                 return {
                     date: date.toISOString().split('T')[0],
-                    participants: participants.sort(),
+                    participants: participants.sort((a, b) => a.name.localeCompare(b.name)),
                 };
             });
 
@@ -193,8 +212,6 @@ export function GenerateScheduleForm() {
   const handleSaveSchedule = async () => {
     if (!generatedSchedule || !firestore || !month) return;
     setIsSaving(true);
-    const usersByName = new Map<string, string>();
-    users?.forEach(u => usersByName.set(u.name.toLowerCase().trim(), u.id));
 
     try {
         const batch = writeBatch(firestore);
@@ -209,18 +226,18 @@ export function GenerateScheduleForm() {
         toDelete.forEach(s => batch.delete(doc(firestore, 'users', s.userId, 'rondaSchedules', s.id)));
 
         for (const day of generatedSchedule) {
-            for (const pName of day.participants) {
-                const userId = usersByName.get(pName.toLowerCase().trim());
-                if (userId) {
-                    const ref = doc(collection(firestore, 'users', userId, 'rondaSchedules'));
-                    batch.set(ref, {
-                        id: ref.id,
-                        userId: userId,
-                        date: new Date(day.date + 'T00:00:00Z').toISOString(),
-                        startTime: '22:00',
-                        endTime: '06:00',
-                    });
-                }
+            for (const participant of day.participants) {
+                const ref = doc(collection(firestore, 'users', participant.userId, 'rondaSchedules'));
+                batch.set(ref, {
+                    id: ref.id,
+                    userId: participant.userId,
+                    date: new Date(day.date + 'T00:00:00Z').toISOString(),
+                    startTime: '22:00',
+                    endTime: '06:00',
+                    // Jika saat pratinjau diganti, pastikan nama tetap benar
+                    replacementUserId: null,
+                    replacementUserName: null,
+                });
             }
         }
         await batch.commit();
@@ -256,6 +273,37 @@ export function GenerateScheduleForm() {
     } finally {
         setIsClearing(false);
     }
+  };
+
+  const handleParticipantChange = (date: string, oldUserId: string, newUserId: string, docId?: string) => {
+      if (!newUserId || newUserId === oldUserId) return;
+      const newUser = usersIdMap.get(newUserId);
+      if (!newUser) return;
+
+      if (generatedSchedule) {
+          // Update local preview state
+          const updated = generatedSchedule.map(day => {
+              if (day.date === date) {
+                  return {
+                      ...day,
+                      participants: day.participants.map(p => 
+                          p.userId === oldUserId ? { userId: newUser.id, name: newUser.name } : p
+                      )
+                  };
+              }
+              return day;
+          });
+          setGeneratedSchedule(updated);
+          toast({ title: "Berhasil", description: `Pratinjau diubah menjadi ${newUser.name}` });
+      } else if (docId && firestore) {
+          // Update directly to DB via replacement mechanism
+          const scheduleRef = doc(firestore, 'users', oldUserId, 'rondaSchedules', docId);
+          updateDocumentNonBlocking(scheduleRef, {
+              replacementUserId: newUser.id,
+              replacementUserName: newUser.name
+          });
+          toast({ title: "Berhasil", description: `${newUser.name} kini menggantikan warga di database.` });
+      }
   };
 
   const displayData = generatedSchedule || existingScheduleData;
@@ -308,10 +356,10 @@ export function GenerateScheduleForm() {
         </div>
 
         <Alert className="bg-blue-50 border-blue-200">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-600">Info Perubahan Satuan</AlertTitle>
+            <UserRoundPen className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-600">Ganti Nama Langsung</AlertTitle>
             <AlertDescription className="text-xs text-blue-800">
-                Jika ingin mengganti <b>satu nama warga saja</b> di tanggal tertentu, silakan gunakan menu <b>Replacements</b> di samping kiri. Menu ini khusus untuk pembuatan jadwal massal.
+                Anda bisa langsung klik pada nama warga di tabel sebelah kanan untuk menggantinya dengan warga lain tanpa harus pindah menu.
             </AlertDescription>
         </Alert>
 
@@ -319,8 +367,8 @@ export function GenerateScheduleForm() {
             <AlertCircle className="h-4 w-4 text-primary" />
             <AlertTitle>Aturan Penjadwalan Adil</AlertTitle>
             <AlertDescription className="text-xs space-y-1 mt-1">
-                <p>• <b>Satu Orang Satu Kali:</b> Menjamin warga tidak ronda ganda dalam sebulan.</p>
-                <p>• <b>Keamanan Terjaga:</b> Target 2-3 orang per malam selama stok warga mencukupi.</p>
+                <p>• <b>Anti-Double:</b> Menjamin warga tidak ronda ganda dalam sebulan.</p>
+                <p>• <b>Keamanan:</b> Target 2-3 orang per malam.</p>
                 <p>• <b>Prioritas Request:</b> Mengunci tanggal bagi warga yang pengajuannya sudah disetujui.</p>
             </AlertDescription>
         </Alert>
@@ -343,29 +391,35 @@ export function GenerateScheduleForm() {
                     </Badge>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[500px] overflow-auto p-0 border-t">
+            <CardContent className="max-h-[600px] overflow-auto p-0 border-t">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Tanggal</TableHead>
-                            <TableHead>Warga Ronda</TableHead>
+                            <TableHead className="w-24">Tanggal</TableHead>
+                            <TableHead>Warga Ronda (Klik untuk Ganti)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {displayData.map((day) => (
                             <TableRow key={day.date} className="hover:bg-transparent">
-                                <TableCell className="font-medium text-xs whitespace-nowrap">
+                                <TableCell className="font-medium text-xs whitespace-nowrap align-top pt-4">
                                     {format(new Date(day.date + 'T00:00:00Z'), 'dd MMM yyyy', { locale: idLocale })}
                                 </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {day.participants.length > 0 ? day.participants.map(p => (
-                                            <span key={p} className={cn(
-                                                "px-2 py-0.5 border rounded text-[10px] font-medium",
-                                                isPreview ? "bg-white" : "bg-green-100/50 border-green-200"
-                                            )}>
-                                                {p}
-                                            </span>
+                                <TableCell className="py-2">
+                                    <div className="flex flex-col gap-2">
+                                        {day.participants.length > 0 ? day.participants.map((p, idx) => (
+                                            <div key={`${day.date}-${p.userId}-${idx}`} className="w-full">
+                                                <Combobox 
+                                                    value={p.userId} 
+                                                    onValueChange={(newId) => handleParticipantChange(day.date, p.userId, newId, p.docId)}
+                                                    options={userOptions}
+                                                    placeholder="Pilih warga..."
+                                                    className={cn(
+                                                        "h-8 text-[11px] justify-start",
+                                                        isPreview ? "bg-white" : "bg-green-100/30 border-green-200"
+                                                    )}
+                                                />
+                                            </div>
                                         )) : <span className="text-destructive text-[10px] italic">Warga tidak cukup</span>}
                                     </div>
                                 </TableCell>
