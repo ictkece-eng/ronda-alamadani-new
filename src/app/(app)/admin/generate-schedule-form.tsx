@@ -109,62 +109,71 @@ export function GenerateScheduleForm() {
             const daysInMonth = new Date(year, monthNum, 0).getDate();
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
 
-            // 1. Ambil semua warga yang berpartisipasi dalam jadwal (bukan backup yang dikecualikan)
+            // 1. Ambil warga yang berpartisipasi (User, Coordinator, atau Backup yang masuk jadwal)
             let allParticipants = users.filter(u => 
                 u.role === 'user' || 
                 u.role === 'coordinator' ||
                 (u.role === 'backup' && u.includeInSchedule === true)
-            ).map(u => ({ ...u, name: u.name.trim() }));
+            );
 
-            // 2. Handle Approved Requests (Prioritas Utama)
+            // 2. Filter Approved Requests khusus bulan ini (Gunakan UTC agar akurat)
             const approvedRequestsForMonth = (requests || []).filter(req => {
                 if (req.status !== 'approved') return false;
                 const reqDate = new Date(req.requestedScheduleDate);
-                return reqDate.getUTCFullYear() === year && reqDate.getUTCMonth() + 1 === monthNum;
+                // Bandingkan Tahun dan Bulan (1-based)
+                return reqDate.getUTCFullYear() === year && (reqDate.getUTCMonth() + 1) === monthNum;
             });
 
             const assignedUserIds = new Set<string>();
 
+            // 3. Fase 1: Masukkan Warga yang pengajuannya DISETUJUI (Prioritas Utama)
             approvedRequestsForMonth.forEach(req => {
                 const user = usersIdMap.get(req.userId);
-                if (user) {
-                    const dayIndex = new Date(req.requestedScheduleDate).getUTCDate() - 1;
+                // Pastikan user ada dan belum dijadwalkan di hari lain bulan ini (Anti-Double)
+                if (user && !assignedUserIds.has(user.id)) {
+                    const reqDate = new Date(req.requestedScheduleDate);
+                    const dayIndex = reqDate.getUTCDate() - 1;
+                    
                     if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                        if (!dailyAssignments[dayIndex].includes(user.name)) {
-                            dailyAssignments[dayIndex].push(user.name);
-                            assignedUserIds.add(user.id);
-                        }
+                        dailyAssignments[dayIndex].push(user.name);
+                        assignedUserIds.add(user.id);
                     }
                 }
             });
 
-            // 3. Sisanya adalah warga yang belum dijadwalkan (Anti-Double Shift)
+            // 4. Fase 2: Distribusikan sisa warga ke malam yang kosong (Anti-Double Ronda)
             let remainingWarga = allParticipants
                 .filter(u => !assignedUserIds.has(u.id))
-                .sort(() => Math.random() - 0.5); // Shuffle
+                .sort(() => Math.random() - 0.5); // Acak untuk keadilan
 
-            // 4. Distribusi Sisa Warga (Min 2, Max 3)
-            // Langkah pertama: Pastikan setiap hari punya minimal 2 orang jika warga cukup
+            // Langkah A: Pastikan minimal ada 2 orang per malam
             for (let d = 0; d < daysInMonth; d++) {
                 while (dailyAssignments[d].length < 2 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
-                    if (candidate) dailyAssignments[d].push(candidate.name);
+                    if (candidate) {
+                        dailyAssignments[d].push(candidate.name);
+                        assignedUserIds.add(candidate.id);
+                    }
                 }
             }
 
-            // Langkah kedua: Jika masih ada warga sisa, tambahkan ke hari-hari sampai maksimal 3 orang
+            // Langkah B: Jika masih ada warga sisa, tambahkan hingga maksimal 3 orang per malam
             for (let d = 0; d < daysInMonth; d++) {
                 while (dailyAssignments[d].length < 3 && remainingWarga.length > 0) {
                     const candidate = remainingWarga.pop();
-                    if (candidate) dailyAssignments[d].push(candidate.name);
+                    if (candidate) {
+                        dailyAssignments[d].push(candidate.name);
+                        assignedUserIds.add(candidate.id);
+                    }
                 }
             }
 
-            // Peringatan jika warga kurang
-            if (dailyAssignments.some(day => day.length < 2)) {
+            // Cek jika ada hari yang kekurangan warga (Hanya sebagai peringatan)
+            const isUnderstaffed = dailyAssignments.some(day => day.length < 2);
+            if (isUnderstaffed) {
                 toast({ 
-                    title: "Peringatan: Warga Kurang", 
-                    description: "Jumlah warga tidak cukup untuk mengisi 2 orang per malam tanpa double shift. Beberapa hari mungkin hanya berisi 1 orang.",
+                    title: "Peringatan: Stok Warga Kurang", 
+                    description: "Warga tidak cukup untuk mengisi minimal 2 orang per malam tanpa double shift.",
                     variant: "destructive"
                 });
             }
@@ -178,7 +187,7 @@ export function GenerateScheduleForm() {
             });
 
             setGeneratedSchedule(newSchedule);
-            toast({ title: "Berhasil!", description: "Pratinjau jadwal dibuat tanpa ada warga yang ronda ganda." });
+            toast({ title: "Berhasil!", description: "Pratinjau jadwal dibuat dengan mematuhi pengajuan warga dan aturan tanpa double shift." });
 
         } catch (e) {
             console.error("Generate error:", e);
@@ -203,14 +212,14 @@ export function GenerateScheduleForm() {
         const start = new Date(Date.UTC(year, monthNum - 1, 1));
         const end = new Date(Date.UTC(year, monthNum, 1));
 
-        // Delete existing for this month first
+        // Hapus jadwal lama di bulan yang sama sebelum menyimpan yang baru
         const toDelete = (allSchedules || []).filter(s => {
             const d = new Date(s.date);
             return d >= start && d < end;
         });
         toDelete.forEach(s => batch.delete(doc(firestore, 'users', s.userId, 'rondaSchedules', s.id)));
 
-        // Save new
+        // Simpan jadwal baru
         for (const day of generatedSchedule) {
             for (const pName of day.participants) {
                 const userId = usersByName.get(pName.toLowerCase().trim());
@@ -232,7 +241,7 @@ export function GenerateScheduleForm() {
         toast({ title: 'Berhasil!', description: 'Jadwal telah disimpan dan diaktifkan.' });
     } catch (e) {
         console.error("Save error:", e);
-        toast({ title: 'Error', description: 'Gagal menyimpan jadwal. Cek koneksi atau izin database.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Gagal menyimpan jadwal. Cek izin database.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
