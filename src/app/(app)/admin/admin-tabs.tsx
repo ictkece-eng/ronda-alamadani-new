@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -56,7 +55,12 @@ const DashboardView = ({ userData }: { userData: Warga | null }) => {
     const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
     const stats = useMemo(() => {
-        const totalUsers = users?.filter(u => u.role === 'user' || u.role === 'coordinator').length ?? 0;
+        // Updated logic to match UserManagement RONDA card
+        const totalUsers = users?.filter(u => 
+            u.role === 'user' || 
+            u.role === 'coordinator' || 
+            (u.role === 'backup' && u.includeInSchedule === true)
+        ).length ?? 0;
         const totalCoordinators = users?.filter(u => u.role === 'coordinator').length ?? 0;
         const totalBackups = users?.filter(u => u.role === 'backup').length ?? 0;
 

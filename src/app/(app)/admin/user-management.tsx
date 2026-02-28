@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -89,7 +88,12 @@ export function UserManagement() {
     if (!users) return { total: 0, active: 0, backups: 0, admins: 0 };
     return {
         total: users.length,
-        active: users.filter(u => u.role === 'user' || u.role === 'coordinator').length,
+        // RONDA card counts User, Coordinator, AND Backups that are included in schedule
+        active: users.filter(u => 
+            u.role === 'user' || 
+            u.role === 'coordinator' || 
+            (u.role === 'backup' && u.includeInSchedule === true)
+        ).length,
         backups: users.filter(u => u.role === 'backup').length,
         admins: users.filter(u => u.role === 'admin').length,
     };
@@ -119,7 +123,9 @@ export function UserManagement() {
         user.address.toLowerCase().includes(searchQuery.toLowerCase());
 
       let matchesCategory = true;
-      if (activeFilter === 'active') matchesCategory = user.role === 'user' || user.role === 'coordinator';
+      if (activeFilter === 'active') {
+          matchesCategory = user.role === 'user' || user.role === 'coordinator' || (user.role === 'backup' && user.includeInSchedule === true);
+      }
       else if (activeFilter === 'backup') matchesCategory = user.role === 'backup';
       else if (activeFilter === 'admin') matchesCategory = user.role === 'admin';
 
