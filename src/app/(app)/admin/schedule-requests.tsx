@@ -9,6 +9,7 @@ import {
   useFirestore,
   useMemoFirebase,
   updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
   useUser,
 } from '@/firebase';
 import { collection, collectionGroup, doc, query } from 'firebase/firestore';
@@ -23,17 +24,26 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ThumbsDown, ThumbsUp, Plus, Search, Loader2 } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, Plus, Search, Loader2, Trash2, RotateCcw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-
-type ScheduleRequestWithUser = ScheduleRequest & { userName?: string };
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const requestSchema = z.object({
   userId: z.string().min(1, 'Pilih warga'),
@@ -73,13 +83,23 @@ export function ScheduleRequests() {
       .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
   }, [requests, usersMap, searchQuery]);
 
-  const handleUpdateStatus = (request: ScheduleRequest, status: 'approved' | 'rejected') => {
+  const handleUpdateStatus = (request: ScheduleRequest, status: 'approved' | 'rejected' | 'pending') => {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
     updateDocumentNonBlocking(requestRef, { status });
     toast({ 
       title: 'Status Diperbarui', 
-      description: `Permintaan dari ${usersMap.get(request.userId)} telah ${status === 'approved' ? 'disetujui' : 'ditolak'}.` 
+      description: `Permintaan dari ${usersMap.get(request.userId)} kini berstatus ${status}.` 
+    });
+  };
+
+  const handleDeleteRequest = (request: ScheduleRequest) => {
+    if (!firestore) return;
+    const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
+    deleteDocumentNonBlocking(requestRef);
+    toast({ 
+      title: 'Dihapus', 
+      description: `Permintaan dari ${usersMap.get(request.userId)} telah dihapus dari sistem.` 
     });
   };
 
@@ -136,7 +156,7 @@ export function ScheduleRequests() {
                     <TableHead>Tanggal Diminta</TableHead>
                     <TableHead>Alasan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead className="text-right">Aksi Admin</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -162,26 +182,70 @@ export function ScheduleRequests() {
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                    {req.status === 'pending' && (
-                                        <>
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                className="border-green-600 text-green-600 hover:bg-green-50"
-                                                onClick={() => handleUpdateStatus(req, 'approved')}
-                                            >
-                                                <ThumbsUp className="h-4 w-4" />
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                className="border-destructive text-destructive hover:bg-destructive/5"
-                                                onClick={() => handleUpdateStatus(req, 'rejected')}
-                                            >
-                                                <ThumbsDown className="h-4 w-4" />
-                                            </Button>
-                                        </>
+                                    {/* Action: Approve */}
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        disabled={req.status === 'approved'}
+                                        className="border-green-600 text-green-600 hover:bg-green-50 h-8 w-8 p-0"
+                                        onClick={() => handleUpdateStatus(req, 'approved')}
+                                        title="Approve"
+                                    >
+                                        <ThumbsUp className="h-4 w-4" />
+                                    </Button>
+
+                                    {/* Action: Reject */}
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        disabled={req.status === 'rejected'}
+                                        className="border-destructive text-destructive hover:bg-destructive/5 h-8 w-8 p-0"
+                                        onClick={() => handleUpdateStatus(req, 'rejected')}
+                                        title="Reject"
+                                    >
+                                        <ThumbsDown className="h-4 w-4" />
+                                    </Button>
+
+                                    {/* Action: Reset to Pending */}
+                                    {req.status !== 'pending' && (
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => handleUpdateStatus(req, 'pending')}
+                                            title="Reset to Pending"
+                                        >
+                                            <RotateCcw className="h-4 w-4" />
+                                        </Button>
                                     )}
+
+                                    {/* Action: Delete (Powerful) */}
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button 
+                                                size="sm" 
+                                                variant="ghost" 
+                                                className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                                                title="Hapus Pengajuan"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Hapus Pengajuan?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Tindakan ini akan menghapus data pengajuan dari {req.userName} secara permanen.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteRequest(req)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                    Ya, Hapus
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -202,6 +266,7 @@ export function ScheduleRequests() {
           <DialogContent className="max-w-md">
               <DialogHeader>
                   <DialogTitle>Buat Permintaan Baru</DialogTitle>
+                  <DialogDescription>Input permintaan perubahan jadwal secara manual oleh admin.</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
