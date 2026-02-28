@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { collection, doc, query, where, limit } from 'firebase/firestore';
 import type { Warga } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -191,6 +191,8 @@ export function AdminTabs() {
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="w-[300px] sm:max-max-xs">
+                        <SheetTitle className="sr-only">Menu Navigasi</SheetTitle>
+                        <SheetDescription className="sr-only">Pilih menu untuk mengelola sistem ronda</SheetDescription>
                         <nav className="grid gap-6 text-lg font-medium mt-10">
                             <div className="flex items-center gap-2 font-bold text-xl text-primary mb-4">
                                 <UserCheck className="h-7 w-7" />
