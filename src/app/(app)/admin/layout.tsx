@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // 2. Check User Role in Profile
+        // 2. Check User Role in Profile by UID
         const userRef = doc(firestore, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         
@@ -49,19 +49,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           const userData = userSnap.data();
           if (userData.role === 'admin' || userData.role === 'coordinator') {
             setIsAuthorized(true);
-          } else {
-            setIsAuthorized(false);
-            toast({
-              title: 'Akses Ditolak',
-              description: 'Anda tidak memiliki hak akses untuk halaman ini.',
-              variant: 'destructive',
-            });
-            router.replace('/dashboard');
+            setIsVerifying(false);
+            return;
           }
-        } else {
-          setIsAuthorized(false);
-          router.replace('/dashboard');
         }
+
+        // 3. Fallback: Check User Role by Email (to handle un-migrated profiles)
+        if (user.email) {
+            const usersRef = collection(firestore, 'users');
+            const q = query(usersRef, where('email', '==', user.email));
+            const querySnap = await getDocs(q);
+            
+            if (!querySnap.empty) {
+                const userData = querySnap.docs[0].data();
+                if (userData.role === 'admin' || userData.role === 'coordinator') {
+                    setIsAuthorized(true);
+                    setIsVerifying(false);
+                    return;
+                }
+            }
+        }
+
+        // If all checks fail
+        setIsAuthorized(false);
+        toast({
+            title: 'Akses Ditolak',
+            description: 'Anda tidak memiliki hak akses untuk halaman ini.',
+            variant: 'destructive',
+        });
+        router.replace('/dashboard');
+
       } catch (error) {
         console.error("Error verifying status:", error);
         setIsAuthorized(false);
@@ -78,8 +95,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (isVerifying) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className='ml-2 text-muted-foreground'>Memverifikasi hak akses...</p>
+        <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className='text-muted-foreground'>Memverifikasi hak akses...</p>
+        </div>
       </div>
     );
   }

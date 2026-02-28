@@ -9,7 +9,7 @@ import { Loader2, LogIn as LogInIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
@@ -38,6 +38,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
+      const userEmail = userCredential.user.email;
       
       // 1. Handle Special Super Admin Email
       if (email === 'tirtopbas@gmail.com') {
@@ -50,16 +51,29 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         return;
       }
 
-      // 2. Check Role in Firestore for other users
-      const userDocRef = doc(firestore, 'users', uid);
-      const userDocSnap = await getDoc(userDocRef);
+      // 2. Lookup and Migrate User Data by Email if needed
+      // This handles users created by admin with random IDs
+      const usersRef = collection(firestore, 'users');
+      const q = query(usersRef, where('email', '==', userEmail));
+      const querySnap = await getDocs(q);
 
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        if (userData.role === 'admin' || userData.role === 'coordinator') {
+      let role = 'user';
+
+      if (!querySnap.empty) {
+        const userDoc = querySnap.docs[0];
+        const userData = userDoc.data();
+        role = userData.role || 'user';
+
+        // Migrate ID to UID for direct lookups in the future
+        if (userDoc.id !== uid) {
+          await setDoc(doc(firestore, 'users', uid), { ...userData, id: uid }, { merge: true });
+          await deleteDoc(doc(firestore, 'users', userDoc.id));
+        }
+
+        if (role === 'admin' || role === 'coordinator') {
           toast({
             title: 'Login Berhasil',
-            description: `Selamat datang, ${userData.role}.`,
+            description: `Selamat datang, ${role}.`,
           });
           router.push('/admin');
         } else {
@@ -70,7 +84,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
           router.push('/dashboard');
         }
       } else {
-        // Fallback if no user doc exists yet
+        // No Firestore doc found, fallback to dashboard
         router.push('/dashboard');
       }
 
