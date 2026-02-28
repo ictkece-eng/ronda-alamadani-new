@@ -69,9 +69,9 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         // ULTIMATE ADMIN SYNC
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // We don't await this to keep login fast, but it ensures synchronization
-                setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
-                setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
+                // Ensure synchronization for the Boss
+                await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
+                await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
                 console.warn("Syncing admin status failed, but hardcoded UID rules will bypass this.");
             }
@@ -79,7 +79,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 
         toast({ title: 'Login Berhasil', description: 'Selamat datang kembali!' });
         
-        // Cek role untuk redirect
+        // Check role for redirect
         const userSnap = await getDoc(doc(firestore, 'users', uid));
         const role = userSnap.data()?.role || 'user';
 

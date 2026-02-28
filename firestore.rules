@@ -1,6 +1,6 @@
 /**
  * Ultimate Security Rules for Ronda Planner.
- * Memberikan akses mutlak kepada Master Admin (Boss) melalui UID.
+ * Memberikan akses mutlak kepada Master Admin (Boss) melalui UID dan Email.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -11,8 +11,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper: Jalur Sakti Master Admin (Boss) - Menggunakan UID permanen secara literal
-    // UID: hKUvl9TWZ8eR4wwjMFsTP49xfG22 (Master Boss)
+    // Helper: Jalur Sakti Master Admin (Boss)
+    // Jalur ini menggunakan UID dan Email permanen untuk bypass semua aturan.
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == "hKUvl9TWZ8eR4wwjMFsTP49xfG22" || 
