@@ -53,10 +53,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Pencil, Plus, Trash, Search } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash, Search, Users, UserCheck, ShieldCheck, LifeBuoy } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Checkbox } from '@/components/ui/checkbox';
 
 
@@ -81,7 +81,6 @@ export function UserManagement() {
   const [canFetch, setCanFetch] = useState(false);
 
   useEffect(() => {
-    // Only allow fetching if user is loaded and authenticated
     if (!isUserLoading && user) {
         setCanFetch(true);
     } else {
@@ -101,6 +100,16 @@ export function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const isLoading = isUserLoading || isUsersLoading || !canFetch;
+
+  const stats = useMemo(() => {
+    if (!users) return { total: 0, active: 0, backups: 0, admins: 0 };
+    return {
+        total: users.length,
+        active: users.filter(u => u.role === 'user' || u.role === 'coordinator').length,
+        backups: users.filter(u => u.role === 'backup').length,
+        admins: users.filter(u => u.role === 'admin').length,
+    };
+  }, [users]);
 
   const form = useForm<WargaFormValues>({
     resolver: zodResolver(wargaSchema),
@@ -155,26 +164,20 @@ export function UserManagement() {
     
     try {
       if (currentUser) {
-        // Update existing user
         const userRef = doc(firestore, 'users', currentUser.id);
         setDocumentNonBlocking(userRef, dataToSave, { merge: true });
 
         const adminRoleRef = doc(firestore, 'roles_admin', currentUser.id);
         if (values.role === 'admin') {
-          // If role is admin, ensure the roles_admin doc exists
           setDocumentNonBlocking(adminRoleRef, { userId: currentUser.id }, { merge: true });
         } else if (currentUser.role === 'admin' && values.role !== 'admin') {
-          // If role was admin and now it's not, delete the roles_admin doc
           deleteDocumentNonBlocking(adminRoleRef);
         }
 
         toast({ title: 'Success', description: 'User updated successfully.' });
       } else {
-        // Create new user - this requires authentication to get a UID
-        // For simplicity, let's assume we can't create users directly this way without auth logic
-        // We will use a placeholder ID for now. In a real app, you'd create an auth user first.
         const usersCol = collection(firestore, 'users');
-        const newUserRef = doc(usersCol); // Firestore generates an ID
+        const newUserRef = doc(usersCol);
         const newUserData: Warga = { ...dataToSave, id: newUserRef.id };
         setDocumentNonBlocking(newUserRef, newUserData, {});
 
@@ -197,285 +200,342 @@ export function UserManagement() {
     const userRef = doc(firestore, 'users', userId);
     deleteDocumentNonBlocking(userRef);
     const adminRoleRef = doc(firestore, 'roles_admin', userId);
-    deleteDocumentNonBlocking(adminRoleRef); // Also remove from admin roles if they were an admin
+    deleteDocumentNonBlocking(adminRoleRef);
     toast({ title: 'Success', description: 'User deleted successfully.' });
   };
   
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage Users / Warga</CardTitle>
-        <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className='flex flex-col sm:flex-row justify-between items-center gap-2'>
-            <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search users..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1); // Reset to first page on new search
-                    }}
-                />
-            </div>
-            <div className='flex gap-2 self-end'>
-                <Button onClick={handleAddNew}>
-                    <Plus className="mr-2" /> Add User
-                </Button>
-            </div>
-        </div>
+    <div className="space-y-6">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-primary/5 border-primary/20 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Warga</p>
+                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.total}</h3>
+                  </div>
+                  <div className="bg-primary/10 p-2 rounded-lg">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+              </CardContent>
+          </Card>
+          <Card className="bg-green-500/5 border-green-500/20 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">User Ronda</p>
+                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.active}</h3>
+                  </div>
+                  <div className="bg-green-500/10 p-2 rounded-lg">
+                    <UserCheck className="h-5 w-5 text-green-600" />
+                  </div>
+              </CardContent>
+          </Card>
+          <Card className="bg-orange-500/5 border-orange-500/20 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Backup</p>
+                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.backups}</h3>
+                  </div>
+                  <div className="bg-orange-500/10 p-2 rounded-lg">
+                    <LifeBuoy className="h-5 w-5 text-orange-600" />
+                  </div>
+              </CardContent>
+          </Card>
+          <Card className="bg-blue-500/5 border-blue-500/20 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Admin</p>
+                      <h3 className="text-2xl font-bold mt-1">{isLoading ? <Skeleton className="h-8 w-12" /> : stats.admins}</h3>
+                  </div>
+                  <div className="bg-blue-500/10 p-2 rounded-lg">
+                    <ShieldCheck className="h-5 w-5 text-blue-600" />
+                  </div>
+              </CardContent>
+          </Card>
+      </div>
 
-        <div className="border rounded-lg overflow-hidden">
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className='hidden md:table-cell'>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Guru</TableHead>
-                <TableHead>Include in Schedule</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {isLoading ? (
-                    Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                            <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-32" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-6" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-6" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
-                        </TableRow>
-                    ))
-                ) : paginatedUsers.length > 0 ? (
-                paginatedUsers.map((user) => (
-                    <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell className='hidden md:table-cell'>{user.email}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    <TableCell>
-                        <div className='flex justify-center'>
-                            <Checkbox
-                                checked={!!user.isTeacher}
-                                disabled
-                            />
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                        {user.role === 'backup' && (
-                            <div className='flex justify-center'>
-                                <Checkbox
-                                    checked={!!user.includeInSchedule}
-                                    disabled
-                                />
-                            </div>
-                        )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
-                        <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className='text-destructive hover:text-destructive'>
-                                <Trash className="h-4 w-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the user account.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
-                    </TableRow>
-                ))
-                ) : (
-                <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
-                        {searchQuery ? "No users found for your search." : "No users found. Click 'Add User' to add initial data."}
-                    </TableCell>
-                </TableRow>
-                )}
-            </TableBody>
-            </Table>
-        </div>
-      </CardContent>
-        {totalPages > 1 && (
-            <CardFooter className='justify-between'>
-                 <div className="text-xs text-muted-foreground">
-                    Showing <strong>{paginatedUsers.length}</strong> of <strong>{filteredUsers.length}</strong> users
-                </div>
-                <Pagination>
-                    <PaginationContent>
-                        <PaginationItem>
-                            <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1))}} className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''} />
-                        </PaginationItem>
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Manage Users / Warga</CardTitle>
+          <CardDescription>View, add, edit, or remove users from the system.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className='flex flex-col sm:flex-row justify-between items-center gap-2'>
+              <div className="relative w-full sm:max-w-xs">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                      placeholder="Search users..."
+                      className="pl-8"
+                      value={searchQuery}
+                      onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setCurrentPage(1);
+                      }}
+                  />
+              </div>
+              <div className='flex gap-2 self-end'>
+                  <Button onClick={handleAddNew}>
+                      <Plus className="mr-2 h-4 w-4" /> Add User
+                  </Button>
+              </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden bg-background">
+              <Table>
+              <TableHeader>
+                  <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead className='hidden md:table-cell'>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-center">Guru</TableHead>
+                  <TableHead className="text-center">Schedule</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {isLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                          <TableRow key={i}>
+                              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                              <TableCell className='hidden md:table-cell'><Skeleton className="h-4 w-32" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                              <TableCell><Skeleton className="h-6 w-6 mx-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-6 w-6 mx-auto" /></TableCell>
+                              <TableCell className="text-right"><Skeleton className="h-8 w-[76px] ml-auto" /></TableCell>
+                          </TableRow>
+                      ))
+                  ) : paginatedUsers.length > 0 ? (
+                  paginatedUsers.map((user) => (
+                      <TableRow key={user.id} className="hover:bg-muted/30">
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell className='hidden md:table-cell text-muted-foreground'>{user.email}</TableCell>
+                      <TableCell>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${
+                              user.role === 'admin' ? 'bg-blue-100 text-blue-700' :
+                              user.role === 'coordinator' ? 'bg-green-100 text-green-700' :
+                              user.role === 'backup' ? 'bg-orange-100 text-orange-700' :
+                              'bg-gray-100 text-gray-700'
+                          }`}>
+                            {user.role}
+                          </span>
+                      </TableCell>
+                      <TableCell>
+                          <div className='flex justify-center'>
+                              <Checkbox
+                                  checked={!!user.isTeacher}
+                                  disabled
+                              />
+                          </div>
+                      </TableCell>
+                      <TableCell>
+                          <div className='flex justify-center'>
+                              <Checkbox
+                                  checked={user.role === 'backup' ? !!user.includeInSchedule : true}
+                                  disabled
+                              />
+                          </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} className="h-8 w-8">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10'>
+                                  <Trash className="h-3.5 w-3.5" />
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the user account.
+                              </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(user.id)}>Continue</AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                          </AlertDialog>
+                      </TableCell>
+                      </TableRow>
+                  ))
+                  ) : (
+                  <TableRow>
+                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                          {searchQuery ? "No users found for your search." : "No users found. Click 'Add User' to add initial data."}
+                      </TableCell>
+                  </TableRow>
+                  )}
+              </TableBody>
+              </Table>
+          </div>
+        </CardContent>
+          {totalPages > 1 && (
+              <CardFooter className='justify-between border-t p-6'>
+                  <div className="text-xs text-muted-foreground">
+                      Showing <strong>{paginatedUsers.length}</strong> of <strong>{filteredUsers.length}</strong> users
+                  </div>
+                  <Pagination>
+                      <PaginationContent>
+                          <PaginationItem>
+                              <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1))}} className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''} />
+                          </PaginationItem>
+                          
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                              <PaginationItem key={page}>
+                                  <PaginationLink href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(page)}} isActive={currentPage === page}>
+                                      {page}
+                                  </PaginationLink>
+                              </PaginationItem>
+                          ))}
                         
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                             <PaginationItem key={page}>
-                                <PaginationLink href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(page)}} isActive={currentPage === page}>
-                                    {page}
-                                </PaginationLink>
-                            </PaginationItem>
-                        ))}
-                       
-                        <PaginationItem>
-                            <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1))}} className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''} />
-                        </PaginationItem>
-                    </PaginationContent>
-                </Pagination>
-            </CardFooter>
-        )}
+                          <PaginationItem>
+                              <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1))}} className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''} />
+                          </PaginationItem>
+                      </PaginationContent>
+                  </Pagination>
+              </CardFooter>
+          )}
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{currentUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-            <DialogDescription>
-              {currentUser ? 'Update the user details below.' : 'Fill in the details to create a new user.'}
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="john@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="08123..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Blok A1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <FormControl>
-                        <select {...field} className='flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1'>
-                            <option value="user">User</option>
-                            <option value="coordinator">Coordinator</option>
-                            <option value="admin">Admin</option>
-                            <option value="backup">Backup</option>
-                        </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {watchedRole === 'backup' && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{currentUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+              <DialogDescription>
+                {currentUser ? 'Update the user details below.' : 'Fill in the details to create a new user.'}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                 <FormField
-                    control={form.control}
-                    name="includeInSchedule"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <FormLabel>Include in Schedule</FormLabel>
-                                <FormDescription>
-                                    If checked, this backup user will be included in schedule generation.
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                                <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-
                 <FormField
-                    control={form.control}
-                    name="isTeacher"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <FormLabel>Guru</FormLabel>
-                                <FormDescription>
-                                    Jadwalkan pengguna ini pada hari Jumat atau Sabtu jika memungkinkan.
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                                <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="john@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="08123..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Blok A1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <FormControl>
+                          <select {...field} className='flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1'>
+                              <option value="user">User</option>
+                              <option value="coordinator">Coordinator</option>
+                              <option value="admin">Admin</option>
+                              <option value="backup">Backup</option>
+                          </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
-                <DialogFooter>
-                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                      {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save
-                    </Button>
-                </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </Card>
+                {watchedRole === 'backup' && (
+                  <FormField
+                      control={form.control}
+                      name="includeInSchedule"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/20">
+                              <div className="space-y-0.5">
+                                  <FormLabel>Include in Schedule</FormLabel>
+                                  <FormDescription className="text-[10px] leading-tight">
+                                      If checked, this backup user will be included in automated schedule generation.
+                                  </FormDescription>
+                              </div>
+                              <FormControl>
+                                  <Checkbox
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                  />
+                              </FormControl>
+                          </FormItem>
+                      )}
+                  />
+                )}
+
+                  <FormField
+                      control={form.control}
+                      name="isTeacher"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/20">
+                              <div className="space-y-0.5">
+                                  <FormLabel>Guru</FormLabel>
+                                  <FormDescription className="text-[10px] leading-tight">
+                                      Jadwalkan pengguna ini pada hari Jumat atau Sabtu jika memungkinkan.
+                                  </FormDescription>
+                              </div>
+                              <FormControl>
+                                  <Checkbox
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                  />
+                              </FormControl>
+                          </FormItem>
+                      )}
+                  />
+
+                  <DialogFooter className="pt-4">
+                      <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save
+                      </Button>
+                  </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </Card>
+    </div>
   );
 }
