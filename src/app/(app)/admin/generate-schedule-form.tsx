@@ -169,13 +169,11 @@ export function GenerateScheduleForm() {
             const daysInMonth = new Date(year, monthNum, 0).getDate();
             
             // --- 1. Determine Daily Capacity to match EXACT resident count ---
-            // Total slots must equal residents to avoid doubles.
             const dailyCapacities = Array(daysInMonth).fill(2); // Base 2 per night
             let currentTotalSlots = daysInMonth * 2;
 
             if (currentTotalSlots < residentCount) {
-                // Add slots to weekends (Fri, Sat, Sun) first
-                const weekendPriority = [5, 6, 0]; // Friday, Saturday, Sunday
+                const weekendPriority = [5, 6, 0]; // Fri, Sat, Sun
                 for (const dayOfWeek of weekendPriority) {
                     for (let d = 0; d < daysInMonth; d++) {
                         if (currentTotalSlots >= residentCount) break;
@@ -187,16 +185,14 @@ export function GenerateScheduleForm() {
                     }
                     if (currentTotalSlots >= residentCount) break;
                 }
-                // If still not enough slots, add to any day
                 for (let d = 0; d < daysInMonth; d++) {
                     if (currentTotalSlots >= residentCount) break;
-                    if (dailyCapacities[d] < 3) {
+                    if (dailyCapacities[d] < 4) { // Max 4 per night
                         dailyCapacities[d]++;
                         currentTotalSlots++;
                     }
                 }
             } else if (currentTotalSlots > residentCount) {
-                // Remove slots from weekdays first
                 const weekdayPriority = [1, 2, 3, 4]; // Mon, Tue, Wed, Thu
                 for (const dayOfWeek of weekdayPriority) {
                     for (let d = 0; d < daysInMonth; d++) {
@@ -215,7 +211,7 @@ export function GenerateScheduleForm() {
             const dailyAssignments: string[][] = Array.from({ length: daysInMonth }, () => []);
             let residentsPool = [...availableParticipants];
 
-            // --- 3. Handle Approved Requests First ---
+            // --- 3. Handle Approved Requests (PRIORITY) ---
             const approvedRequests = requests?.filter(req => {
                 if (req.status !== 'approved') return false;
                 const reqDate = new Date(req.requestedScheduleDate);
@@ -228,11 +224,23 @@ export function GenerateScheduleForm() {
 
                 const reqDate = new Date(req.requestedScheduleDate);
                 const dayIndex = reqDate.getUTCDate() - 1;
+                
+                // Cari warga di pool
                 const resident = residentsPool.find(r => r.id === user.id);
 
-                if (resident && dayIndex >= 0 && dayIndex < daysInMonth && dailyAssignments[dayIndex].length < dailyCapacities[dayIndex]) {
-                    dailyAssignments[dayIndex].push(resident.name);
-                    residentsPool = residentsPool.filter(r => r.id !== resident.id);
+                if (resident && dayIndex >= 0 && dayIndex < daysInMonth) {
+                    // Pastikan tidak melebihi kapasitas hari itu, jika ya, tambahkan slot (fleksibel untuk request)
+                    if (dailyAssignments[dayIndex].length >= dailyCapacities[dayIndex]) {
+                        dailyCapacities[dayIndex]++;
+                        currentTotalSlots++;
+                        // Karena kapasitas total nambah, kita harus kurangi dari hari lain nanti jika ingin tetap 1:1
+                        // Namun untuk simplifikasi request, kita izinkan sedikit overflow jika perlu.
+                    }
+                    
+                    if (!dailyAssignments[dayIndex].includes(resident.name)) {
+                        dailyAssignments[dayIndex].push(resident.name);
+                        residentsPool = residentsPool.filter(r => r.id !== resident.id);
+                    }
                 }
             });
 
@@ -250,15 +258,14 @@ export function GenerateScheduleForm() {
                         }).filter(Boolean)
                     );
 
-                    // Sorting for fairness and preferences
                     residentsPool.sort((a, b) => {
-                        // 1. Teacher priority for weekend
+                        // Priority 1: Teacher on Weekend
                         if (isWeekend) {
                             if (a.isTeacher && !b.isTeacher) return -1;
                             if (!a.isTeacher && b.isTeacher) return 1;
                         }
 
-                        // 2. Block avoidance
+                        // Priority 2: Block avoidance
                         const blockA = a.address ? a.address.charAt(0).toUpperCase() : null;
                         const blockB = b.address ? b.address.charAt(0).toUpperCase() : null;
                         const blockAConflict = blockA && alreadyAssignedBlocks.has(blockA);
@@ -266,7 +273,6 @@ export function GenerateScheduleForm() {
                         if (blockAConflict && !blockBConflict) return 1;
                         if (!blockAConflict && blockBConflict) return -1;
 
-                        // 3. Randomize
                         return Math.random() - 0.5;
                     });
 
@@ -277,7 +283,23 @@ export function GenerateScheduleForm() {
                 }
             }
 
-            // Final Schedule Assembly
+            // --- 5. Clean up any residents left over (if capacities were too low) ---
+            while (residentsPool.length > 0) {
+                const selected = residentsPool.shift();
+                if (selected) {
+                    // Cari hari dengan peserta paling sedikit
+                    let minDay = 0;
+                    let minCount = dailyAssignments[0].length;
+                    for (let i = 1; i < daysInMonth; i++) {
+                        if (dailyAssignments[i].length < minCount) {
+                            minCount = dailyAssignments[i].length;
+                            minDay = i;
+                        }
+                    }
+                    dailyAssignments[minDay].push(selected.name);
+                }
+            }
+
             const newSchedule: GeneratedSchedule[] = dailyAssignments.map((participants, i) => {
                 const date = new Date(Date.UTC(year, monthNum - 1, i + 1));
                 return {
@@ -290,7 +312,7 @@ export function GenerateScheduleForm() {
             setHasExistingSchedule(true);
             toast({
                 title: "Berhasil!",
-                description: `Jadwal telah dibuat. Total ${residentCount} warga dijadwalkan (1:1).`,
+                description: `Jadwal telah dibuat sesuai permintaan (requests) yang disetujui.`,
             });
 
         } catch (e) {
@@ -345,7 +367,6 @@ export function GenerateScheduleForm() {
     try {
         const batch = writeBatch(firestore);
 
-        // Delete existing month's schedule
         if (allSchedules) {
             const [year, monthNum] = month.split('-').map(Number);
             const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
@@ -519,7 +540,7 @@ export function GenerateScheduleForm() {
                 <Wand2 className="h-4 w-4" />
                 <AlertTitle>Siap Generate</AlertTitle>
                 <AlertDescription>
-                {hasExistingSchedule ? 'Jadwal bulan ini sudah ada. Klik Regenerate jika ingin membuat ulang.' : "Belum ada jadwal. Klik 'Generate' untuk membuat otomatis (1:1 per warga)."}
+                {hasExistingSchedule ? 'Jadwal bulan ini sudah ada. Klik Regenerate jika ingin membuat ulang.' : "Belum ada jadwal. Klik 'Generate' untuk membuat otomatis (Prioritas Request Approved)."}
                 </AlertDescription>
             </Alert>
         )}
