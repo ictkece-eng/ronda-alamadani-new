@@ -51,12 +51,12 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
             email: cleanEmail,
             phone: '-',
             address: '-',
-            role: 'user',
+            role: cleanEmail === 'tirtopbas@gmail.com' ? 'admin' : 'user',
         }, { merge: true });
 
         // Auto-promote master admin
         if (cleanEmail === 'tirtopbas@gmail.com') {
-            await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail });
+            await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
         }
 
         toast({ title: 'Pendaftaran Berhasil', description: 'Akun Anda telah dibuat. Silakan login.' });
@@ -68,6 +68,10 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         // Ensure master admin has the record in roles_admin
         if (cleanEmail === 'tirtopbas@gmail.com') {
             await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
+            
+            // Also ensure their profile role is set correctly
+            const userRef = doc(firestore, 'users', uid);
+            await setDoc(userRef, { role: 'admin' }, { merge: true });
         }
 
         const adminRoleRef = doc(firestore, 'roles_admin', uid);

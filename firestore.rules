@@ -29,8 +29,8 @@ service cloud.firestore {
     
     function isAdmin() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
-        request.auth.token.email == 'tirtopbas@gmail.com'
+        request.auth.token.email == 'tirtopbas@gmail.com' ||
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
       );
     }
 
@@ -95,9 +95,9 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow write: if (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com') || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
   }
 }
