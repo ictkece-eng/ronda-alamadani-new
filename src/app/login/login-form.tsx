@@ -9,7 +9,7 @@ import { Loader2, LogIn as LogInIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
@@ -37,24 +37,43 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
       
+      // 1. Handle Special Super Admin Email
       if (email === 'tirtopbas@gmail.com') {
-        const adminRoleRef = doc(firestore, 'roles_admin', userCredential.user.uid);
-        // Ensure the admin role document exists
-        await setDoc(adminRoleRef, { userId: userCredential.user.uid }, { merge: true });
-
-        toast({
-          title: 'Login Admin Berhasil',
-          description: 'Anda akan diarahkan ke halaman admin.',
-        });
+        const adminRoleRef = doc(firestore, 'roles_admin', uid);
+        await setDoc(adminRoleRef, { userId: uid }, { merge: true });
+        
+        toast({ title: 'Login Admin Berhasil', description: 'Selamat datang, Super Admin.' });
         router.push('/admin');
+        onLoginSuccess?.();
+        return;
+      }
+
+      // 2. Check Role in Firestore for other users
+      const userDocRef = doc(firestore, 'users', uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.role === 'admin' || userData.role === 'coordinator') {
+          toast({
+            title: 'Login Berhasil',
+            description: `Selamat datang, ${userData.role}.`,
+          });
+          router.push('/admin');
+        } else {
+          toast({
+            title: 'Login Berhasil',
+            description: 'Anda akan diarahkan ke dashboard warga.',
+          });
+          router.push('/dashboard');
+        }
       } else {
-        toast({
-          title: 'Login Berhasil',
-          description: 'Anda akan diarahkan ke dashboard.',
-        });
+        // Fallback if no user doc exists yet
         router.push('/dashboard');
       }
+
       onLoginSuccess?.();
     } catch (error: any) {
       console.error(error);
