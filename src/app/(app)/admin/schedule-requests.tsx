@@ -207,7 +207,6 @@ export function ScheduleRequests() {
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                    {/* Action: Edit */}
                                     <Button 
                                         size="sm" 
                                         variant="ghost" 
@@ -218,7 +217,6 @@ export function ScheduleRequests() {
                                         <Pencil className="h-4 w-4" />
                                     </Button>
 
-                                    {/* Action: Approve */}
                                     <Button 
                                         size="sm" 
                                         variant="outline" 
@@ -230,7 +228,6 @@ export function ScheduleRequests() {
                                         <ThumbsUp className="h-4 w-4" />
                                     </Button>
 
-                                    {/* Action: Reject */}
                                     <Button 
                                         size="sm" 
                                         variant="outline" 
@@ -242,7 +239,6 @@ export function ScheduleRequests() {
                                         <ThumbsDown className="h-4 w-4" />
                                     </Button>
 
-                                    {/* Action: Reset to Pending */}
                                     {req.status !== 'pending' && (
                                         <Button 
                                             size="sm" 
@@ -255,7 +251,6 @@ export function ScheduleRequests() {
                                         </Button>
                                     )}
 
-                                    {/* Action: Delete (Powerful) */}
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button 
@@ -323,7 +318,7 @@ export function ScheduleRequests() {
                                       ))}
                                   </select>
                               </FormControl>
-                              {editingRequest && <p className="text-[10px] text-muted-foreground">Nama warga tidak dapat diubah saat edit. Hapus dan buat baru jika salah warga.</p>}
+                              {editingRequest && <p className="text-[10px] text-muted-foreground">Nama warga tidak dapat diubah saat edit.</p>}
                               <FormMessage />
                           </FormItem>
                       )} />

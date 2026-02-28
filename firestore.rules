@@ -1,20 +1,17 @@
 /**
  * Ultimate Security Rules for Ronda Planner.
- * Menggunakan Master Admin bypass berbasis UID yang tidak bisa dibantah.
+ * Memberikan akses mutlak kepada Master Admin (Boss) melalui UID.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ------------------------------------------------------------------------
-    // Helper Functions
-    // ------------------------------------------------------------------------
-
+    // Helper: Cek apakah user sudah login
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Master Admin check - Jalur UID adalah yang paling stabil (hKUvl9TWZ8eR4wwjMFsTP49xfG22)
+    // Helper: Jalur Sakti Master Admin (Boss)
     function isMaster() {
       return isSignedIn() && (
         request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' || 
@@ -22,53 +19,55 @@ service cloud.firestore {
       );
     }
 
+    // Helper: Cek Admin (Master atau terdaftar di roles_admin)
     function isAdmin() {
       return isMaster() || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
+    // Helper: Cek pemilik dokumen
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     // ------------------------------------------------------------------------
-    // GLOBAL MASTER BYPASS (Akses Mutlak untuk Bos)
+    // GLOBAL MASTER BYPASS (PENTING: Jangan diubah, ini akses buat Boss)
     // ------------------------------------------------------------------------
     match /{document=**} {
       allow read, write: if isMaster();
     }
 
     // ------------------------------------------------------------------------
-    // Aturan Koleksi Spesifik (Untuk Pengguna Lain)
+    // Aturan Spesifik untuk Pengguna Lain
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isAdmin();
+      allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaSchedules/{id} {
       allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
+      allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/scheduleRequests/{id} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isAdmin();
+      allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaReplacements/{id} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId) || isAdmin();
+      allow read: if isMaster() || isOwner(userId) || isAdmin();
+      allow write: if isMaster() || isOwner(userId) || isAdmin();
     }
 
     match /coordinatorAssignments/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isMaster() || isAdmin();
     }
 
     match /roles_admin/{userId} {
       allow read: if isSignedIn();
-      allow write: if isMaster() || (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com');
+      allow write: if isMaster();
     }
 
     // Collection Group Rules agar query global tidak error
