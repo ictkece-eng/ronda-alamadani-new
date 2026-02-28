@@ -41,7 +41,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       const userEmail = userCredential.user.email;
       
       // 1. Handle Special Super Admin Email
-      if (email === 'tirtopbas@gmail.com') {
+      if (userEmail === 'tirtopbas@gmail.com') {
         const adminRoleRef = doc(firestore, 'roles_admin', uid);
         await setDoc(adminRoleRef, { userId: uid }, { merge: true });
         
@@ -51,23 +51,23 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         return;
       }
 
-      // 2. Lookup and Migrate User Data by Email if needed
-      // This handles users created by admin with random IDs
+      // 2. Lookup and Migrate User Data by Email
       const usersRef = collection(firestore, 'users');
       const q = query(usersRef, where('email', '==', userEmail));
       const querySnap = await getDocs(q);
 
-      let role = 'user';
-
       if (!querySnap.empty) {
         const userDoc = querySnap.docs[0];
         const userData = userDoc.data();
-        role = userData.role || 'user';
+        const role = userData.role || 'user';
 
-        // Migrate ID to UID for direct lookups in the future
+        // Migrate ID to UID for direct lookups in the future if they don't match
         if (userDoc.id !== uid) {
           await setDoc(doc(firestore, 'users', uid), { ...userData, id: uid }, { merge: true });
-          await deleteDoc(doc(firestore, 'users', userDoc.id));
+          // Only delete if it's a different document ID to prevent accidental deletion
+          if (userDoc.id !== uid) {
+            await deleteDoc(doc(firestore, 'users', userDoc.id));
+          }
         }
 
         if (role === 'admin' || role === 'coordinator') {
@@ -84,17 +84,21 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
           router.push('/dashboard');
         }
       } else {
-        // No Firestore doc found, fallback to dashboard
+        // No Firestore doc found, fallback to dashboard or create a default user doc
+        toast({
+            title: 'Login Berhasil',
+            description: 'Profil Anda belum terdaftar di sistem warga.',
+        });
         router.push('/dashboard');
       }
 
       onLoginSuccess?.();
     } catch (error: any) {
-      console.error(error);
+      console.error("Login error:", error);
       toast({
         variant: "destructive",
         title: 'Login Gagal',
-        description: 'Email atau password salah. Coba lagi.',
+        description: 'Email atau password salah atau akun belum terdaftar.',
       });
     } finally {
       setIsLoading(false);

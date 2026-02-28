@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { collection, collectionGroup, doc } from 'firebase/firestore';
+import { collection, doc, query, where, limit } from 'firebase/firestore';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -55,30 +55,17 @@ const DashboardView = () => {
     const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
     const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
-    const requestsQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'scheduleRequests') : null, [firestore]);
-    const { data: requests, isLoading: isRequestsLoading } = useCollection<ScheduleRequest>(requestsQuery);
-
-    const schedulesQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'rondaSchedules') : null, [firestore]);
-    const { data: allSchedules, isLoading: isSchedulesLoading } = useCollection<RondaSchedule>(schedulesQuery);
-
-    const isLoading = isUsersLoading || isRequestsLoading || isSchedulesLoading;
+    // We can't use collectionGroup easily here without index, so we just use the users we have to infer stats
+    // Or just show total users and coordinators which is accurate from the users collection
+    const isLoading = isUsersLoading;
 
     const stats = useMemo(() => {
-        const today = new Date();
-        const year = today.getUTCFullYear();
-        const month = today.getUTCMonth() + 1;
-        
-        const pendingRequests = requests?.filter(r => r.status === 'pending').length ?? 0;
         const totalUsers = users?.filter(u => u.role === 'user' || u.role === 'coordinator').length ?? 0;
-        const replacementsThisMonth = allSchedules?.filter(s => {
-            if (!s.replacementUserId) return false;
-            const scheduleDate = new Date(s.date);
-            return scheduleDate.getUTCFullYear() === year && scheduleDate.getUTCMonth() + 1 === month;
-        }).length ?? 0;
         const totalCoordinators = users?.filter(u => u.role === 'coordinator').length ?? 0;
+        const totalBackups = users?.filter(u => u.role === 'backup').length ?? 0;
 
-        return { pendingRequests, totalUsers, replacementsThisMonth, totalCoordinators };
-    }, [users, requests, allSchedules]);
+        return { totalUsers, totalCoordinators, totalBackups };
+    }, [users]);
 
     return (
         <div className="space-y-6">
@@ -86,11 +73,10 @@ const DashboardView = () => {
                 <h2 className="text-3xl font-bold tracking-tight text-primary">Hi, welcome back!</h2>
                 <p className="text-muted-foreground mt-1 text-lg">Ringkasan aktivitas ronda lingkungan Anda hari ini.</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard title="Total Warga" value={stats.totalUsers} icon={Users} isLoading={isLoading} />
                 <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isLoading} />
-                <StatCard title="Permintaan Tertunda" value={stats.pendingRequests} icon={FileText} isLoading={isLoading} />
-                <StatCard title="Penggantian Bulan Ini" value={stats.replacementsThisMonth} icon={GitPullRequest} isLoading={isLoading} />
+                <StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isLoading} />
             </div>
         </div>
     );
@@ -105,8 +91,16 @@ export function AdminTabs() {
     const { toast } = useToast();
     const router = useRouter();
 
+    // Strategy 1: Look up profile by UID
     const userDocRef = useMemoFirebase(() => (firestore && authUser ? doc(firestore, 'users', authUser.uid) : null), [firestore, authUser]);
-    const { data: userData, isLoading: isRoleLoading } = useDoc<Warga>(userDocRef);
+    const { data: userDataByUid, isLoading: isUidLoading } = useDoc<Warga>(userDocRef);
+
+    // Strategy 2: Look up profile by Email (fallback for manual firestore entries)
+    const userEmailQuery = useMemoFirebase(() => (firestore && authUser?.email ? query(collection(firestore, 'users'), where('email', '==', authUser.email.toLowerCase()), limit(1)) : null), [firestore, authUser]);
+    const { data: userDataByEmail, isLoading: isEmailLoading } = useCollection<Warga>(userEmailQuery);
+
+    const userData = userDataByUid || (userDataByEmail && userDataByEmail[0]) || null;
+    const isRoleLoading = isUidLoading || isEmailLoading;
 
     const isAdmin = userData?.role === 'admin';
     const isCoordinator = userData?.role === 'coordinator';
@@ -219,13 +213,10 @@ export function AdminTabs() {
                     </SheetTrigger>
                     <SheetContent side="left" className="w-[300px] sm:max-max-xs">
                         <nav className="grid gap-6 text-lg font-medium mt-10">
-                            <Link
-                                href="#"
-                                className="group flex h-12 w-12 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground md:text-base mb-4"
-                            >
-                                <UserCheck className="h-6 w-6 transition-all group-hover:scale-110" />
-                                <span className="sr-only">Ronda Planner</span>
-                            </Link>
+                            <div className="flex items-center gap-2 font-bold text-xl text-primary mb-4">
+                                <UserCheck className="h-7 w-7" />
+                                <span>Ronda Planner</span>
+                            </div>
                             {navItems.map(item => (
                                 <button
                                     key={item.id}
@@ -273,7 +264,7 @@ export function AdminTabs() {
                         <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuLabel className="font-normal">
                                 <div className="flex flex-col space-y-1">
-                                    <p className="text-sm font-medium leading-none">{userData?.name || 'User'}</p>
+                                    <p className="text-sm font-medium leading-none">{userData?.name || authUser?.email || 'User'}</p>
                                     <p className="text-xs leading-none text-muted-foreground uppercase">{userData?.role || 'Role'}</p>
                                 </div>
                             </DropdownMenuLabel>

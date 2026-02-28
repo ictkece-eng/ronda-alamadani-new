@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const checkStatus = async () => {
       try {
-        // 1. Check Admin Collection
+        // 1. Check Admin Collection (Strongest check)
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
         const adminSnap = await getDoc(adminRoleRef);
         
@@ -54,10 +54,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }
         }
 
-        // 3. Fallback: Check User Role by Email (to handle un-migrated profiles)
+        // 3. Robust Fallback: Check User Role by Email
         if (user.email) {
             const usersRef = collection(firestore, 'users');
-            const q = query(usersRef, where('email', '==', user.email));
+            const q = query(usersRef, where('email', '==', user.email.toLowerCase()), limit(1));
             const querySnap = await getDocs(q);
             
             if (!querySnap.empty) {
@@ -70,11 +70,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
         }
 
-        // If all checks fail
+        // Final rejection
         setIsAuthorized(false);
         toast({
             title: 'Akses Ditolak',
-            description: 'Anda tidak memiliki hak akses untuk halaman ini.',
+            description: 'Anda tidak memiliki hak akses untuk halaman admin.',
             variant: 'destructive',
         });
         router.replace('/dashboard');
