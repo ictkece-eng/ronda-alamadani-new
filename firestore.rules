@@ -1,6 +1,6 @@
 /**
  * Ultimate Security Rules for Ronda Planner.
- * Enforces a strict model with a Master Admin bypass for the owner.
+ * Menggunakan Master Admin bypass berbasis UID yang tidak bisa dibantah.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -14,10 +14,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Master Admin check - The most powerful check
+    // Master Admin check - Jalur UID adalah yang paling stabil (hKUvl9TWZ8eR4wwjMFsTP49xfG22)
     function isMaster() {
       return isSignedIn() && (
-        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' ||
+        request.auth.uid == 'hKUvl9TWZ8eR4wwjMFsTP49xfG22' || 
         request.auth.token.email == 'tirtopbas@gmail.com'
       );
     }
@@ -31,47 +31,47 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------------
-    // GLOBAL MASTER BYPASS (POWER FULL ACCESS)
+    // GLOBAL MASTER BYPASS (Akses Mutlak untuk Bos)
     // ------------------------------------------------------------------------
     match /{document=**} {
       allow read, write: if isMaster();
     }
 
     // ------------------------------------------------------------------------
-    // Specific Collection Rules (For non-master users)
+    // Aturan Koleksi Spesifik (Untuk Pengguna Lain)
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow read: if true;
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaSchedules/{id} {
       allow read: if true;
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/scheduleRequests/{id} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     match /users/{userId}/rondaReplacements/{id} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     match /coordinatorAssignments/{id} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /roles_admin/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create, update, delete: if isMaster() || isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isMaster() || (isOwner(userId) && request.auth.token.email == 'tirtopbas@gmail.com');
     }
 
-    // Collection Group Rules
+    // Collection Group Rules agar query global tidak error
     match /{path=**}/scheduleRequests/{id} {
       allow read: if isSignedIn();
     }

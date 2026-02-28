@@ -44,6 +44,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
+        // Create profile
         const userRef = doc(firestore, 'users', uid);
         await setDoc(userRef, {
             id: uid,
@@ -65,35 +66,26 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const uid = userCredential.user.uid;
 
-        // CRITICAL: Ensure master admin has the record in roles_admin and profile on EVERY login
+        // ULTIMATE ADMIN SYNC: Paksa sinkronisasi status admin setiap kali login
         if (cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
             try {
-                // Force sync for master admin
-                await setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
-                await setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
+                // Gunakan setDoc tanpa await agar proses login tidak terhambat jika rules belum update
+                setDoc(doc(firestore, 'roles_admin', uid), { id: uid, email: cleanEmail }, { merge: true });
+                setDoc(doc(firestore, 'users', uid), { role: 'admin' }, { merge: true });
             } catch (e) {
-                console.warn("Could not auto-provision admin record, but hardcoded rules should still apply.");
+                console.warn("Syncing admin status failed, but hardcoded UID rules will bypass this.");
             }
         }
 
-        const adminRoleRef = doc(firestore, 'roles_admin', uid);
-        const adminSnap = await getDoc(adminRoleRef);
+        toast({ title: 'Login Berhasil', description: 'Selamat datang kembali!' });
         
-        const userRef = doc(firestore, 'users', uid);
-        const userSnap = await getDoc(userRef);
-        
-        let role = 'user';
-        if (adminSnap.exists() || cleanEmail === 'tirtopbas@gmail.com' || uid === 'hKUvl9TWZ8eR4wwjMFsTP49xfG22') {
-          role = 'admin';
-        } else if (userSnap.exists()) {
-          role = userSnap.data()?.role || 'user';
-        }
+        // Cek role untuk redirect
+        const userSnap = await getDoc(doc(firestore, 'users', uid));
+        const role = userSnap.data()?.role || 'user';
 
-        if (role === 'admin' || role === 'coordinator') {
-          toast({ title: 'Login Berhasil', description: `Selamat datang kembali, Admin.` });
+        if (role === 'admin' || role === 'coordinator' || cleanEmail === 'tirtopbas@gmail.com') {
           router.push('/admin');
         } else {
-          toast({ title: 'Login Berhasil', description: 'Mengarahkan ke dashboard warga.' });
           router.push('/dashboard');
         }
         onLoginSuccess?.();
@@ -101,12 +93,10 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
     } catch (error: any) {
       let message = 'Terjadi kesalahan. Silakan coba lagi.';
       
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        message = 'Email atau password salah. Pastikan akun sudah terdaftar.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        message = 'Email atau password salah.';
       } else if (error.code === 'auth/email-already-in-use') {
-        message = 'Email sudah terdaftar. Silakan gunakan email lain atau login.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password terlalu lemah (minimal 6 karakter).';
+        message = 'Email sudah terdaftar.';
       }
 
       toast({
