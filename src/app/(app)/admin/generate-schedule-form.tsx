@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, UserRoundPen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
@@ -113,7 +113,7 @@ export function GenerateScheduleForm() {
     return Object.entries(grouped).map(([date, participants]) => ({
         date,
         participants: participants.sort((a, b) => a.name.localeCompare(b.name))
-    })).sort((a, b) => a.date.compare(b.date));
+    })).sort((a, b) => a.date.localeCompare(b.date));
   }, [month, allSchedules, usersIdMap]);
 
   const hasExistingSchedule = !!existingScheduleData;
