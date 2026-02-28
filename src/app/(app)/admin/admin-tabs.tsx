@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Users, FileText, GitPullRequest, Download, History, Search, LogOut, Menu, UserCheck, Home, Users2, CalendarClock } from 'lucide-react';
+import { Users, FileText, GitPullRequest, Download, History, Search, LogOut, Menu, UserCheck, Home, Users2, CalendarClock, Loader2 } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
@@ -217,7 +217,7 @@ export function AdminTabs() {
                         <span className="sr-only">Toggle Menu</span>
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="w-[300px] sm:max-w-xs">
+                    <SheetContent side="left" className="w-[300px] sm:max-max-xs">
                         <nav className="grid gap-6 text-lg font-medium mt-10">
                             <Link
                                 href="#"
