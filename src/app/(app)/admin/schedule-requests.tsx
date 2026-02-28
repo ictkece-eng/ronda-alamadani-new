@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ThumbsDown, ThumbsUp, Plus, Search, Loader2, Trash2, RotateCcw } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, Plus, Search, Loader2, Trash2, RotateCcw, Pencil } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -67,6 +67,7 @@ export function ScheduleRequests() {
   const { data: users, isLoading: isUsersLoading } = useCollection<Warga>(usersQuery);
 
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<ScheduleRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const form = useForm<RequestFormValues>({
@@ -93,6 +94,16 @@ export function ScheduleRequests() {
     });
   };
 
+  const handleEditClick = (req: ScheduleRequest) => {
+    setEditingRequest(req);
+    form.reset({
+        userId: req.userId,
+        requestedDate: format(new Date(req.requestedScheduleDate), 'yyyy-MM-dd'),
+        reason: req.reason,
+    });
+    setIsFormDialogOpen(true);
+  };
+
   const handleDeleteRequest = (request: ScheduleRequest) => {
     if (!firestore) return;
     const requestRef = doc(firestore, 'users', request.userId, 'scheduleRequests', request.id);
@@ -106,25 +117,37 @@ export function ScheduleRequests() {
   const onSubmit = async (values: RequestFormValues) => {
     if (!firestore) return;
     try {
-        const requestsCol = collection(firestore, 'users', values.userId, 'scheduleRequests');
-        const newDocRef = doc(requestsCol);
-        
-        const dataToSave: ScheduleRequest = {
-            id: newDocRef.id,
-            userId: values.userId,
-            requestDate: new Date().toISOString(),
-            requestedScheduleDate: new Date(values.requestedDate).toISOString(),
-            reason: values.reason,
-            status: 'pending',
-        };
+        if (editingRequest) {
+            // Update existing request
+            const requestRef = doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id);
+            updateDocumentNonBlocking(requestRef, {
+                requestedScheduleDate: new Date(values.requestedDate).toISOString(),
+                reason: values.reason,
+            });
+            toast({ title: 'Berhasil', description: 'Permintaan jadwal diperbarui.' });
+        } else {
+            // Create new request
+            const requestsCol = collection(firestore, 'users', values.userId, 'scheduleRequests');
+            const newDocRef = doc(requestsCol);
+            
+            const dataToSave: ScheduleRequest = {
+                id: newDocRef.id,
+                userId: values.userId,
+                requestDate: new Date().toISOString(),
+                requestedScheduleDate: new Date(values.requestedDate).toISOString(),
+                reason: values.reason,
+                status: 'pending',
+            };
 
-        updateDocumentNonBlocking(newDocRef, dataToSave);
+            updateDocumentNonBlocking(newDocRef, dataToSave);
+            toast({ title: 'Berhasil', description: 'Permintaan jadwal berhasil ditambahkan.' });
+        }
         
         setIsFormDialogOpen(false);
+        setEditingRequest(null);
         form.reset();
-        toast({ title: 'Berhasil', description: 'Permintaan jadwal berhasil ditambahkan.' });
     } catch (e) {
-        toast({ title: 'Error', description: 'Gagal menambahkan permintaan.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'Gagal memproses permintaan.', variant: 'destructive' });
     }
   };
 
@@ -135,7 +158,9 @@ export function ScheduleRequests() {
             <CardTitle>Schedule Change Requests</CardTitle>
             <p className="text-sm text-muted-foreground">Kelola permintaan perubahan jadwal ronda dari warga.</p>
         </div>
-        <Button onClick={() => setIsFormDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Request</Button>
+        <Button onClick={() => { setEditingRequest(null); form.reset({ userId: '', requestedDate: '', reason: '' }); setIsFormDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> New Request
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="relative">
@@ -182,6 +207,17 @@ export function ScheduleRequests() {
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
+                                    {/* Action: Edit */}
+                                    <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => handleEditClick(req)}
+                                        title="Edit Pengajuan"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+
                                     {/* Action: Approve */}
                                     <Button 
                                         size="sm" 
@@ -262,11 +298,13 @@ export function ScheduleRequests() {
         </div>
       </CardContent>
 
-      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if(!open) setEditingRequest(null); }}>
           <DialogContent className="max-w-md">
               <DialogHeader>
-                  <DialogTitle>Buat Permintaan Baru</DialogTitle>
-                  <DialogDescription>Input permintaan perubahan jadwal secara manual oleh admin.</DialogDescription>
+                  <DialogTitle>{editingRequest ? 'Edit Permintaan' : 'Buat Permintaan Baru'}</DialogTitle>
+                  <DialogDescription>
+                      {editingRequest ? 'Perbarui detail permintaan jadwal warga.' : 'Input permintaan perubahan jadwal secara manual oleh admin.'}
+                  </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -274,13 +312,18 @@ export function ScheduleRequests() {
                           <FormItem>
                               <FormLabel>Pilih Warga</FormLabel>
                               <FormControl>
-                                  <select {...field} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                  <select 
+                                    {...field} 
+                                    disabled={!!editingRequest}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
                                       <option value="">-- Pilih Warga --</option>
                                       {users?.map(u => (
                                           <option key={u.id} value={u.id}>{u.name} ({u.address})</option>
                                       ))}
                                   </select>
                               </FormControl>
+                              {editingRequest && <p className="text-[10px] text-muted-foreground">Nama warga tidak dapat diubah saat edit. Hapus dan buat baru jika salah warga.</p>}
                               <FormMessage />
                           </FormItem>
                       )} />
@@ -299,7 +342,9 @@ export function ScheduleRequests() {
                           </FormItem>
                       )} />
                       <DialogFooter>
-                          <Button type="submit" className="w-full">Kirim Permintaan</Button>
+                          <Button type="submit" className="w-full">
+                              {editingRequest ? 'Simpan Perubahan' : 'Kirim Permintaan'}
+                          </Button>
                       </DialogFooter>
                   </form>
               </Form>
