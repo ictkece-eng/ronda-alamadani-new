@@ -139,6 +139,7 @@ export function GenerateScheduleForm() {
                         const [year, monthNum] = month.split('-').map(Number);
                         const daysInMonth = new Date(year, monthNum, 0).getDate();
                         const dailyAssignments: ParticipantInfo[][] = Array.from({ length: daysInMonth }, () => []);
+                    const MAX_PARTICIPANTS_PER_DAY = 3;
 
                 const getDayIndex = (dateLike: string | Date) => {
                     const date = typeof dateLike === 'string' ? new Date(dateLike) : dateLike;
@@ -151,36 +152,37 @@ export function GenerateScheduleForm() {
                     return day === 5 || day === 6;
                 });
 
-                const findPreferredWeekendSlot = (preferredIndex?: number) => {
-                    const hasCapacity = (dayIndex: number) => dailyAssignments[dayIndex].length < 3;
-
-                    if (typeof preferredIndex === 'number' && fridaySaturdayIndices.includes(preferredIndex) && hasCapacity(preferredIndex)) {
-                        return preferredIndex;
-                    }
-
-                    const candidates = fridaySaturdayIndices.filter(hasCapacity);
-                    if (candidates.length > 0) {
-                        return candidates.sort((a, b) => {
-                            const countDiff = dailyAssignments[a].length - dailyAssignments[b].length;
-                            return countDiff !== 0 ? countDiff : a - b;
-                        })[0];
-                    }
-
-                    if (typeof preferredIndex === 'number' && fridaySaturdayIndices.includes(preferredIndex)) {
-                        return preferredIndex;
-                    }
-
-                    return fridaySaturdayIndices[0] ?? preferredIndex ?? 0;
+                const sortByLeastFilled = (indices: number[]) => {
+                    return [...indices].sort((a, b) => {
+                        const countDiff = dailyAssignments[a].length - dailyAssignments[b].length;
+                        return countDiff !== 0 ? countDiff : a - b;
+                    });
                 };
 
-                const assignUserToDay = (userRecord: Warga, preferredDayIndex?: number) => {
+                const findBestAvailableSlot = (preferredIndices: number[] = [], fallbackIndices?: number[]) => {
+                    const hasCapacity = (dayIndex: number) => dailyAssignments[dayIndex].length < MAX_PARTICIPANTS_PER_DAY;
+
+                    const preferredAvailable = sortByLeastFilled(
+                        preferredIndices.filter((dayIndex) => dayIndex >= 0 && dayIndex < daysInMonth && hasCapacity(dayIndex))
+                    );
+                    if (preferredAvailable.length > 0) {
+                        return preferredAvailable[0];
+                    }
+
+                    const fallbackPool = fallbackIndices ?? Array.from({ length: daysInMonth }, (_, index) => index);
+                    const fallbackAvailable = sortByLeastFilled(
+                        fallbackPool.filter((dayIndex) => dayIndex >= 0 && dayIndex < daysInMonth && hasCapacity(dayIndex))
+                    );
+
+                    return fallbackAvailable[0];
+                };
+
+                const assignUserToDay = (userRecord: Warga, preferredIndices: number[] = []) => {
                     if (assignedUserIds.has(userRecord.id)) return false;
 
-                    const targetDayIndex = typeof preferredDayIndex === 'number'
-                        ? preferredDayIndex
-                        : findPreferredWeekendSlot();
+                    const targetDayIndex = findBestAvailableSlot(preferredIndices, Array.from({ length: daysInMonth }, (_, index) => index));
 
-                    if (targetDayIndex < 0 || targetDayIndex >= daysInMonth) return false;
+                    if (typeof targetDayIndex !== 'number' || targetDayIndex < 0 || targetDayIndex >= daysInMonth) return false;
 
                     dailyAssignments[targetDayIndex].push({ userId: userRecord.id, name: userRecord.name });
                     assignedUserIds.add(userRecord.id);
@@ -207,24 +209,25 @@ export function GenerateScheduleForm() {
                                         const reqDate = new Date(req.requestedScheduleDate);
                                         const dayIndex = reqDate.getUTCDate() - 1;
                                     if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                                        const preferredWeekendIndex = findPreferredWeekendSlot(dayIndex);
-                                        assignUserToDay(userRecord, preferredWeekendIndex);
+                                        const preferredWeekendIndices = fridaySaturdayIndices.includes(dayIndex)
+                                            ? [dayIndex, ...fridaySaturdayIndices.filter((index) => index !== dayIndex)]
+                                            : fridaySaturdayIndices;
+                                        assignUserToDay(userRecord, preferredWeekendIndices);
                                         }
                                 }
                         });
 
-                            const teacherParticipants = allParticipants.filter((participant) => participant.isTeacher === true && !assignedUserIds.has(participant.id));
-                            teacherParticipants.forEach((teacher) => {
-                                const preferredWeekendIndex = findPreferredWeekendSlot();
-                                assignUserToDay(teacher, preferredWeekendIndex);
-                            });
+                        const teacherParticipants = allParticipants.filter((participant) => participant.isTeacher === true && !assignedUserIds.has(participant.id));
+                        teacherParticipants.forEach((teacher) => {
+                                assignUserToDay(teacher, fridaySaturdayIndices);
+                        });
 
                         const remainingWarga = allParticipants
                                 .filter(u => !assignedUserIds.has(u.id))
                                 .sort(() => Math.random() - 0.5);
 
                         for (let d = 0; d < daysInMonth; d++) {
-                                while (dailyAssignments[d].length < 2 && remainingWarga.length > 0) {
+                            while (dailyAssignments[d].length < 2 && dailyAssignments[d].length < MAX_PARTICIPANTS_PER_DAY && remainingWarga.length > 0) {
                                         const candidate = remainingWarga.pop();
                                         if (candidate) {
                                                 dailyAssignments[d].push({ userId: candidate.id, name: candidate.name });
@@ -234,7 +237,7 @@ export function GenerateScheduleForm() {
                         }
 
                         for (let d = 0; d < daysInMonth; d++) {
-                                while (dailyAssignments[d].length < 3 && remainingWarga.length > 0) {
+                            while (dailyAssignments[d].length < MAX_PARTICIPANTS_PER_DAY && remainingWarga.length > 0) {
                                         const candidate = remainingWarga.pop();
                                         if (candidate) {
                                                 dailyAssignments[d].push({ userId: candidate.id, name: candidate.name });
