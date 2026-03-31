@@ -150,21 +150,35 @@ body {
 
 .dashboard-main-card {
   border-color: rgba(13, 110, 253, 0.12) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
 }
 
 .dashboard-main-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   background: linear-gradient(180deg, rgba(13, 110, 253, 0.14), rgba(13, 110, 253, 0.08));
   color: #0b5ed7 !important;
   border-bottom: 1px solid rgba(13, 110, 253, 0.2);
   font-size: 0.76rem;
+  box-shadow: inset 0 -1px 0 rgba(13, 110, 253, 0.12);
 }
 
 .dashboard-main-table > :not(caption) > * > * {
   border-color: rgba(148, 163, 184, 0.22);
 }
 
+.dashboard-main-table tbody td {
+  vertical-align: middle;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
 .dashboard-row td {
-  background-color: rgba(255, 255, 255, 0.88);
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.dashboard-main-table tbody tr:hover td {
+  background-color: rgba(239, 246, 255, 0.92) !important;
 }
 
 .dashboard-alt-row td {
@@ -179,6 +193,127 @@ body {
   min-width: 13rem;
   color: #0f172a;
   font-weight: 700;
+}
+
+.dashboard-date-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.24rem 0.62rem;
+  margin-bottom: 0.45rem;
+  background: rgba(13, 110, 253, 0.1);
+  color: #0b5ed7;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.dashboard-date-value {
+  line-height: 1.45;
+}
+
+.dashboard-person-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dashboard-row-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.dashboard-person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.16), rgba(13, 202, 240, 0.18));
+  color: #0b5ed7;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.08);
+}
+
+.dashboard-person-name {
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.dashboard-person-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.dashboard-block-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.38rem 0.8rem;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #334155;
+  font-weight: 600;
+}
+
+.dashboard-phone-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.dashboard-replacement-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.dashboard-replacement-badge,
+.dashboard-original-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.26rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-replacement-badge {
+  background: rgba(25, 135, 84, 0.12);
+  color: #157347;
+}
+
+.dashboard-original-badge {
+  background: rgba(148, 163, 184, 0.16);
+  color: #475569;
+}
+
+.dashboard-replacement-name {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.dashboard-main-card .table-responsive {
+  max-height: 68vh;
 }
 
 .dashboard-side-card {
@@ -314,5 +449,25 @@ body {
   .dashboard-filter-bar {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .dashboard-person-cell {
+    gap: 0.65rem;
+  }
+
+  .dashboard-row-order {
+    min-width: 1.8rem;
+    height: 1.8rem;
+    font-size: 0.68rem;
+  }
+
+  .dashboard-person-avatar {
+    width: 2.15rem;
+    height: 2.15rem;
+    font-size: 0.9rem;
+  }
+
+  .dashboard-date-cell {
+    min-width: 11rem;
   }
 }
