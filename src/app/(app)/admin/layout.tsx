@@ -94,8 +94,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isVerifying) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-2">
+      <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary">
+        <div className="d-flex flex-column align-items-center gap-2 app-surface p-4 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className='text-muted-foreground'>Memverifikasi hak akses...</p>
         </div>
@@ -108,7 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
