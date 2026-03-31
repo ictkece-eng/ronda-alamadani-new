@@ -61,7 +61,7 @@ const InfoCard = ({
   data: PersonInfo[];
   isLoading: boolean;
 }) => (
-  <Card>
+  <Card className="border-0 shadow-sm app-surface">
     <CardHeader>
       <CardTitle className="text-lg">{title}</CardTitle>
     </CardHeader>
@@ -394,14 +394,26 @@ export function ExportSchedule() {
 
   return (
     <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
+        <Card className="border-0 shadow-sm app-surface">
+          <CardContent className="p-4">
+            <div className="d-flex align-items-start gap-3 mb-3">
+              <div className="rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-10 p-3 text-primary">
+                <FileDown className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="small text-uppercase fw-semibold text-primary mb-1">Export Center</div>
+                <div className="fw-semibold">Ekspor jadwal ronda ke PDF atau PNG</div>
+                <div className="small text-muted">Filter data per bulan, cari nama, lalu ekspor hasil jadwal dengan tampilan yang tetap konsisten.</div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
                  <div className="relative w-full sm:w-48">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         id="search-name"
                         placeholder="Cari nama..."
-                        className="pl-8"
+                        className="pl-8 rounded-pill"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -414,7 +426,7 @@ export function ExportSchedule() {
                         type="month"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className='pl-8'
+                        className='pl-8 rounded-pill'
                     />
                 </div>
                  <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={isLoading || processedScheduleEntries.length === 0}>
@@ -426,9 +438,11 @@ export function ExportSchedule() {
                     <span>PNG</span>
                 </Button>
             </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <div id="capture-area" className="bg-card p-4 sm:p-6 rounded-lg border">
+      <div id="capture-area" className="bg-card p-4 sm:p-6 rounded-4 border shadow-sm app-surface">
           <div className="text-center mb-6">
               <h2 className="text-xl md:text-2xl font-bold uppercase text-primary">
               Jadwal Ronda Perum. Alam Madani
@@ -441,9 +455,9 @@ export function ExportSchedule() {
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <main className="lg:col-span-3">
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-4 overflow-hidden bg-white shadow-sm">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-body-tertiary">
                     <TableRow className="bg-primary/10 hover:bg-primary/20 border-b-primary/20">
                       <TableHead className="w-[28%] text-primary font-bold">
                         Hari, Tanggal
@@ -574,7 +588,7 @@ export function ExportSchedule() {
                 isLoading={isLoading}
               />
 
-              <Card>
+              <Card className="border-0 shadow-sm app-surface">
                 <CardHeader>
                   <CardTitle className="text-lg">
                     Informasi
