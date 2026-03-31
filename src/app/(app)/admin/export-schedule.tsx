@@ -515,9 +515,9 @@ export function ExportSchedule() {
                     </div>
                   </div>
                 </div>
-                <Table className="png-export-table table-striped table-bordered align-middle">
-                  <TableHeader className="bg-body-tertiary">
-                    <TableRow className="bg-primary/10 hover:bg-primary/20 border-b-primary/20">
+                <Table className="png-export-table table-bordered align-middle mb-0">
+                  <TableHeader className="png-export-table-head">
+                    <TableRow>
                       <TableHead className="w-[28%] text-primary font-bold">
                         Hari, Tanggal
                       </TableHead>
@@ -569,16 +569,23 @@ export function ExportSchedule() {
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  "transition-colors hover:bg-primary/10 png-export-row",
+                                  "png-export-row",
                                   isJumat 
-                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20 png-export-friday" 
+                                    ? "png-export-friday" 
                                     : !isEvenGroup 
-                                    ? "bg-secondary png-export-alt-row" 
+                                    ? "png-export-alt-row" 
                                     : ""
                                 )}
                               >
                                 <TableCell
-                                  className="font-medium align-top p-3 png-export-date-cell"
+                                  className={cn(
+                                    "font-medium align-top p-3 png-export-date-cell",
+                                    isJumat
+                                      ? "png-export-date-cell-friday"
+                                      : !isEvenGroup
+                                      ? "png-export-date-cell-alt"
+                                      : ""
+                                  )}
                                   rowSpan={rowSpan}
                                 >
                                   {entry.hariTanggal}
@@ -601,11 +608,11 @@ export function ExportSchedule() {
                             <TableRow
                               key={index}
                               className={cn(
-                                "transition-colors hover:bg-primary/10 png-export-row",
+                                "png-export-row",
                                 isJumat 
-                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20 png-export-friday" 
+                                  ? "png-export-friday" 
                                   : !isEvenGroup 
-                                  ? "bg-secondary png-export-alt-row" 
+                                  ? "png-export-alt-row" 
                                   : ""
                               )}
                             >
