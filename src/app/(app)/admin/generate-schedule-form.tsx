@@ -140,6 +140,53 @@ export function GenerateScheduleForm() {
                         const daysInMonth = new Date(year, monthNum, 0).getDate();
                         const dailyAssignments: ParticipantInfo[][] = Array.from({ length: daysInMonth }, () => []);
 
+                const getDayIndex = (dateLike: string | Date) => {
+                    const date = typeof dateLike === 'string' ? new Date(dateLike) : dateLike;
+                    return date.getUTCDay();
+                };
+
+                const fridaySaturdayIndices = Array.from({ length: daysInMonth }, (_, index) => index).filter((index) => {
+                    const date = new Date(Date.UTC(year, monthNum - 1, index + 1));
+                    const day = getDayIndex(date);
+                    return day === 5 || day === 6;
+                });
+
+                const findPreferredWeekendSlot = (preferredIndex?: number) => {
+                    const hasCapacity = (dayIndex: number) => dailyAssignments[dayIndex].length < 3;
+
+                    if (typeof preferredIndex === 'number' && fridaySaturdayIndices.includes(preferredIndex) && hasCapacity(preferredIndex)) {
+                        return preferredIndex;
+                    }
+
+                    const candidates = fridaySaturdayIndices.filter(hasCapacity);
+                    if (candidates.length > 0) {
+                        return candidates.sort((a, b) => {
+                            const countDiff = dailyAssignments[a].length - dailyAssignments[b].length;
+                            return countDiff !== 0 ? countDiff : a - b;
+                        })[0];
+                    }
+
+                    if (typeof preferredIndex === 'number' && fridaySaturdayIndices.includes(preferredIndex)) {
+                        return preferredIndex;
+                    }
+
+                    return fridaySaturdayIndices[0] ?? preferredIndex ?? 0;
+                };
+
+                const assignUserToDay = (userRecord: Warga, preferredDayIndex?: number) => {
+                    if (assignedUserIds.has(userRecord.id)) return false;
+
+                    const targetDayIndex = typeof preferredDayIndex === 'number'
+                        ? preferredDayIndex
+                        : findPreferredWeekendSlot();
+
+                    if (targetDayIndex < 0 || targetDayIndex >= daysInMonth) return false;
+
+                    dailyAssignments[targetDayIndex].push({ userId: userRecord.id, name: userRecord.name });
+                    assignedUserIds.add(userRecord.id);
+                    return true;
+                };
+
                         const allParticipants = users.filter(u => 
                                 u.role === 'user' || 
                                 u.role === 'coordinator' ||
@@ -159,12 +206,18 @@ export function GenerateScheduleForm() {
                                 if (userRecord && !assignedUserIds.has(userRecord.id)) {
                                         const reqDate = new Date(req.requestedScheduleDate);
                                         const dayIndex = reqDate.getUTCDate() - 1;
-                                        if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                                                dailyAssignments[dayIndex].push({ userId: userRecord.id, name: userRecord.name });
-                                                assignedUserIds.add(userRecord.id);
+                                    if (dayIndex >= 0 && dayIndex < daysInMonth) {
+                                        const preferredWeekendIndex = findPreferredWeekendSlot(dayIndex);
+                                        assignUserToDay(userRecord, preferredWeekendIndex);
                                         }
                                 }
                         });
+
+                            const teacherParticipants = allParticipants.filter((participant) => participant.isTeacher === true && !assignedUserIds.has(participant.id));
+                            teacherParticipants.forEach((teacher) => {
+                                const preferredWeekendIndex = findPreferredWeekendSlot();
+                                assignUserToDay(teacher, preferredWeekendIndex);
+                            });
 
                         const remainingWarga = allParticipants
                                 .filter(u => !assignedUserIds.has(u.id))
@@ -375,6 +428,7 @@ export function GenerateScheduleForm() {
                             <p>• <b>Anti-Double:</b> Menjamin warga tidak ronda ganda dalam sebulan.</p>
                             <p>• <b>Keamanan:</b> Target 2-3 orang per malam.</p>
                             <p>• <b>Prioritas Request:</b> Mengunci tanggal bagi warga yang pengajuannya sudah disetujui.</p>
+                            <p>• <b>Prioritas Jumat/Sabtu:</b> Warga dengan request yang disetujui dan warga berstatus guru diprioritaskan ke jadwal hari Jumat atau Sabtu.</p>
                         </AlertDescription>
                     </Alert>
                 </div>
