@@ -261,7 +261,7 @@ export function AdminTabs() {
                 </div>
             </header>
 
-            <div className="hidden lg-block border-bottom bg-white bg-opacity-75 shadow-sm">
+            <div className="hidden lg:block border-bottom bg-white bg-opacity-75 shadow-sm">
                 <div className="container-xxl px-3 px-md-4">
                     <MainNav />
                 </div>
