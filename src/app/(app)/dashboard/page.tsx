@@ -178,38 +178,76 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
-      <header className="rounded-4 border-0 shadow-sm app-surface p-4 p-lg-5 mb-4 mb-lg-5">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-          <div className="small text-uppercase fw-semibold text-primary mb-2">Dashboard Utama</div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard Jadwal Ronda</h1>
-          <p className="text-muted-foreground mb-0">Lihat, kelola, dan pantau jadwal ronda bulanan dengan tampilan Bootstrap yang lebih rapi.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
-                 <div className="relative w-full sm:w-48">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        id="search-name"
-                        placeholder="Cari nama..."
-              className="pl-8 rounded-pill"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+      <header className="dashboard-hero rounded-4 border-0 shadow-sm app-surface p-4 p-lg-5 mb-4 mb-lg-5 overflow-hidden position-relative">
+        <div className="row g-4 align-items-center position-relative">
+          <div className="col-12 col-xl-7">
+            <div className="dashboard-hero-copy">
+              <div className="d-inline-flex align-items-center gap-2 rounded-pill bg-white border border-primary border-opacity-10 px-3 py-2 shadow-sm mb-3">
+                <span className="badge text-bg-primary rounded-pill px-3 py-2">Dashboard Utama</span>
+                <span className="small fw-semibold text-primary-emphasis">Pantauan jadwal ronda bulanan</span>
+              </div>
+
+              <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">Dashboard Jadwal Ronda</h1>
+              <p className="text-muted-foreground mb-4 dashboard-hero-description">
+                Lihat, kelola, dan pantau jadwal ronda bulanan dengan tampilan Bootstrap yang lebih rapi, informatif, dan enak dipindai.
+              </p>
+
+              <div className="dashboard-hero-metrics">
+                <div className="dashboard-hero-metric">
+                  <div className="dashboard-hero-metric-label">Periode Aktif</div>
+                  <div className="dashboard-hero-metric-value text-primary">{periodText}</div>
                 </div>
-                <div className="relative w-full sm:w-48">
-                    <Label htmlFor="month-picker" className="sr-only">Pilih Bulan</Label>
-                    <CalendarIcon className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-                    <Input
-                        id="month-picker"
-                        type="month"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className='pl-8 rounded-pill'
-                    />
+                <div className="dashboard-hero-metric">
+                  <div className="dashboard-hero-metric-label">Hari Terjadwal</div>
+                  <div className="dashboard-hero-metric-value">{uniqueScheduleDays}</div>
                 </div>
+                <div className="dashboard-hero-metric">
+                  <div className="dashboard-hero-metric-label">Total Baris</div>
+                  <div className="dashboard-hero-metric-value">{processedScheduleEntries.length}</div>
+                </div>
+              </div>
             </div>
           </div>
-        </header>
+
+          <div className="col-12 col-xl-5">
+            <div className="dashboard-filter-panel">
+              <div className="dashboard-filter-panel-header">
+                <div className="small text-uppercase fw-semibold text-primary mb-1">Filter Jadwal</div>
+                <div className="small text-muted">Gunakan filter di bawah untuk mencari nama warga dan memilih periode jadwal.</div>
+              </div>
+
+              <div className="dashboard-filter-bar w-full">
+                <div className="dashboard-filter-group">
+                  <Label htmlFor="search-name" className="dashboard-filter-label">Cari Nama</Label>
+                  <div className="dashboard-filter-control position-relative">
+                    <Search className="dashboard-filter-icon" />
+                    <Input
+                      id="search-name"
+                      placeholder="Cari nama warga..."
+                      className="dashboard-filter-input"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="dashboard-filter-group">
+                  <Label htmlFor="month-picker" className="dashboard-filter-label">Pilih Bulan</Label>
+                  <div className="dashboard-filter-control position-relative">
+                    <CalendarIcon className="dashboard-filter-icon" />
+                    <Input
+                      id="month-picker"
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="dashboard-filter-input"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <div className="dashboard-sheet bg-card p-4 sm:p-6 rounded-4 border shadow-sm app-surface">
           <div className="text-center mb-4 mb-lg-5">
@@ -218,7 +256,7 @@ export default function DashboardPage() {
                 <span className="small fw-semibold text-primary-emphasis">Monitoring jadwal warga</span>
               </div>
               <h2 className="text-xl md:text-2xl font-bold uppercase text-primary">
-              Jadwal Ronda Perum. Alam Madani
+                Jadwal Ronda Perum. Alam Madani
               </h2>
               <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
               <p className="text-sm text-muted-foreground mt-1 capitalize font-medium">
