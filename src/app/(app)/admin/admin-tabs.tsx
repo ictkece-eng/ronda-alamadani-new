@@ -31,10 +31,10 @@ import type { Warga } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean }) => (
-    <Card className="shadow-lg border-none">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className="h-100 shadow-sm border-0 overflow-hidden app-surface">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-0">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
-            <div className="bg-primary/10 p-2 rounded-lg">
+            <div className="rounded-4 p-2 bg-primary bg-opacity-10 border border-primary border-opacity-10">
                 <Icon className="h-4 w-4 text-primary" />
             </div>
         </CardHeader>
@@ -70,13 +70,13 @@ const DashboardView = ({ userData }: { userData: Warga | null }) => {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight text-primary">Hi, {userData?.name || 'Warga'}!</h2>
-                <p className="text-muted-foreground mt-1 text-lg">Dashboard Admin Ronda</p>
+                <h2 className="display-6 fw-bold tracking-tight text-primary mb-1">Hi, {userData?.name || 'Warga'}!</h2>
+                <p className="text-muted-foreground mt-1 text-lg mb-0">Dashboard Admin Ronda</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Total Warga Ronda" value={stats.totalUsers} icon={Users} isLoading={isUsersLoading} />
-                <StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isUsersLoading} />
-                <StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isUsersLoading} />
+            <div className="row g-4">
+                <div className="col-12 col-md-6 col-xl-4"><StatCard title="Total Warga Ronda" value={stats.totalUsers} icon={Users} isLoading={isUsersLoading} /></div>
+                <div className="col-12 col-md-6 col-xl-4"><StatCard title="Koordinator" value={stats.totalCoordinators} icon={UserCheck} isLoading={isUsersLoading} /></div>
+                <div className="col-12 col-md-6 col-xl-4"><StatCard title="Backup / Pengganti" value={stats.totalBackups} icon={GitPullRequest} isLoading={isUsersLoading} /></div>
             </div>
         </div>
     );
@@ -123,7 +123,7 @@ export function AdminTabs() {
                 return <DashboardView userData={userData} />;
             case 'generate-schedule':
                 return (
-                    <Card className="shadow-lg border-none">
+                    <Card className="shadow-sm border-0 app-surface">
                         <CardHeader>
                             <CardTitle>Automated Schedule Generation</CardTitle>
                             <CardDescription>Generate a one-month ronda schedule automatically.</CardDescription>
@@ -141,7 +141,7 @@ export function AdminTabs() {
                 return <ReplacementManagement />;
             case 'export':
                 return (
-                     <Card className="shadow-lg border-none">
+                     <Card className="shadow-sm border-0 app-surface">
                         <CardHeader>
                             <CardTitle>Export Schedule</CardTitle>
                             <CardDescription>Export the monthly ronda schedule to PDF or PNG format.</CardDescription>
@@ -159,29 +159,28 @@ export function AdminTabs() {
     };
 
     const MainNav = ({ className }: { className?: string }) => (
-         <nav className={cn("flex items-center space-x-6", className)}>
+         <nav className={cn("nav nav-pills flex-nowrap gap-2 overflow-auto py-2", className)}>
             {navItems.map(item => (
                 <button
                     key={item.id}
                     onClick={() => setView(item.id)}
                     className={cn(
-                        "flex flex-col items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-all hover:text-primary py-4 relative",
-                        view === item.id && "text-primary"
+                        "nav-link d-inline-flex align-items-center gap-2 rounded-pill px-3 py-2 fw-semibold text-nowrap border border-transparent bg-transparent text-muted-foreground transition-all",
+                        view === item.id && "active bg-primary text-white shadow-sm",
+                        view !== item.id && "hover:bg-white hover:border-primary-subtle hover:text-primary"
                     )}
                 >
                     <item.icon className="h-5 w-5" />
                     <span>{item.label}</span>
-                    {view === item.id && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />
-                    )}
                 </button>
             ))}
         </nav>
     );
 
     return (
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 shadow-sm">
+        <div className="d-flex min-vh-100 w-100 flex-column bg-body-tertiary">
+            <header className="sticky-top z-3 border-bottom bg-white bg-opacity-75 shadow-sm backdrop-blur">
+                <div className="container-xxl px-3 px-md-4 d-flex align-items-center gap-3" style={{ minHeight: '4.5rem' }}>
                  <Sheet>
                     <SheetTrigger asChild>
                         <Button size="icon" variant="outline" className="lg:hidden">
@@ -192,7 +191,7 @@ export function AdminTabs() {
                     <SheetContent side="left" className="w-[300px] sm:max-max-xs">
                         <SheetTitle className="sr-only">Menu Navigasi</SheetTitle>
                         <SheetDescription className="sr-only">Pilih menu untuk mengelola sistem ronda</SheetDescription>
-                        <nav className="grid gap-6 text-lg font-medium mt-10">
+                        <nav className="grid gap-3 text-lg font-medium mt-10">
                             <div className="flex items-center gap-2 font-bold text-xl text-primary mb-4">
                                 <UserCheck className="h-7 w-7" />
                                 <span>Ronda Planner</span>
@@ -202,8 +201,8 @@ export function AdminTabs() {
                                     key={item.id}
                                     onClick={() => { setView(item.id); }}
                                     className={cn(
-                                        "flex items-center gap-4 px-3 py-2 rounded-lg transition-colors text-muted-foreground hover:text-primary hover:bg-primary/5",
-                                        view === item.id && "text-primary bg-primary/10 font-bold"
+                                        "d-flex items-center gap-3 px-3 py-2 rounded-4 border border-transparent transition-colors text-muted-foreground hover:text-primary hover:bg-primary/5",
+                                        view === item.id && "text-primary bg-primary/10 border-primary-subtle fw-bold"
                                     )}
                                 >
                                     <item.icon className="h-5 w-5" />
@@ -219,21 +218,21 @@ export function AdminTabs() {
                     <span className="hidden sm:inline">Ronda Planner</span>
                 </div>
 
-                 <div className="relative flex-1 md:max-w-md">
+                 <div className="position-relative flex-grow-1" style={{ maxWidth: '32rem' }}>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
                         placeholder="Search dashboard..."
-                        className="w-full h-10 rounded-xl bg-muted/50 border-none pl-10 focus-visible:ring-primary"
+                        className="w-full h-10 rounded-pill border-0 bg-body-tertiary shadow-none ps-5 focus-visible:ring-primary"
                     />
                 </div>
 
-                 <div className="ml-auto flex items-center gap-4">
+                 <div className="ms-auto d-flex align-items-center gap-3">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
                             variant="ghost"
-                            className="relative h-10 w-10 rounded-full border-2 border-primary/20 p-0 overflow-hidden"
+                            className="position-relative h-10 w-10 rounded-circle border border-primary border-opacity-10 p-0 overflow-hidden bg-white"
                             >
                                 <Avatar className="h-full w-full">
                                     <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg" alt="User" />
@@ -259,14 +258,19 @@ export function AdminTabs() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                  </div>
+                </div>
             </header>
 
-            <div className="hidden lg:block border-b bg-card px-4 md:px-6">
-                <MainNav />
+            <div className="hidden lg-block border-bottom bg-white bg-opacity-75 shadow-sm">
+                <div className="container-xxl px-3 px-md-4">
+                    <MainNav />
+                </div>
             </div>
 
-            <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
-                {renderView()}
+            <main className="flex-1 py-4 py-md-5">
+                <div className="container-xxl px-3 px-md-4">
+                    {renderView()}
+                </div>
             </main>
         </div>
     );
