@@ -33,6 +33,8 @@ type ParticipantInfo = {
         userId: string;
         name: string;
         docId?: string;
+    isLocked?: boolean;
+    lockReason?: 'approved-request' | 'teacher';
 };
 
 type GeneratedSchedule = {
@@ -159,6 +161,16 @@ export function GenerateScheduleForm() {
                     });
                 };
 
+                const assignParticipantToDay = (dayIndex: number, participant: ParticipantInfo) => {
+                    if (dayIndex < 0 || dayIndex >= daysInMonth) return false;
+                    if (assignedUserIds.has(participant.userId)) return false;
+                    if (dailyAssignments[dayIndex].length >= MAX_PARTICIPANTS_PER_DAY) return false;
+
+                    dailyAssignments[dayIndex].push(participant);
+                    assignedUserIds.add(participant.userId);
+                    return true;
+                };
+
                 const findBestAvailableSlot = (preferredIndices: number[] = [], fallbackIndices?: number[]) => {
                     const hasCapacity = (dayIndex: number) => dailyAssignments[dayIndex].length < MAX_PARTICIPANTS_PER_DAY;
 
@@ -177,16 +189,22 @@ export function GenerateScheduleForm() {
                     return fallbackAvailable[0];
                 };
 
-                const assignUserToDay = (userRecord: Warga, preferredIndices: number[] = []) => {
+                const assignUserToDay = (
+                    userRecord: Warga,
+                    preferredIndices: number[] = [],
+                    options?: Pick<ParticipantInfo, 'isLocked' | 'lockReason'>
+                ) => {
                     if (assignedUserIds.has(userRecord.id)) return false;
 
                     const targetDayIndex = findBestAvailableSlot(preferredIndices, Array.from({ length: daysInMonth }, (_, index) => index));
 
                     if (typeof targetDayIndex !== 'number' || targetDayIndex < 0 || targetDayIndex >= daysInMonth) return false;
 
-                    dailyAssignments[targetDayIndex].push({ userId: userRecord.id, name: userRecord.name });
-                    assignedUserIds.add(userRecord.id);
-                    return true;
+                    return assignParticipantToDay(targetDayIndex, {
+                        userId: userRecord.id,
+                        name: userRecord.name,
+                        ...options,
+                    });
                 };
 
                         const allParticipants = users.filter(u => 
@@ -209,17 +227,26 @@ export function GenerateScheduleForm() {
                                         const reqDate = new Date(req.requestedScheduleDate);
                                         const dayIndex = reqDate.getUTCDate() - 1;
                                     if (dayIndex >= 0 && dayIndex < daysInMonth) {
-                                        const preferredWeekendIndices = fridaySaturdayIndices.includes(dayIndex)
-                                            ? [dayIndex, ...fridaySaturdayIndices.filter((index) => index !== dayIndex)]
-                                            : fridaySaturdayIndices;
-                                        assignUserToDay(userRecord, preferredWeekendIndices);
+                                        const assigned = assignParticipantToDay(dayIndex, {
+                                            userId: userRecord.id,
+                                            name: userRecord.name,
+                                            isLocked: true,
+                                            lockReason: 'approved-request',
+                                        });
+
+                                        if (!assigned) {
+                                            throw new Error(`Tanggal request ${format(reqDate, 'dd MMM yyyy', { locale: idLocale })} sudah penuh. Kurangi request approved di tanggal tersebut lalu generate ulang.`);
                                         }
+                                    }
                                 }
                         });
 
                         const teacherParticipants = allParticipants.filter((participant) => participant.isTeacher === true && !assignedUserIds.has(participant.id));
                         teacherParticipants.forEach((teacher) => {
-                                assignUserToDay(teacher, fridaySaturdayIndices);
+                                assignUserToDay(teacher, fridaySaturdayIndices, {
+                                    isLocked: true,
+                                    lockReason: 'teacher',
+                                });
                         });
 
                         const remainingWarga = allParticipants
@@ -329,16 +356,30 @@ export function GenerateScheduleForm() {
         }
     };
 
-    const handleParticipantChange = (_date: string, oldUserId: string, newUserId: string, docId?: string) => {
+        const handleParticipantChange = (date: string, oldUserId: string, newUserId: string, docId?: string) => {
             if (!newUserId || newUserId === oldUserId) return;
             const newUser = usersIdMap.get(newUserId);
             if (!newUser) return;
 
             if (isPreview) {
+                const targetParticipant = (generatedSchedule || [])
+                .find((day) => day.date === date)
+                ?.participants.find((participant) => participant.userId === oldUserId);
+
+                if (targetParticipant?.isLocked) {
+                    const reasonLabel = targetParticipant.lockReason === 'approved-request' ? 'request approved' : 'status guru';
+                    toast({
+                    title: 'Nama Terkunci',
+                    description: `Warga ini dikunci karena prioritas ${reasonLabel} dan tidak bisa diganti di mode pratinjau.`,
+                    variant: 'destructive',
+                    });
+                    return;
+                }
+
                     const updated = (generatedSchedule || []).map(day => ({
                             ...day,
                             participants: day.participants.map(p => 
-                                    p.userId === oldUserId ? { userId: newUser.id, name: newUser.name } : p
+                        p.userId === oldUserId ? { ...p, userId: newUser.id, name: newUser.name } : p
                             )
                     }));
                     setGeneratedSchedule(updated);
@@ -467,13 +508,25 @@ export function GenerateScheduleForm() {
                                                 <div className="flex flex-col gap-2">
                                                     {day.participants.length > 0 ? day.participants.map((p, idx) => (
                                                         <div key={`${day.date}-${p.userId}-${idx}`} className="w-full">
-                                                            <Combobox 
-                                                                value={p.userId}
-                                                                onValueChange={(newId) => handleParticipantChange(day.date, p.userId, newId, p.docId)}
-                                                                options={userOptions}
-                                                                placeholder="Pilih warga..."
-                                                                className={cn('h-8 text-[11px] justify-start', isPreview ? 'bg-white' : 'bg-green-100/30 border-green-200')}
-                                                            />
+                                                            {isPreview && p.isLocked ? (
+                                                                <div className="d-flex align-items-center justify-content-between gap-2 rounded-3 border border-primary border-opacity-25 bg-primary bg-opacity-10 px-3 py-2">
+                                                                    <div className="d-flex flex-column">
+                                                                        <span className="fw-semibold text-body small">{p.name}</span>
+                                                                        <span className="text-muted small">
+                                                                            {p.lockReason === 'approved-request' ? 'Terkunci dari request approved' : 'Terkunci karena status guru'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <Badge variant="outline" className="border-primary text-primary">Locked</Badge>
+                                                                </div>
+                                                            ) : (
+                                                                <Combobox 
+                                                                    value={p.userId}
+                                                                    onValueChange={(newId) => handleParticipantChange(day.date, p.userId, newId, p.docId)}
+                                                                    options={userOptions}
+                                                                    placeholder="Pilih warga..."
+                                                                    className={cn('h-8 text-[11px] justify-start', isPreview ? 'bg-white' : 'bg-green-100/30 border-green-200')}
+                                                                />
+                                                            )}
                                                         </div>
                                                     )) : <span className="text-destructive text-[10px] italic">Warga tidak cukup</span>}
                                                 </div>
