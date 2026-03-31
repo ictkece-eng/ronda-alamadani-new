@@ -20,10 +20,12 @@ export default function AppLayout({
 
   // For all other pages, render the standard layout with the TopNavbar
   return (
-    <div>
+    <div className="app-shell">
         <TopNavbar />
-        <main className="pt-16 bg-muted/40 min-h-screen">
-            {children}
+        <main className="pt-5 min-vh-100">
+            <div className="container-xxl py-4 mt-4">
+              {children}
+            </div>
         </main>
     </div>
   );
