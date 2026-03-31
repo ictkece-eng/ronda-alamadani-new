@@ -75,3 +75,62 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+.png-export-sheet {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%),
+    radial-gradient(circle at top, rgba(13, 110, 253, 0.08), transparent 42%);
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  box-shadow: 0 30px 70px -40px rgba(15, 23, 42, 0.45);
+}
+
+.png-export-hero {
+  padding: 1.25rem 1rem 0.5rem;
+}
+
+.png-export-stat {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.95));
+  border: 1px solid rgba(13, 110, 253, 0.1);
+}
+
+.png-export-main-card {
+  border-color: rgba(13, 110, 253, 0.12) !important;
+}
+
+.png-export-table thead th {
+  background: linear-gradient(180deg, rgba(13, 110, 253, 0.14), rgba(13, 110, 253, 0.08));
+  color: #0b5ed7 !important;
+  border-bottom: 1px solid rgba(13, 110, 253, 0.2);
+  font-size: 0.76rem;
+}
+
+.png-export-table > :not(caption) > * > * {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.png-export-row td {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+
+.png-export-alt-row td {
+  background-color: rgba(248, 250, 252, 0.96) !important;
+}
+
+.png-export-friday td {
+  background: linear-gradient(180deg, rgba(254, 249, 195, 0.95), rgba(254, 240, 138, 0.72)) !important;
+}
+
+.png-export-date-cell {
+  min-width: 13rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.png-export-side-card {
+  border: 1px solid rgba(13, 110, 253, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+}
+
+.png-export-contact-item {
+  background: rgba(248, 250, 252, 0.88);
+}
