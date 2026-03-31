@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { FileDown, Calendar as CalendarIcon, Image as ImageIcon, Loader2, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import type { CellHookData } from 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
@@ -36,7 +37,7 @@ declare module 'jspdf' {
 }
 
 
-function countConsecutiveDates(schedule: any[], startIndex: number) {
+function countConsecutiveDates(schedule: ScheduleEntry[], startIndex: number) {
   let count = 1;
   if (startIndex >= schedule.length) return count;
 
@@ -347,18 +348,19 @@ export function ExportSchedule() {
         alternateRowStyles: {
             fillColor: [248, 249, 250]
         },
-        didDrawCell: (data) => {
+        didDrawCell: (data: CellHookData) => {
             // This logic handles the vertical merging of date cells
             if (data.column.dataKey === 'hariTanggal' && rowSpans[data.row.index]) {
                 const span = rowSpans[data.row.index];
                 if (span > 1) {
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height * span, 'S');
                     const textY = data.cell.y + (data.cell.height * span) / 2;
-                    doc.text(data.cell.text, data.cell.x + data.cell.padding('left'), textY, { valign: 'middle' });
+              const cellText = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : data.cell.text;
+              doc.text(cellText, data.cell.x + data.cell.padding('left'), textY);
                 }
             }
         },
-         willDrawCell: (data) => {
+         willDrawCell: (data: CellHookData) => {
             // This logic prevents drawing the date cell again for subsequent rows of the same date
             if (data.column.dataKey === 'hariTanggal' && data.row.index > 0 && mainTableBody[data.row.index].hariTanggal === mainTableBody[data.row.index - 1].hariTanggal) {
                return false;
