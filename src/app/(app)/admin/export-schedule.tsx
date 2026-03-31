@@ -61,9 +61,14 @@ const InfoCard = ({
   data: PersonInfo[];
   isLoading: boolean;
 }) => (
-  <Card className="border-0 shadow-sm app-surface">
-    <CardHeader>
-      <CardTitle className="text-lg">{title}</CardTitle>
+  <Card className="border-0 shadow-sm app-surface png-export-side-card">
+    <CardHeader className="pb-3 border-bottom border-opacity-10">
+      <CardTitle className="text-lg d-flex align-items-center justify-content-between gap-3">
+        <span>{title}</span>
+        <span className="badge rounded-pill text-bg-light border text-primary-emphasis px-3 py-2">
+          {data.length}
+        </span>
+      </CardTitle>
     </CardHeader>
     <CardContent>
       {isLoading ? (
@@ -75,7 +80,7 @@ const InfoCard = ({
       ) : (
         <ul className="space-y-3">
           {data.map((person, index) => (
-            <li key={index} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-secondary/50">
+            <li key={index} className="png-export-contact-item flex items-center justify-between gap-4 p-3 rounded-4 bg-secondary/50 border border-light-subtle">
                 <div className="flex flex-col">
                     <span className="font-semibold">{person.nama}</span>
                     <span className="text-xs text-muted-foreground">{person.blok}</span>
@@ -173,6 +178,8 @@ export function ExportSchedule() {
 
   let lastDate = '';
   let dateGroupIndex = 0;
+
+  const uniqueScheduleDays = useMemo(() => new Set(processedScheduleEntries.map((entry) => entry.hariTanggal)).size, [processedScheduleEntries]);
   
   const periodText = useMemo(() => {
     if (!selectedMonth) return '';
@@ -442,21 +449,73 @@ export function ExportSchedule() {
           </CardContent>
         </Card>
 
-      <div id="capture-area" className="bg-card p-4 sm:p-6 rounded-4 border shadow-sm app-surface">
-          <div className="text-center mb-6">
-              <h2 className="text-xl md:text-2xl font-bold uppercase text-primary">
-              Jadwal Ronda Perum. Alam Madani
+      <div id="capture-area" className="png-export-sheet bg-card p-4 sm:p-6 rounded-4 border shadow-sm app-surface">
+          <div className="png-export-hero text-center mb-4 mb-lg-5">
+              <div className="d-inline-flex align-items-center gap-2 rounded-pill bg-white border border-primary border-opacity-10 px-3 py-2 shadow-sm mb-3">
+                <span className="badge text-bg-primary rounded-pill px-3 py-2">Export PNG</span>
+                <span className="small fw-semibold text-primary-emphasis">Jadwal ronda siap dibagikan</span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold uppercase text-primary mb-1">
+                Jadwal Ronda Perum. Alam Madani
               </h2>
-              <p className="text-md md:text-lg text-muted-foreground">RT 08 / RW 20</p>
-              <p className="text-sm text-muted-foreground mt-1 capitalize font-medium">
+              <p className="text-md md:text-lg text-muted-foreground mb-1">RT 08 / RW 20</p>
+              <p className="text-sm text-muted-foreground mt-1 capitalize font-medium mb-0">
                 Periode: {periodText}
               </p>
           </div>
 
+          <div className="row g-3 mb-4">
+            <div className="col-md-4">
+              <div className="png-export-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Hari Terjadwal</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{uniqueScheduleDays}</div>
+                    <span className="badge rounded-pill text-bg-primary-subtle text-primary-emphasis px-3 py-2">Bulan aktif</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="png-export-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Total Baris Jadwal</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{processedScheduleEntries.length}</div>
+                    <span className="badge rounded-pill text-bg-info-subtle text-info-emphasis px-3 py-2">Siap export</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="png-export-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Pendukung Lapangan</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{backupPersons.length + coordinatorPersons.length}</div>
+                    <span className="badge rounded-pill text-bg-success-subtle text-success-emphasis px-3 py-2">Backup + kord</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <main className="lg:col-span-3">
-              <div className="border rounded-4 overflow-hidden bg-white shadow-sm">
-                <Table>
+              <div className="png-export-main-card border rounded-4 overflow-hidden bg-white shadow-sm">
+                <div className="px-4 px-lg-5 pt-4 pt-lg-5 pb-3 border-bottom bg-white">
+                  <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                      <div className="small text-uppercase fw-semibold text-primary mb-1">Tabel Jadwal</div>
+                      <div className="fw-bold text-dark">Daftar ronda harian warga</div>
+                    </div>
+                    <div className="d-flex flex-wrap gap-2">
+                      <span className="badge rounded-pill text-bg-light border px-3 py-2">Bootstrap Sheet</span>
+                      <span className="badge rounded-pill text-bg-warning-subtle text-warning-emphasis px-3 py-2">Highlight Jumat</span>
+                    </div>
+                  </div>
+                </div>
+                <Table className="png-export-table table-striped table-bordered align-middle">
                   <TableHeader className="bg-body-tertiary">
                     <TableRow className="bg-primary/10 hover:bg-primary/20 border-b-primary/20">
                       <TableHead className="w-[28%] text-primary font-bold">
@@ -510,16 +569,16 @@ export function ExportSchedule() {
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  "transition-colors hover:bg-primary/10",
+                                  "transition-colors hover:bg-primary/10 png-export-row",
                                   isJumat 
-                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20 png-export-friday" 
                                     : !isEvenGroup 
-                                    ? "bg-secondary" 
+                                    ? "bg-secondary png-export-alt-row" 
                                     : ""
                                 )}
                               >
                                 <TableCell
-                                  className="font-medium align-top p-3"
+                                  className="font-medium align-top p-3 png-export-date-cell"
                                   rowSpan={rowSpan}
                                 >
                                   {entry.hariTanggal}
@@ -542,11 +601,11 @@ export function ExportSchedule() {
                             <TableRow
                               key={index}
                               className={cn(
-                                "transition-colors hover:bg-primary/10",
+                                "transition-colors hover:bg-primary/10 png-export-row",
                                 isJumat 
-                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20 png-export-friday" 
                                   : !isEvenGroup 
-                                  ? "bg-secondary" 
+                                  ? "bg-secondary png-export-alt-row" 
                                   : ""
                               )}
                             >
