@@ -42,9 +42,33 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    const resolvedVariant = variant ?? "default"
+    const resolvedSize = size ?? "default"
+
+    const bootstrapVariantClasses = {
+      default: "btn btn-primary",
+      destructive: "btn btn-danger",
+      outline: "btn btn-outline-secondary",
+      secondary: "btn btn-secondary",
+      ghost: "btn btn-light",
+      link: "btn btn-link",
+    }[resolvedVariant]
+
+    const bootstrapSizeClasses = {
+      default: "",
+      sm: "btn-sm",
+      lg: "btn-lg",
+      icon: "btn-icon p-0",
+    }[resolvedSize]
+
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          bootstrapVariantClasses,
+          bootstrapSizeClasses,
+          buttonVariants({ variant, size }),
+          className
+        )}
         ref={ref}
         {...props}
       />
