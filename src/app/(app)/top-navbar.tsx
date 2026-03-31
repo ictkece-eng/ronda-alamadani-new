@@ -48,16 +48,18 @@ export function TopNavbar() {
     
     return (
         <>
-            <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b shadow-sm">
-                <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-                    <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg text-primary">
+            <header className="navbar navbar-expand-lg fixed-top border-bottom bg-white bg-opacity-75 shadow-sm ronda-navbar">
+                <div className="container-xxl px-3 px-lg-4 d-flex align-items-center justify-content-between" style={{ minHeight: '4.5rem' }}>
+                    <Link href="/dashboard" className="navbar-brand d-flex align-items-center gap-2 fw-bold text-primary-emphasis mb-0">
                         <UserCheck className="h-6 w-6" />
                         <span>Ronda Planner</span>
                     </Link>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="d-flex align-items-center gap-2">
                         {isUserLoading ? (
-                            <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
+                            <div className="placeholder-glow">
+                                <span className="placeholder rounded-pill" style={{ width: '5rem', height: '2.25rem' }}></span>
+                            </div>
                         ) : user ? (
                             <Button variant="ghost" size="sm" onClick={handleLogout}>
                                 <LogOut className="mr-2 h-4 w-4" />
@@ -75,7 +77,7 @@ export function TopNavbar() {
             
             <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader className="text-center space-y-2">
+                    <DialogHeader className="text-center space-y-2 pb-2 border-bottom">
                         <DialogTitle className="text-2xl font-bold">Ronda Planner Login</DialogTitle>
                         <DialogDescription>
                             Masukkan kredensial Anda untuk masuk.
