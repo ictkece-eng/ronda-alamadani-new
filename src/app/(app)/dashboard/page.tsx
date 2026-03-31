@@ -49,9 +49,14 @@ const InfoCard = ({
   data: PersonInfo[];
   isLoading: boolean;
 }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="text-lg">{title}</CardTitle>
+  <Card className="border-0 shadow-sm app-surface dashboard-side-card">
+    <CardHeader className="pb-3 border-bottom border-opacity-10">
+      <CardTitle className="text-lg d-flex align-items-center justify-content-between gap-3">
+        <span>{title}</span>
+        <span className="badge rounded-pill text-bg-light border text-primary-emphasis px-3 py-2">
+          {data.length}
+        </span>
+      </CardTitle>
     </CardHeader>
     <CardContent>
       {isLoading ? (
@@ -63,7 +68,7 @@ const InfoCard = ({
       ) : (
         <ul className="space-y-3">
           {data.map((person, index) => (
-            <li key={index} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-secondary/50">
+            <li key={index} className="dashboard-contact-item flex items-center justify-between gap-4 p-3 rounded-4 bg-secondary/50 border border-light-subtle">
                 <div className="flex flex-col">
                     <span className="font-semibold">{person.nama}</span>
                     <span className="text-xs text-muted-foreground">{person.blok}</span>
@@ -160,6 +165,8 @@ export default function DashboardPage() {
 
   let lastDate = '';
   let dateGroupIndex = 0;
+
+  const uniqueScheduleDays = useMemo(() => new Set(processedScheduleEntries.map((entry) => entry.hariTanggal)).size, [processedScheduleEntries]);
   
   const periodText = useMemo(() => {
     if (!selectedMonth) return '';
@@ -171,10 +178,12 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-2 sm:p-4 md:p-6">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <header className="rounded-4 border-0 shadow-sm app-surface p-4 p-lg-5 mb-4 mb-lg-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard Jadwal Ronda</h1>
-                <p className="text-muted-foreground">Lihat, kelola, dan ekspor jadwal ronda bulanan.</p>
+          <div className="small text-uppercase fw-semibold text-primary mb-2">Dashboard Utama</div>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard Jadwal Ronda</h1>
+          <p className="text-muted-foreground mb-0">Lihat, kelola, dan pantau jadwal ronda bulanan dengan tampilan Bootstrap yang lebih rapi.</p>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
                  <div className="relative w-full sm:w-48">
@@ -182,7 +191,7 @@ export default function DashboardPage() {
                     <Input
                         id="search-name"
                         placeholder="Cari nama..."
-                        className="pl-8"
+              className="pl-8 rounded-pill"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -195,14 +204,19 @@ export default function DashboardPage() {
                         type="month"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className='pl-8'
+                        className='pl-8 rounded-pill'
                     />
                 </div>
             </div>
+          </div>
         </header>
 
-      <div className="bg-card p-4 sm:p-6 rounded-lg border">
-          <div className="text-center mb-6">
+      <div className="dashboard-sheet bg-card p-4 sm:p-6 rounded-4 border shadow-sm app-surface">
+          <div className="text-center mb-4 mb-lg-5">
+              <div className="d-inline-flex align-items-center gap-2 rounded-pill bg-white border border-primary border-opacity-10 px-3 py-2 shadow-sm mb-3">
+                <span className="badge text-bg-primary rounded-pill px-3 py-2">Live Schedule</span>
+                <span className="small fw-semibold text-primary-emphasis">Monitoring jadwal warga</span>
+              </div>
               <h2 className="text-xl md:text-2xl font-bold uppercase text-primary">
               Jadwal Ronda Perum. Alam Madani
               </h2>
@@ -212,11 +226,59 @@ export default function DashboardPage() {
               </p>
           </div>
 
+          <div className="row g-3 mb-4">
+            <div className="col-md-4">
+              <div className="dashboard-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Hari Terjadwal</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{uniqueScheduleDays}</div>
+                    <span className="badge rounded-pill text-bg-primary-subtle text-primary-emphasis px-3 py-2">Aktif</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="dashboard-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Total Baris Jadwal</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{processedScheduleEntries.length}</div>
+                    <span className="badge rounded-pill text-bg-info-subtle text-info-emphasis px-3 py-2">Realtime</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="dashboard-stat card border-0 shadow-sm h-100">
+                <div className="card-body py-3 px-4">
+                  <div className="small text-uppercase text-muted fw-semibold mb-1">Support Person</div>
+                  <div className="d-flex align-items-end justify-content-between gap-3">
+                    <div className="display-6 fw-bold text-primary mb-0">{backupPersons.length + coordinatorPersons.length}</div>
+                    <span className="badge rounded-pill text-bg-success-subtle text-success-emphasis px-3 py-2">Backup + kord</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <main className="lg:col-span-3">
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
+              <div className="dashboard-main-card border rounded-4 overflow-hidden bg-white shadow-sm">
+                <div className="px-4 px-lg-5 pt-4 pt-lg-5 pb-3 border-bottom bg-white">
+                  <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                      <div className="small text-uppercase fw-semibold text-primary mb-1">Tabel Utama</div>
+                      <div className="fw-bold text-dark">Daftar ronda harian warga</div>
+                    </div>
+                    <div className="d-flex flex-wrap gap-2">
+                      <span className="badge rounded-pill text-bg-light border px-3 py-2">Bootstrap Table</span>
+                      <span className="badge rounded-pill text-bg-warning-subtle text-warning-emphasis px-3 py-2">Highlight Jumat</span>
+                    </div>
+                  </div>
+                </div>
+                <Table className="dashboard-main-table table-striped table-bordered align-middle">
+                  <TableHeader className="bg-body-tertiary">
                     <TableRow className="bg-primary/10 hover:bg-primary/20 border-b-primary/20">
                       <TableHead className="w-[28%] text-primary font-bold">
                         Hari, Tanggal
@@ -269,16 +331,16 @@ export default function DashboardPage() {
                               <TableRow
                                 key={index}
                                 className={cn(
-                                  "transition-colors hover:bg-primary/10",
+                                  "transition-colors hover:bg-primary/10 dashboard-row",
                                   isJumat 
-                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                    ? "bg-yellow-100/50 dark:bg-yellow-900/20 dashboard-friday" 
                                     : !isEvenGroup 
-                                    ? "bg-secondary" 
+                                    ? "bg-secondary dashboard-alt-row" 
                                     : ""
                                 )}
                               >
                                 <TableCell
-                                  className="font-medium align-top p-3"
+                                  className="font-medium align-top p-3 dashboard-date-cell"
                                   rowSpan={rowSpan}
                                 >
                                   {entry.hariTanggal}
@@ -301,11 +363,11 @@ export default function DashboardPage() {
                             <TableRow
                               key={index}
                               className={cn(
-                                "transition-colors hover:bg-primary/10",
+                                "transition-colors hover:bg-primary/10 dashboard-row",
                                 isJumat 
-                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20" 
+                                  ? "bg-yellow-100/50 dark:bg-yellow-900/20 dashboard-friday" 
                                   : !isEvenGroup 
-                                  ? "bg-secondary" 
+                                  ? "bg-secondary dashboard-alt-row" 
                                   : ""
                               )}
                             >
@@ -347,8 +409,8 @@ export default function DashboardPage() {
                 isLoading={isLoading}
               />
 
-              <Card>
-                <CardHeader>
+              <Card className="border-0 shadow-sm app-surface dashboard-side-card">
+                <CardHeader className="pb-3 border-bottom border-opacity-10">
                   <CardTitle className="text-lg">
                     Informasi
                   </CardTitle>
