@@ -313,7 +313,8 @@ body {
 }
 
 .dashboard-main-card .table-responsive {
-  max-height: 68vh;
+  max-height: none;
+  overflow: visible;
 }
 
 .dashboard-side-card {
