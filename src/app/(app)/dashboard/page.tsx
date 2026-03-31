@@ -315,7 +315,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-                <Table className="dashboard-main-table table-striped table-bordered align-middle">
+                <Table className="dashboard-main-table table-striped table-bordered align-middle caption-top">
                   <TableHeader className="bg-body-tertiary">
                     <TableRow className="bg-primary/10 hover:bg-primary/20 border-b-primary/20">
                       <TableHead className="w-[28%] text-primary font-bold">
@@ -381,18 +381,39 @@ export default function DashboardPage() {
                                   className="font-medium align-top p-3 dashboard-date-cell"
                                   rowSpan={rowSpan}
                                 >
-                                  {entry.hariTanggal}
+                                  <div className="dashboard-date-badge">Malam ronda</div>
+                                  <div className="dashboard-date-value">{entry.hariTanggal}</div>
                                 </TableCell>
-                                <TableCell className="p-3">{entry.nama}</TableCell>
-                                <TableCell className="p-3">{entry.blok}</TableCell>
-                                <TableCell className="p-3">{entry.noHp}</TableCell>
+                                <TableCell className="p-3">
+                                  <div className="dashboard-person-cell">
+                                    <div className="dashboard-row-order">{String(index + 1).padStart(2, '0')}</div>
+                                    <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
+                                    <div>
+                                      <div className="dashboard-person-name">{entry.nama}</div>
+                                      <div className="dashboard-person-meta">Warga ronda terjadwal</div>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-3">
+                                  <span className="dashboard-block-pill">{entry.blok}</span>
+                                </TableCell>
+                                <TableCell className="p-3">
+                                  <span className="dashboard-phone-text">{entry.noHp}</span>
+                                </TableCell>
                                 <TableCell
                                   className={cn(
                                     'p-3',
                                     entry.pengganti && 'font-semibold text-accent-foreground'
                                   )}
                                 >
-                                  {entry.pengganti || '-'}
+                                  {entry.pengganti ? (
+                                    <div className="dashboard-replacement-cell">
+                                      <span className="dashboard-replacement-badge">Pengganti</span>
+                                      <span className="dashboard-replacement-name">{entry.pengganti}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="dashboard-original-badge">Nama asli</span>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );
@@ -409,16 +430,36 @@ export default function DashboardPage() {
                                   : ""
                               )}
                             >
-                              <TableCell className="p-3">{entry.nama}</TableCell>
-                              <TableCell className="p-3">{entry.blok}</TableCell>
-                              <TableCell className="p-3">{entry.noHp}</TableCell>
+                              <TableCell className="p-3">
+                                <div className="dashboard-person-cell">
+                                  <div className="dashboard-row-order">{String(index + 1).padStart(2, '0')}</div>
+                                  <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
+                                  <div>
+                                    <div className="dashboard-person-name">{entry.nama}</div>
+                                    <div className="dashboard-person-meta">Warga ronda terjadwal</div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="p-3">
+                                <span className="dashboard-block-pill">{entry.blok}</span>
+                              </TableCell>
+                              <TableCell className="p-3">
+                                <span className="dashboard-phone-text">{entry.noHp}</span>
+                              </TableCell>
                               <TableCell
                                 className={cn(
                                   'p-3',
                                   entry.pengganti && 'font-semibold text-accent-foreground'
                                 )}
                               >
-                                  {entry.pengganti || '-'}
+                                {entry.pengganti ? (
+                                  <div className="dashboard-replacement-cell">
+                                    <span className="dashboard-replacement-badge">Pengganti</span>
+                                    <span className="dashboard-replacement-name">{entry.pengganti}</span>
+                                  </div>
+                                ) : (
+                                  <span className="dashboard-original-badge">Nama asli</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
