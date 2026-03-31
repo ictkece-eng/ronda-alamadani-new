@@ -25,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { ThumbsDown, ThumbsUp, Plus, Search, Loader2, Trash2, RotateCcw, Pencil } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -70,11 +71,14 @@ export function ScheduleRequests() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState<ScheduleRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+    const [userPickerQuery, setUserPickerQuery] = useState('');
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: { userId: '', requestedDate: '', reason: '' },
   });
+
+    const selectedUserId = form.watch('userId');
 
   const usersMap = useMemo(() => {
       const map = new Map();
@@ -88,6 +92,21 @@ export function ScheduleRequests() {
       if (!users) return [];
       return [...users].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [users]);
+
+  const filteredUsersForPicker = useMemo(() => {
+      const normalizedQuery = userPickerQuery.trim().toLowerCase();
+      if (!normalizedQuery) return sortedUsersForDropdown.slice(0, 12);
+
+      return sortedUsersForDropdown.filter((user) => {
+          const haystack = `${user.name || ''} ${user.phone || ''} ${user.address || ''}`.toLowerCase();
+          return haystack.includes(normalizedQuery);
+      }).slice(0, 20);
+  }, [sortedUsersForDropdown, userPickerQuery]);
+
+  const selectedUser = useMemo(() => {
+      if (!users || !selectedUserId) return null;
+      return users.find((item) => item.id === selectedUserId) || null;
+  }, [users, selectedUserId]);
 
   const processedRequests = useMemo(() => {
     if (!requests) return [];
@@ -108,6 +127,7 @@ export function ScheduleRequests() {
 
   const handleEditClick = (req: ScheduleRequest) => {
     setEditingRequest(req);
+        setUserPickerQuery('');
     form.reset({
         userId: req.userId,
         requestedDate: format(new Date(req.requestedScheduleDate), 'yyyy-MM-dd'),
@@ -162,30 +182,30 @@ export function ScheduleRequests() {
   };
 
   return (
-    <Card className="shadow-lg border-none">
+    <Card className="shadow-sm border-0 app-surface">
       <CardHeader className="flex flex-row justify-between items-center">
         <div className="space-y-1">
             <CardTitle>Schedule Change Requests</CardTitle>
             <p className="text-sm text-muted-foreground">Kelola permintaan perubahan jadwal ronda dari warga.</p>
         </div>
-        <Button onClick={() => { setEditingRequest(null); form.reset({ userId: '', requestedDate: '', reason: '' }); setIsFormDialogOpen(true); }}>
+        <Button onClick={() => { setEditingRequest(null); setUserPickerQuery(''); form.reset({ userId: '', requestedDate: '', reason: '' }); setIsFormDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> New Request
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="relative">
+        <div className="position-relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
                 placeholder="Cari berdasarkan nama warga..." 
-                className="pl-8"
+                className="pl-8 rounded-pill"
                 value={searchQuery} 
                 onChange={(e) => setSearchQuery(e.target.value)} 
             />
         </div>
 
-        <div className="border rounded-xl overflow-hidden bg-card">
+        <div className="rounded-4 overflow-hidden bg-white border shadow-sm">
             <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-body-tertiary">
                 <TableRow>
                     <TableHead>Warga</TableHead>
                     <TableHead>Tanggal Diminta</TableHead>
@@ -303,7 +323,7 @@ export function ScheduleRequests() {
         </div>
       </CardContent>
 
-      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if(!open) setEditingRequest(null); }}>
+      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if(!open) { setEditingRequest(null); setUserPickerQuery(''); } }}>
           <DialogContent className="max-w-md">
               <DialogHeader>
                   <DialogTitle>{editingRequest ? 'Edit Permintaan' : 'Buat Permintaan Baru'}</DialogTitle>
@@ -314,22 +334,73 @@ export function ScheduleRequests() {
               <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                       <FormField control={form.control} name="userId" render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="space-y-3">
                               <FormLabel>Pilih Warga</FormLabel>
+                              {!editingRequest && (
+                                <div className="position-relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        value={userPickerQuery}
+                                        onChange={(event) => setUserPickerQuery(event.target.value)}
+                                        placeholder="Ketik nama atau no HP warga..."
+                                        className="ps-5 rounded-pill"
+                                    />
+                                </div>
+                              )}
+
                               <FormControl>
-                                  <select 
-                                    {...field} 
-                                    disabled={!!editingRequest}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                      <option value="">-- Pilih Warga --</option>
-                                      {sortedUsersForDropdown.map(u => (
-                                          <option key={u.id} value={u.id}>
-                                              {(u.name || 'Tanpa Nama')} ({u.address || '-'})
-                                          </option>
-                                      ))}
-                                  </select>
+                                  <input type="hidden" {...field} value={field.value} />
                               </FormControl>
+
+                              <div className="rounded-4 border bg-body-tertiary-subtle p-2">
+                                  {editingRequest ? (
+                                      <div className="rounded-4 border bg-white p-3 shadow-sm">
+                                          <div className="fw-semibold text-body">{selectedUser?.name || 'Tanpa Nama'}</div>
+                                          <div className="small text-muted">No HP: {selectedUser?.phone || '-'}</div>
+                                          <div className="small text-muted">Alamat: {selectedUser?.address || '-'}</div>
+                                      </div>
+                                  ) : filteredUsersForPicker.length > 0 ? (
+                                      <div className="d-flex flex-column gap-2" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                          {filteredUsersForPicker.map((warga) => {
+                                              const isActive = field.value === warga.id;
+                                              return (
+                                                  <button
+                                                      key={warga.id}
+                                                      type="button"
+                                                      onClick={() => field.onChange(warga.id)}
+                                                      className={cn(
+                                                          "text-start rounded-4 border p-3 transition-all bg-white",
+                                                          isActive
+                                                              ? "border-primary bg-primary bg-opacity-10 shadow-sm"
+                                                              : "border-light-subtle hover:border-primary-subtle hover:bg-white"
+                                                      )}
+                                                  >
+                                                      <div className="d-flex align-items-center justify-content-between gap-3">
+                                                          <div>
+                                                              <div className="fw-semibold text-body">{warga.name || 'Tanpa Nama'}</div>
+                                                              <div className="small text-muted">{warga.address || '-'}</div>
+                                                          </div>
+                                                          <div className="small fw-medium text-primary">{warga.phone || '-'}</div>
+                                                      </div>
+                                                  </button>
+                                              );
+                                          })}
+                                      </div>
+                                  ) : (
+                                      <div className="text-center text-muted py-3 small">
+                                          Tidak ada warga yang cocok dengan nama / no HP yang Anda ketik.
+                                      </div>
+                                  )}
+                              </div>
+
+                              {selectedUser && (
+                                  <div className="rounded-4 border border-primary-subtle bg-primary bg-opacity-10 p-3">
+                                      <div className="small text-muted mb-1">Warga terpilih</div>
+                                      <div className="fw-semibold text-body">{selectedUser.name || 'Tanpa Nama'}</div>
+                                      <div className="small text-muted">No HP: {selectedUser.phone || '-'} • Alamat: {selectedUser.address || '-'}</div>
+                                  </div>
+                              )}
+
                               {editingRequest && <p className="text-[10px] text-muted-foreground">Nama warga tidak dapat diubah saat edit.</p>}
                               <FormMessage />
                           </FormItem>
