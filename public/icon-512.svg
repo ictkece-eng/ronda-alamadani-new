@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg512" x1="40" y1="40" x2="472" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D6EFD"/>
+      <stop offset="1" stop-color="#0DCAF0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg512)"/>
+  <rect x="44" y="44" width="424" height="424" rx="96" stroke="white" stroke-opacity="0.16" stroke-width="18"/>
+  <rect x="152" y="116" width="208" height="280" rx="58" fill="white" fill-opacity="0.16"/>
+  <path d="M214 346V166H276.385C322.492 166 352 191.919 352 232.554C352 273.027 322.492 299.108 276.385 299.108H254.462V346H214ZM254.462 267.365H273.431C297.508 267.365 310.954 254.746 310.954 232.554C310.954 210.2 297.508 197.743 273.431 197.743H254.462V267.365Z" fill="white"/>
+  <text x="256" y="430" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="8">RONDA</text>
+</svg>
