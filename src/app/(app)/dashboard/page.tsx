@@ -390,7 +390,6 @@ export default function DashboardPage() {
                                     <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
                                     <div>
                                       <div className="dashboard-person-name">{entry.nama}</div>
-                                      <div className="dashboard-person-meta">Warga ronda terjadwal</div>
                                     </div>
                                   </div>
                                 </TableCell>
@@ -412,7 +411,7 @@ export default function DashboardPage() {
                                       <span className="dashboard-replacement-name">{entry.pengganti}</span>
                                     </div>
                                   ) : (
-                                    <span className="dashboard-original-badge">Nama asli</span>
+                                    <span className="dashboard-original-badge">-</span>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -436,7 +435,6 @@ export default function DashboardPage() {
                                   <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
                                   <div>
                                     <div className="dashboard-person-name">{entry.nama}</div>
-                                    <div className="dashboard-person-meta">Warga ronda terjadwal</div>
                                   </div>
                                 </div>
                               </TableCell>
@@ -458,7 +456,7 @@ export default function DashboardPage() {
                                     <span className="dashboard-replacement-name">{entry.pengganti}</span>
                                   </div>
                                 ) : (
-                                  <span className="dashboard-original-badge">Nama asli</span>
+                                  <span className="dashboard-original-badge">-</span>
                                 )}
                               </TableCell>
                             </TableRow>
