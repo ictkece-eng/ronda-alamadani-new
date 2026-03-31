@@ -64,6 +64,15 @@ export type ScheduleRequest = {
   status: 'pending' | 'approved' | 'rejected';
 };
 
+export type UserRequest = {
+  id: number;
+  userName: string;
+  currentDate: string;
+  requestedDate: string;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+};
+
 export type RondaSchedule = {
     id: string;
     userId: string;
