@@ -1,0 +1,12 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="appleBg" x1="15" y1="15" x2="165" y2="165" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D6EFD"/>
+      <stop offset="1" stop-color="#0DCAF0"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#appleBg)"/>
+  <rect x="24" y="24" width="132" height="132" rx="30" stroke="white" stroke-opacity="0.16" stroke-width="7"/>
+  <rect x="54" y="42" width="72" height="96" rx="20" fill="white" fill-opacity="0.16"/>
+  <path d="M76 122V58H97.4615C113.334 58 123.462 67.2391 123.462 81.7385C123.462 96.1795 113.334 105.477 97.4615 105.477H89.9231V122H76ZM89.9231 94.1385H96.4154C104.708 94.1385 109.346 89.6333 109.346 81.7385C109.346 73.7853 104.708 69.3615 96.4154 69.3615H89.9231V94.1385Z" fill="white"/>
+</svg>
