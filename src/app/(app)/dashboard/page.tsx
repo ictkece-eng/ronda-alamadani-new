@@ -386,8 +386,6 @@ export default function DashboardPage() {
                                 </TableCell>
                                 <TableCell className="p-3">
                                   <div className="dashboard-person-cell">
-                                    <div className="dashboard-row-order">{String(index + 1).padStart(2, '0')}</div>
-                                    <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
                                     <div>
                                       <div className="dashboard-person-name">{entry.nama}</div>
                                     </div>
@@ -431,8 +429,6 @@ export default function DashboardPage() {
                             >
                               <TableCell className="p-3">
                                 <div className="dashboard-person-cell">
-                                  <div className="dashboard-row-order">{String(index + 1).padStart(2, '0')}</div>
-                                  <div className="dashboard-person-avatar">{entry.nama.charAt(0).toUpperCase()}</div>
                                   <div>
                                     <div className="dashboard-person-name">{entry.nama}</div>
                                   </div>
