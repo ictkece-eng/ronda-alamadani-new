@@ -89,7 +89,7 @@ export function ReplacementManagement() {
 
     return (
         <div className="space-y-6">
-            <Card className="shadow-lg border-none">
+            <Card className="shadow-sm border-0 app-surface">
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <UserPlus className="h-5 w-5 text-primary" />
@@ -100,10 +100,22 @@ export function ReplacementManagement() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <div className="rounded-4 border bg-white p-4 shadow-sm">
+                        <div className="d-flex align-items-start gap-3">
+                            <div className="rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-10 p-3 text-primary">
+                                <UserPlus className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <div className="small text-uppercase fw-semibold text-primary mb-1">Replacement Manager</div>
+                                <div className="fw-semibold">Atur pengganti dengan cepat dan aman</div>
+                                <div className="small text-muted">Semua perubahan tetap memakai data jadwal yang sama, hanya tampilannya yang dibuat lebih rapi dan mudah dipindai.</div>
+                            </div>
+                        </div>
+                    </div>
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Pilih Bulan</label>
-                            <Input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+                            <Input className="rounded-pill" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Cari Nama Warga</label>
@@ -111,7 +123,7 @@ export function ReplacementManagement() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     placeholder="Cari warga asli atau pengganti..." 
-                                    className="pl-8"
+                                    className="pl-8 rounded-pill"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -119,9 +131,9 @@ export function ReplacementManagement() {
                         </div>
                     </div>
 
-                    <div className="border rounded-xl overflow-hidden bg-card">
+                    <div className="border rounded-4 overflow-hidden bg-white shadow-sm">
                         <Table>
-                            <TableHeader className="bg-muted/50">
+                            <TableHeader className="bg-body-tertiary">
                                 <TableRow>
                                     <TableHead className="w-[150px]">Tanggal</TableHead>
                                     <TableHead>Warga Asli</TableHead>
@@ -173,7 +185,7 @@ export function ReplacementManagement() {
             </Card>
 
             <div className="grid md:grid-cols-2 gap-6">
-                <Card className="bg-primary/5 border-dashed border-primary/20">
+                <Card className="bg-primary/5 border-dashed border-primary/20 shadow-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
                             <UserPlus className="h-4 w-4" /> CARA MENGGANTI NAMA
@@ -187,7 +199,7 @@ export function ReplacementManagement() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-orange-50/50 border-dashed border-orange-200">
+                <Card className="bg-orange-50/50 border-dashed border-orange-200 shadow-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-bold text-orange-600 flex items-center gap-2">
                             <UserMinus className="h-4 w-4" /> CARA MENGHAPUS PENGGANTI
