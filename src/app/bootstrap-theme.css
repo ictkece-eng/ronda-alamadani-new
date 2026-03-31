@@ -95,35 +95,74 @@ body {
 
 .png-export-main-card {
   border-color: rgba(13, 110, 253, 0.12) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.96));
+}
+
+.png-export-table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.png-export-table-head th {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%) !important;
+  color: #0b5ed7 !important;
+  border-top: 1px solid rgba(13, 110, 253, 0.12);
+  border-bottom: 1px solid rgba(13, 110, 253, 0.18);
+  box-shadow: inset 0 -1px 0 rgba(13, 110, 253, 0.08);
 }
 
 .png-export-table thead th {
-  background: linear-gradient(180deg, rgba(13, 110, 253, 0.14), rgba(13, 110, 253, 0.08));
-  color: #0b5ed7 !important;
-  border-bottom: 1px solid rgba(13, 110, 253, 0.2);
   font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
 }
 
 .png-export-table > :not(caption) > * > * {
   border-color: rgba(148, 163, 184, 0.22);
 }
 
+.png-export-table tbody td {
+  vertical-align: middle;
+  color: #1e293b;
+}
+
 .png-export-row td {
-  background-color: rgba(255, 255, 255, 0.88);
+  background-color: #ffffff;
+  transition: background-color 0.18s ease;
 }
 
 .png-export-alt-row td {
-  background-color: rgba(248, 250, 252, 0.96) !important;
+  background-color: #f8fafc !important;
 }
 
 .png-export-friday td {
-  background: linear-gradient(180deg, rgba(254, 249, 195, 0.95), rgba(254, 240, 138, 0.72)) !important;
+  background: linear-gradient(180deg, #fef9c3 0%, #fef3c7 100%) !important;
+}
+
+.png-export-row:hover td {
+  background-color: #eff6ff !important;
 }
 
 .png-export-date-cell {
   min-width: 13rem;
   color: #0f172a;
   font-weight: 700;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%) !important;
+  box-shadow: inset -1px 0 0 rgba(148, 163, 184, 0.16);
+}
+
+.png-export-date-cell-alt {
+  background: linear-gradient(180deg, #f4f7fb 0%, #edf2f7 100%) !important;
+}
+
+.png-export-date-cell-friday {
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%) !important;
+}
+
+.png-export-table tbody td:last-child {
+  color: #0f766e;
+  font-weight: 600;
 }
 
 .png-export-side-card {
