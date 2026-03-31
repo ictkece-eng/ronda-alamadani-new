@@ -110,19 +110,30 @@ export function ScheduleHistory() {
 
 
   return (
-    <Card>
+    <Card className="border-0 shadow-sm app-surface overflow-hidden">
         <CardHeader>
             <CardTitle>Schedule History</CardTitle>
             <CardDescription>View previously generated schedules for any month.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
+            <div className="rounded-4 border bg-white p-4 shadow-sm">
+              <div className="d-flex align-items-start gap-3 mb-3">
+                <div className="rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-10 p-3 text-primary">
+                  <CalendarIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="small text-uppercase fw-semibold text-primary mb-1">History Viewer</div>
+                  <div className="fw-semibold">Telusuri jadwal ronda per bulan</div>
+                  <div className="small text-muted">Cari nama warga atau pengganti dari jadwal yang pernah dibuat sebelumnya.</div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-2 self-start sm:self-center w-full sm:w-auto">
                  <div className="relative w-full sm:w-48">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         id="search-name"
                         placeholder="Cari nama..."
-                        className="pl-8"
+                        className="pl-8 rounded-pill"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -135,14 +146,15 @@ export function ScheduleHistory() {
                         type="month"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className='pl-8'
+                        className='pl-8 rounded-pill'
                     />
                 </div>
+              </div>
             </div>
 
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-4 overflow-hidden bg-white shadow-sm">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-body-tertiary">
                     <TableRow>
                       <TableHead>Hari, Tanggal</TableHead>
                       <TableHead>Nama</TableHead>
