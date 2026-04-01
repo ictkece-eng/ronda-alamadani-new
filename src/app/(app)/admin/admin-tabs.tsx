@@ -9,11 +9,12 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { GenerateScheduleForm } from './generate-schedule-form';
 import { UserManagement } from './user-management';
-import { Users, FileText, GitPullRequest, Download, History, Search, LogOut, Menu, UserCheck, Home, Users2, CalendarClock, Loader2 } from 'lucide-react';
+import { Users, FileText, GitPullRequest, Download, History, Search, LogOut, Menu, UserCheck, Home, Users2, CalendarClock, Loader2, MapPinned } from 'lucide-react';
 import { ScheduleRequests } from './schedule-requests';
 import { ReplacementManagement } from './replacement-management';
 import { ExportSchedule } from './export-schedule';
 import { ScheduleHistory } from './schedule-history';
+import { BlockLocationMap } from './block-location-map';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -109,6 +110,7 @@ export function AdminTabs() {
         { id: 'dashboard', label: 'Dashboard', icon: Home },
         { id: 'generate-schedule', label: 'Generate Schedule', icon: CalendarClock },
         { id: 'users', label: 'Users/Warga', icon: Users2 },
+        { id: 'block-map', label: 'Denah Blok', icon: MapPinned },
         { id: 'requests', label: 'Schedule Requests', icon: FileText },
         { id: 'replacements', label: 'Replacements', icon: GitPullRequest },
         { id: 'export', label: 'Export Schedule', icon: Download },
@@ -135,6 +137,8 @@ export function AdminTabs() {
                 );
             case 'users':
                 return <UserManagement />;
+            case 'block-map':
+                return <BlockLocationMap />;
             case 'requests':
                 return <ScheduleRequests />;
             case 'replacements':
