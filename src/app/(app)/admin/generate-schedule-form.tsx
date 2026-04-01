@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useMemo } from 'react';
 import { Loader2, Wand2, Save, Trash2, AlertCircle, Database, LayoutPanelTop, UserRoundPen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Warga, ScheduleRequest, RondaSchedule } from '@/lib/types';
 import { collection, writeBatch, doc, query, collectionGroup } from 'firebase/firestore';
 import {
@@ -30,9 +30,10 @@ import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 
 type ParticipantInfo = {
-        userId: string;
-        name: string;
-        docId?: string;
+    userId: string;
+    name: string;
+    docId?: string;
+    sourceUserId?: string;
     isLocked?: boolean;
     lockReason?: 'approved-request' | 'teacher';
 };
@@ -104,11 +105,14 @@ export function GenerateScheduleForm() {
         monthSchedules.forEach(s => {
                 const dateStr = new Date(s.date).toISOString().split('T')[0];
                 if (!grouped[dateStr]) grouped[dateStr] = [];
+            const effectiveUserId = s.replacementUserId || s.userId;
+            const effectiveUser = usersIdMap.get(effectiveUserId);
         
                 grouped[dateStr].push({
-                        userId: s.userId,
-                        name: s.replacementUserName || usersIdMap.get(s.userId)?.name || 'Unknown',
-                        docId: s.id
+                userId: effectiveUserId,
+                name: effectiveUser?.name || s.replacementUserName || usersIdMap.get(s.userId)?.name || 'Unknown',
+                docId: s.id,
+                sourceUserId: s.userId,
                 });
         });
 
@@ -356,10 +360,22 @@ export function GenerateScheduleForm() {
         }
     };
 
-        const handleParticipantChange = (date: string, oldUserId: string, newUserId: string, docId?: string) => {
+        const handleParticipantChange = async (date: string, oldUserId: string, newUserId: string, docId?: string, sourceUserId?: string) => {
             if (!newUserId || newUserId === oldUserId) return;
             const newUser = usersIdMap.get(newUserId);
             if (!newUser) return;
+
+            const targetDay = displayData?.find((day) => day.date === date);
+            const isAlreadyAssignedThatNight = targetDay?.participants.some((participant) => participant.userId === newUserId && participant.userId !== oldUserId);
+
+            if (isAlreadyAssignedThatNight) {
+                toast({
+                    title: 'Nama Sudah Terdaftar',
+                    description: `${newUser.name} sudah terjadwal pada tanggal ini. Pilih warga lain agar tidak dobel satu malam.`,
+                    variant: 'destructive',
+                });
+                return;
+            }
 
             if (isPreview) {
                 const targetParticipant = (generatedSchedule || [])
@@ -385,12 +401,51 @@ export function GenerateScheduleForm() {
                     setGeneratedSchedule(updated);
                     toast({ title: 'Berhasil', description: `Pratinjau diubah: ${newUser.name}` });
             } else if (docId && firestore) {
-                    const scheduleRef = doc(firestore, 'users', oldUserId, 'rondaSchedules', docId);
-                    updateDocumentNonBlocking(scheduleRef, {
-                            replacementUserId: newUser.id,
-                            replacementUserName: newUser.name
-                    });
-                    toast({ title: 'Berhasil', description: `${newUser.name} kini menggantikan warga di database.` });
+                    const owningUserId = sourceUserId || oldUserId;
+                    const scheduleRecord = (allSchedules || []).find((schedule) => schedule.id === docId && schedule.userId === owningUserId);
+
+                    if (!scheduleRecord) {
+                        toast({
+                            title: 'Data Tidak Ditemukan',
+                            description: 'Data jadwal yang ingin dipindahkan tidak ditemukan. Silakan muat ulang halaman.',
+                            variant: 'destructive',
+                        });
+                        return;
+                    }
+
+                    try {
+                        const batch = writeBatch(firestore);
+                        const currentScheduleRef = doc(firestore, 'users', owningUserId, 'rondaSchedules', docId);
+
+                        if (owningUserId === newUser.id) {
+                            batch.update(currentScheduleRef, {
+                                userId: newUser.id,
+                                replacementUserId: null,
+                                replacementUserName: null,
+                            });
+                        } else {
+                            const movedScheduleRef = doc(firestore, 'users', newUser.id, 'rondaSchedules', docId);
+                            batch.set(movedScheduleRef, {
+                                ...scheduleRecord,
+                                userId: newUser.id,
+                                replacementUserId: null,
+                                replacementUserName: null,
+                            });
+                            batch.delete(currentScheduleRef);
+                        }
+
+                        await batch.commit();
+                        toast({
+                            title: 'Jadwal Dipindahkan',
+                            description: `${newUser.name} sekarang menjadi warga ronda aktif pada ${format(new Date(date + 'T00:00:00Z'), 'dd MMM yyyy', { locale: idLocale })}.`,
+                        });
+                    } catch {
+                        toast({
+                            title: 'Gagal Memindahkan Jadwal',
+                            description: 'Perubahan belum tersimpan ke database. Coba lagi sebentar.',
+                            variant: 'destructive',
+                        });
+                    }
             }
     };
 
@@ -459,9 +514,9 @@ export function GenerateScheduleForm() {
 
                     <Alert className="bg-blue-50 border-blue-200 rounded-4 shadow-sm">
                         <UserRoundPen className="h-4 w-4 text-blue-600" />
-                        <AlertTitle className="text-blue-600">Ganti Nama Langsung</AlertTitle>
+                        <AlertTitle className="text-blue-600">Pindah Nama Langsung</AlertTitle>
                         <AlertDescription className="text-xs text-blue-800">
-                            Anda bisa langsung klik pada nama warga di tabel sebelah kanan untuk menggantinya dengan warga lain tanpa harus pindah menu.
+                            Pada jadwal yang sudah tersimpan, klik nama warga di tabel sebelah kanan untuk memindahkan jadwal langsung ke warga lain tanpa lewat menu replacement.
                         </AlertDescription>
                     </Alert>
 
@@ -495,7 +550,7 @@ export function GenerateScheduleForm() {
                                 <TableHeader className="bg-body-tertiary">
                                     <TableRow>
                                         <TableHead className="w-24">Tanggal</TableHead>
-                                        <TableHead>Warga Ronda (Klik untuk Ganti)</TableHead>
+                                        <TableHead>Warga Ronda (Klik untuk Pindah)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -521,7 +576,7 @@ export function GenerateScheduleForm() {
                                                             ) : (
                                                                 <Combobox 
                                                                     value={p.userId}
-                                                                    onValueChange={(newId) => handleParticipantChange(day.date, p.userId, newId, p.docId)}
+                                                                    onValueChange={(newId) => handleParticipantChange(day.date, p.userId, newId, p.docId, p.sourceUserId)}
                                                                     options={userOptions}
                                                                     placeholder="Pilih warga..."
                                                                     className={cn('h-8 text-[11px] justify-start', isPreview ? 'bg-white' : 'bg-green-100/30 border-green-200')}
