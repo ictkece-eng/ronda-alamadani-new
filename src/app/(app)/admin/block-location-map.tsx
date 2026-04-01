@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPinned, House, Users, Phone, ShieldCheck, UserCheck } from 'lucide-react';
+import { Search, MapPinned, House, Users, Phone, ShieldCheck, UserCheck, TriangleAlert, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type BlockGroup = {
@@ -16,7 +16,11 @@ type BlockGroup = {
   letter: string;
   number: number;
   residents: Warga[];
+  activeResidents: number;
+  status: 'active' | 'attention';
 };
+
+type BlockFilter = 'all' | 'active' | 'attention';
 
 const normalizeBlockCode = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '');
 
@@ -43,6 +47,7 @@ export function BlockLocationMap() {
   const firestore = useFirestore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBlock, setSelectedBlock] = useState<string>('');
+  const [blockFilter, setBlockFilter] = useState<BlockFilter>('all');
 
   const usersCollection = useMemoFirebase(
     () => (firestore ? collection(firestore, 'users') : null),
@@ -73,16 +78,28 @@ export function BlockLocationMap() {
           letter: parsed.letter,
           number: parsed.number,
           residents: [],
+          activeResidents: 0,
+          status: 'attention',
         });
       }
 
       groupedMap.get(parsed.code)?.residents.push(user);
     });
 
-    const blockGroups = Array.from(groupedMap.values())
+    const groupedBlocks = Array.from(groupedMap.values())
       .map((group) => ({
         ...group,
         residents: [...group.residents].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+        activeResidents: group.residents.filter(
+          (resident) =>
+            resident.role === 'user' ||
+            resident.role === 'coordinator' ||
+            (resident.role === 'backup' && resident.includeInSchedule === true)
+        ).length,
+      }))
+      .map((group) => ({
+        ...group,
+        status: group.activeResidents > 0 ? 'active' : 'attention' as const,
       }))
       .sort((a, b) => {
         const letterCompare = a.letter.localeCompare(b.letter);
@@ -91,20 +108,31 @@ export function BlockLocationMap() {
         return a.code.localeCompare(b.code);
       });
 
+    const blockGroups = groupedBlocks.filter((group) => {
+      if (blockFilter === 'active') return group.activeResidents > 0;
+      if (blockFilter === 'attention') return group.activeResidents === 0;
+      return true;
+    });
+
     const letters = Array.from(new Set(blockGroups.map((group) => group.letter))).sort((a, b) => a.localeCompare(b));
     const maxNumber = blockGroups.reduce((highest, group) => {
       return Number.isFinite(group.number) && group.number > highest ? group.number : highest;
     }, 0);
+
+    const attentionBlocks = groupedBlocks.filter((group) => group.activeResidents === 0).length;
+    const activeBlocks = groupedBlocks.filter((group) => group.activeResidents > 0).length;
 
     return {
       filteredUsers,
       blockGroups,
       letters,
       maxNumber,
+      attentionBlocks,
+      activeBlocks,
     };
-  }, [users, searchQuery]);
+  }, [users, searchQuery, blockFilter]);
 
-  const { filteredUsers, blockGroups, letters, maxNumber } = processed;
+  const { filteredUsers, blockGroups, letters, maxNumber, attentionBlocks, activeBlocks } = processed;
 
   const selectedBlockData = useMemo(() => {
     if (!blockGroups.length) return null;
@@ -155,6 +183,18 @@ export function BlockLocationMap() {
                       <div className="h4 fw-bold mb-0 mt-1">{filteredUsers.length}</div>
                     </div>
                   </div>
+                  <div className="col-6 col-md-4">
+                    <div className="rounded-4 bg-success bg-opacity-10 p-3 h-100">
+                      <div className="small text-muted">Blok Aktif</div>
+                      <div className="h4 fw-bold mb-0 mt-1">{activeBlocks}</div>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-4">
+                    <div className="rounded-4 bg-warning bg-opacity-10 p-3 h-100">
+                      <div className="small text-muted">Perlu Atensi</div>
+                      <div className="h4 fw-bold mb-0 mt-1">{attentionBlocks}</div>
+                    </div>
+                  </div>
                   <div className="col-12 col-md-4">
                     <div className="rounded-4 bg-success bg-opacity-10 p-3 h-100">
                       <div className="small text-muted">Peserta Ronda</div>
@@ -191,6 +231,41 @@ export function BlockLocationMap() {
                 />
               </div>
 
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBlockFilter('all')}
+                  className={cn('btn rounded-pill px-3 py-2 fw-semibold', blockFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary')}
+                >
+                  Semua Blok
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBlockFilter('active')}
+                  className={cn('btn rounded-pill px-3 py-2 fw-semibold', blockFilter === 'active' ? 'btn-success' : 'btn-outline-secondary')}
+                >
+                  Blok Aktif
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBlockFilter('attention')}
+                  className={cn('btn rounded-pill px-3 py-2 fw-semibold', blockFilter === 'attention' ? 'btn-warning' : 'btn-outline-secondary')}
+                >
+                  Perlu Atensi
+                </button>
+              </div>
+
+              <div className="rounded-4 border bg-body-tertiary p-3 d-flex flex-wrap gap-3 small text-muted">
+                <span className="d-inline-flex align-items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  Blok aktif punya minimal 1 warga yang masuk peserta ronda
+                </span>
+                <span className="d-inline-flex align-items-center gap-2">
+                  <TriangleAlert className="h-4 w-4 text-warning" />
+                  Perlu atensi berarti belum ada warga aktif ronda di blok tersebut
+                </span>
+              </div>
+
               <div className="rounded-4 border bg-white p-3 shadow-sm">
                 {isLoading ? (
                   <div className="row g-3">
@@ -213,13 +288,6 @@ export function BlockLocationMap() {
 
                               if (!block) return null;
 
-                              const activeCount = block.residents.filter(
-                                (resident) =>
-                                  resident.role === 'user' ||
-                                  resident.role === 'coordinator' ||
-                                  (resident.role === 'backup' && resident.includeInSchedule === true)
-                              ).length;
-
                               return (
                                 <div className="col-6 col-md-4 col-xl-3" key={block.code}>
                                   <button
@@ -229,6 +297,8 @@ export function BlockLocationMap() {
                                       'w-100 text-start rounded-4 border p-3 shadow-sm transition-all bg-white',
                                       selectedBlockData?.code === block.code
                                         ? 'border-primary bg-primary bg-opacity-10 shadow'
+                                        : block.status === 'attention'
+                                        ? 'border-warning-subtle hover:border-warning hover:bg-warning bg-opacity-10'
                                         : 'border-light-subtle hover:border-primary-subtle hover:bg-body-tertiary'
                                     )}
                                   >
@@ -241,9 +311,19 @@ export function BlockLocationMap() {
                                         {block.residents.length} warga
                                       </Badge>
                                     </div>
-                                    <div className="small text-muted d-flex align-items-center gap-2">
-                                      <UserCheck className="h-3.5 w-3.5" />
-                                      {activeCount} aktif ronde
+                                    <div className="d-flex flex-wrap gap-2 small text-muted">
+                                      <span className="d-inline-flex align-items-center gap-2">
+                                        <UserCheck className="h-3.5 w-3.5" />
+                                        {block.activeResidents} aktif ronde
+                                      </span>
+                                      <span className="d-inline-flex align-items-center gap-2">
+                                        {block.status === 'active' ? (
+                                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                        ) : (
+                                          <TriangleAlert className="h-3.5 w-3.5 text-warning" />
+                                        )}
+                                        {block.status === 'active' ? 'Aman' : 'Perlu atensi'}
+                                      </span>
                                     </div>
                                   </button>
                                 </div>
@@ -289,9 +369,23 @@ export function BlockLocationMap() {
                         <div className="small text-muted">Total penghuni blok</div>
                         <div className="h4 fw-bold mb-0">{selectedBlockData.residents.length}</div>
                       </div>
-                      <Badge className="bg-primary-subtle text-primary-emphasis border-0 rounded-pill px-3 py-2">
-                        {selectedBlockData.code}
-                      </Badge>
+                      <div className="d-flex flex-column align-items-end gap-2">
+                        <Badge className="bg-primary-subtle text-primary-emphasis border-0 rounded-pill px-3 py-2">
+                          {selectedBlockData.code}
+                        </Badge>
+                        <Badge className={cn(
+                          'border-0',
+                          selectedBlockData.status === 'active'
+                            ? 'bg-success-subtle text-success-emphasis'
+                            : 'bg-warning-subtle text-warning-emphasis'
+                        )}>
+                          {selectedBlockData.status === 'active' ? 'Blok Aktif' : 'Perlu Atensi'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="small text-muted mt-3 d-flex align-items-center gap-2">
+                      <UserCheck className="h-3.5 w-3.5" />
+                      {selectedBlockData.activeResidents} warga di blok ini aktif masuk peserta ronda
                     </div>
                   </div>
 
