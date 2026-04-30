@@ -71,7 +71,9 @@ export function ScheduleRequests() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState<ScheduleRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-    const [userPickerQuery, setUserPickerQuery] = useState('');
+        const [userPickerQuery, setUserPickerQuery] = useState('');
+    const [pendingMonthFilter, setPendingMonthFilter] = useState('');
+    const [selectedMonthFilter, setSelectedMonthFilter] = useState('');
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -114,6 +116,11 @@ export function ScheduleRequests() {
       return dateValue.slice(0, 10);
   };
 
+  const getRequestedMonthKey = (dateValue?: string) => {
+      if (!dateValue) return '';
+      return dateValue.slice(0, 7);
+  };
+
   const getRequestsForSameDate = (dateValue: string, excludedRequest?: ScheduleRequest | null) => {
       const requestedDateKey = getRequestedDateKey(dateValue);
 
@@ -145,12 +152,27 @@ export function ScheduleRequests() {
       };
   }, [selectedRequestedDate, editingRequest, requests, usersMap]);
 
+    const selectedMonthFilterLabel = useMemo(() => {
+            if (!selectedMonthFilter) return '';
+            return format(new Date(`${selectedMonthFilter}-01`), 'LLLL yyyy', { locale: idLocale });
+    }, [selectedMonthFilter]);
+
   const processedRequests = useMemo(() => {
     if (!requests) return [];
     return requests.map(req => ({ ...req, userName: usersMap.get(req.userId) || 'Unknown' }))
       .filter(req => (req.userName || '').toLowerCase().includes(searchQuery.toLowerCase()))
+            .filter(req => !selectedMonthFilter || getRequestedMonthKey(req.requestedScheduleDate) === selectedMonthFilter)
       .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
-  }, [requests, usersMap, searchQuery]);
+    }, [requests, usersMap, searchQuery, selectedMonthFilter]);
+
+    const applyMonthFilter = () => {
+        setSelectedMonthFilter(pendingMonthFilter);
+    };
+
+    const clearMonthFilter = () => {
+        setPendingMonthFilter('');
+        setSelectedMonthFilter('');
+    };
 
   const handleUpdateStatus = (request: ScheduleRequest, status: 'approved' | 'rejected' | 'pending') => {
     if (!firestore) return;
@@ -253,15 +275,41 @@ export function ScheduleRequests() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="position-relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-                placeholder="Cari berdasarkan nama warga..." 
-                className="pl-8 rounded-pill"
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
-            />
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="position-relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Cari berdasarkan nama warga..." 
+                    className="pl-8 rounded-pill"
+                    value={searchQuery} 
+                    onChange={(e) => setSearchQuery(e.target.value)} 
+                />
+            </div>
+
+            <div className="d-flex flex-column flex-md-row gap-2 align-items-stretch align-items-md-center">
+                <Input
+                    type="month"
+                    value={pendingMonthFilter}
+                    onChange={(event) => setPendingMonthFilter(event.target.value)}
+                    className="rounded-pill"
+                    aria-label="Pilih bulan permintaan"
+                />
+                <Button type="button" variant="outline" className="rounded-pill" onClick={applyMonthFilter}>
+                    Filter Bulan
+                </Button>
+                {selectedMonthFilter && (
+                    <Button type="button" variant="ghost" className="rounded-pill" onClick={clearMonthFilter}>
+                        Reset
+                    </Button>
+                )}
+            </div>
         </div>
+
+        {selectedMonthFilter && (
+            <div className="rounded-4 border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                Menampilkan {processedRequests.length} permintaan untuk bulan <span className="fw-semibold text-body">{selectedMonthFilterLabel}</span>.
+            </div>
+        )}
 
         <div className="rounded-4 overflow-hidden bg-white border shadow-sm">
             <Table>
@@ -374,7 +422,9 @@ export function ScheduleRequests() {
                 ) : (
                     <TableRow>
                         <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                            Belum ada permintaan jadwal.
+                            {selectedMonthFilter
+                                ? `Belum ada permintaan jadwal untuk bulan ${selectedMonthFilterLabel}.`
+                                : 'Belum ada permintaan jadwal.'}
                         </TableCell>
                     </TableRow>
                 )}
