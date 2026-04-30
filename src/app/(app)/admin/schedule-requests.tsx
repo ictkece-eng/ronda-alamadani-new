@@ -78,7 +78,8 @@ export function ScheduleRequests() {
     defaultValues: { userId: '', requestedDate: '', reason: '' },
   });
 
-    const selectedUserId = form.watch('userId');
+        const selectedUserId = form.watch('userId');
+        const selectedRequestedDate = form.watch('requestedDate');
 
   const usersMap = useMemo(() => {
       const map = new Map();
@@ -107,6 +108,42 @@ export function ScheduleRequests() {
       if (!users || !selectedUserId) return null;
       return users.find((item) => item.id === selectedUserId) || null;
   }, [users, selectedUserId]);
+
+  const getRequestedDateKey = (dateValue?: string) => {
+      if (!dateValue) return '';
+      return dateValue.slice(0, 10);
+  };
+
+  const getRequestsForSameDate = (dateValue: string, excludedRequest?: ScheduleRequest | null) => {
+      const requestedDateKey = getRequestedDateKey(dateValue);
+
+      if (!requestedDateKey || !requests) {
+          return [] as ScheduleRequest[];
+      }
+
+      return requests.filter((request) => {
+          const isExcludedRequest = excludedRequest
+              ? request.id === excludedRequest.id && request.userId === excludedRequest.userId
+              : false;
+
+          return !isExcludedRequest && getRequestedDateKey(request.requestedScheduleDate) === requestedDateKey;
+      });
+  };
+
+  const selectedDateRequestInfo = useMemo(() => {
+      const sameDateRequests = getRequestsForSameDate(selectedRequestedDate, editingRequest);
+      const names = Array.from(
+          new Set(
+              sameDateRequests.map((request) => usersMap.get(request.userId) || 'Tanpa Nama')
+          )
+      );
+
+      return {
+          count: sameDateRequests.length,
+          names,
+          isFull: sameDateRequests.length >= 3,
+      };
+  }, [selectedRequestedDate, editingRequest, requests, usersMap]);
 
   const processedRequests = useMemo(() => {
     if (!requests) return [];
@@ -148,6 +185,29 @@ export function ScheduleRequests() {
 
   const onSubmit = async (values: RequestFormValues) => {
     if (!firestore) return;
+
+    const sameDateRequests = getRequestsForSameDate(values.requestedDate, editingRequest);
+    if (sameDateRequests.length >= 3) {
+        const requesterNames = Array.from(
+            new Set(sameDateRequests.map((request) => usersMap.get(request.userId) || 'Tanpa Nama'))
+        );
+        const formattedDate = format(new Date(values.requestedDate), 'PPP', { locale: idLocale });
+        const conflictMessage = `Pada tanggal ${formattedDate} sudah ada ${sameDateRequests.length} permintaan dari ${requesterNames.join(', ')}.`;
+
+        form.setError('requestedDate', {
+            type: 'manual',
+            message: `${conflictMessage} Silakan pilih tanggal lain.`,
+        });
+        toast({
+            title: 'Tanggal Sudah Penuh',
+            description: `${conflictMessage} Silakan pilih tanggal lain.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    form.clearErrors('requestedDate');
+
     try {
         if (editingRequest) {
             const requestRef = doc(firestore, 'users', editingRequest.userId, 'scheduleRequests', editingRequest.id);
@@ -408,7 +468,33 @@ export function ScheduleRequests() {
                       <FormField control={form.control} name="requestedDate" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Tanggal Yang Diminta</FormLabel>
-                              <FormControl><Input type="date" {...field} /></FormControl>
+                              <FormControl>
+                                  <Input
+                                      type="date"
+                                      {...field}
+                                      onChange={(event) => {
+                                          field.onChange(event);
+                                          form.clearErrors('requestedDate');
+                                      }}
+                                  />
+                              </FormControl>
+                              {selectedRequestedDate && selectedDateRequestInfo.count > 0 && (
+                                  <div className={cn(
+                                      'rounded-4 border p-3 text-sm',
+                                      selectedDateRequestInfo.isFull
+                                          ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                                          : 'border-border bg-muted/40 text-muted-foreground'
+                                  )}>
+                                      <div className="fw-semibold">
+                                          {selectedDateRequestInfo.isFull
+                                              ? 'Tanggal ini sudah penuh untuk pengajuan baru.'
+                                              : `Tanggal ini sudah memiliki ${selectedDateRequestInfo.count} pengajuan.`}
+                                      </div>
+                                      <div>
+                                          Nama yang sudah request: {selectedDateRequestInfo.names.join(', ')}
+                                      </div>
+                                  </div>
+                              )}
                               <FormMessage />
                           </FormItem>
                       )} />
