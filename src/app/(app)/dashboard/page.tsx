@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
               <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">Dashboard Jadwal Ronda</h1>
               <p className="text-muted-foreground mb-4 dashboard-hero-description">
-                Lihat, kelola, dan pantau jadwal ronda bulanan dengan tampilan Bootstrap yang lebih rapi, informatif, dan enak dipindai.
+                Semua jadwal ronda bulanan bisa dipantau dan dikelola lebih mudah dalam satu tampilan yang ringkas, jelas, dan nyaman dibaca.
               </p>
 
               <div className="dashboard-hero-metrics">
@@ -310,7 +310,7 @@ export default function DashboardPage() {
                       <div className="fw-bold text-dark">Daftar ronda harian warga</div>
                     </div>
                     <div className="d-flex flex-wrap gap-2">
-                      <span className="badge rounded-pill text-bg-light border px-3 py-2">Bootstrap Table</span>
+                      <span className="badge rounded-pill text-bg-light border px-3 py-2">Jadwal Utama</span>
                       <span className="badge rounded-pill text-bg-warning-subtle text-warning-emphasis px-3 py-2">Highlight Jumat</span>
                     </div>
                   </div>
