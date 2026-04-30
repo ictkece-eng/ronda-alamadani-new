@@ -1,137 +1,154 @@
 # Ronda Alamadani
 
-Ronda Alamadani adalah aplikasi web untuk membantu pengelolaan jadwal ronda warga secara lebih rapi, cepat, dan mudah dipantau. Aplikasi ini mendukung kebutuhan admin, koordinator, dan warga dalam melihat jadwal, mengelola pergantian petugas, memproses permintaan perubahan jadwal, serta memantau pelaksanaan ronda bulanan dalam satu dashboard.
+> Aplikasi manajemen jadwal ronda warga yang membantu admin, koordinator, dan warga memantau jadwal, mengelola pergantian petugas, dan merapikan operasional ronda bulanan dalam satu tempat.
 
-## Gambaran singkat
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-149eca?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)
+![Firebase](https://img.shields.io/badge/Firebase-Integrated-ffca28?logo=firebase&logoColor=black)
+![Status](https://img.shields.io/badge/Status-Active-success)
 
-Fokus utama aplikasi ini adalah menyederhanakan proses operasional ronda yang biasanya dilakukan secara manual. Dengan aplikasi ini, pengelola lingkungan dapat:
+## Sekilas ✨
 
-- melihat jadwal ronda bulanan dalam tampilan yang mudah dibaca,
-- membuat atau menghasilkan jadwal ronda bulanan,
+Ronda Alamadani dibuat untuk mengganti pengelolaan jadwal ronda yang biasanya masih manual menjadi lebih tertata, transparan, dan mudah dipantau. Aplikasi ini menyatukan proses penyusunan jadwal, pergantian petugas, koordinasi warga, hingga pemantauan jadwal aktif dalam satu dashboard yang nyaman dibaca.
+
+## Kenapa aplikasi ini penting?
+
+Dengan aplikasi ini, pengelola lingkungan bisa:
+
+- memantau jadwal ronda bulanan dengan cepat,
+- menghasilkan jadwal ronda secara lebih terstruktur,
 - mengelola data warga, koordinator, dan petugas cadangan,
-- memproses permintaan pergantian jadwal dari warga,
-- menyimpan riwayat dan memantau perubahan jadwal,
-- memanfaatkan bantuan AI untuk memberi saran kepada koordinator.
+- memproses permintaan perubahan jadwal dengan lebih rapi,
+- menyimpan riwayat pengelolaan jadwal,
+- memanfaatkan bantuan AI sebagai pendamping keputusan koordinator.
 
-## Fitur utama
+## Fitur utama 🚀
 
-### Dashboard utama
+### 1. Dashboard utama
 
-- Menampilkan ringkasan jadwal ronda per bulan.
-- Menyediakan metrik seperti jumlah hari terjadwal, total baris jadwal, dan support person.
-- Mendukung pencarian nama warga dan filter periode jadwal.
+- Ringkasan jadwal ronda per bulan.
+- Statistik hari terjadwal, total baris jadwal, dan support person.
+- Filter periode dan pencarian nama warga.
 
-### Manajemen jadwal ronda
+### 2. Manajemen jadwal ronda
 
 - Menampilkan daftar ronda harian warga.
-- Mendukung penandaan petugas pengganti.
-- Membantu admin mengelola jadwal bulanan dengan tampilan yang lebih terstruktur.
+- Menandai petugas pengganti dengan jelas.
+- Membantu admin mengelola jadwal bulanan dengan tampilan yang ringkas.
 
-### Manajemen permintaan perubahan jadwal
+### 3. Permintaan perubahan jadwal
 
-- Warga dapat mengajukan permintaan perubahan atau pergantian jadwal ronda.
-- Koordinator atau admin dapat meninjau dan memproses permintaan tersebut.
+- Warga dapat mengajukan perubahan atau pergantian jadwal.
+- Admin dan koordinator dapat meninjau serta memproses permintaan.
 
-### Manajemen admin
+### 4. Panel admin
 
-- Kelola data pengguna atau warga.
+- Kelola data warga.
 - Kelola backup atau pengganti ronda.
 - Kelola koordinator ronda.
-- Kelola riwayat jadwal dan ekspor data jadwal.
+- Kelola riwayat dan ekspor jadwal.
 
-### Bantuan AI untuk koordinator
+### 5. Bantuan AI untuk koordinator
 
-- Menyediakan saran cerdas untuk membantu pengambilan keputusan terkait jadwal.
-- Digunakan sebagai alat bantu, bukan pengganti keputusan akhir koordinator.
+- Memberikan saran cerdas saat meninjau atau menyesuaikan jadwal.
+- Bersifat membantu, bukan menggantikan keputusan akhir manusia.
 
-### Integrasi database dan health check
+### 6. Health check database
 
-- Menggunakan Firebase untuk data utama dan autentikasi yang dibutuhkan aplikasi.
-- Menyediakan pengecekan koneksi database MySQL melalui endpoint health check.
+- Menyediakan endpoint untuk mengecek koneksi database MySQL.
 
-## Teknologi yang digunakan
+## Tech stack 🧰
 
-Project ini dibangun menggunakan stack berikut:
+| Teknologi | Fungsi |
+| --- | --- |
+| `Next.js 15` | Framework utama aplikasi |
+| `React 19` | Pengembangan antarmuka pengguna |
+| `TypeScript` | Type safety dan maintainability |
+| `Tailwind CSS` | Utility styling |
+| `Bootstrap 5` | Dukungan tampilan dan komponen visual tertentu |
+| `Firebase` | Layanan aplikasi dan data client-side |
+| `MySQL / mysql2` | Koneksi database tambahan |
+| `Genkit + Google AI` | Fitur AI assistant |
+| `React Hook Form + Zod` | Form handling dan validasi |
 
-- **Next.js 15** untuk framework aplikasi web
-- **React 19** untuk UI
-- **TypeScript** untuk type safety
-- **Tailwind CSS** untuk utility styling
-- **Bootstrap 5** untuk dukungan styling dan komponen visual tertentu
-- **Firebase** untuk layanan aplikasi dan data client-side
-- **MySQL / mysql2** untuk koneksi database tambahan
-- **Genkit + Google AI** untuk fitur asisten AI
-- **React Hook Form + Zod** untuk form handling dan validasi
+## Struktur folder penting 🗂️
 
-## Struktur folder penting
+| Folder | Kegunaan |
+| --- | --- |
+| `src/app/` | Routing dan halaman berbasis Next.js App Router |
+| `src/app/(app)/admin/` | Fitur dan halaman admin |
+| `src/app/(app)/coordinator/` | Area kerja koordinator |
+| `src/app/(app)/dashboard/` | Dashboard utama jadwal ronda |
+| `src/app/(app)/schedule/request/` | Form permintaan perubahan jadwal |
+| `src/components/` | Komponen UI reusable |
+| `src/firebase/` | Konfigurasi dan helper Firebase |
+| `src/lib/` | Helper, utilitas, tipe, dan koneksi MySQL |
+| `src/ai/` | Konfigurasi Genkit dan flow AI |
+| `docs/` | Blueprint dan dokumen pendukung |
 
-Berikut beberapa folder utama yang paling penting untuk dipahami:
-
-- `src/app/` — routing dan halaman utama aplikasi berbasis Next.js App Router
-- `src/app/(app)/admin/` — halaman dan fitur untuk admin
-- `src/app/(app)/coordinator/` — halaman untuk koordinator
-- `src/app/(app)/dashboard/` — dashboard utama jadwal ronda
-- `src/app/(app)/schedule/request/` — form permintaan perubahan jadwal
-- `src/components/` — komponen UI yang dipakai ulang
-- `src/firebase/` — konfigurasi dan helper integrasi Firebase
-- `src/lib/` — utilitas, helper data, tipe, dan koneksi MySQL
-- `src/ai/` — konfigurasi Genkit dan flow AI
-- `docs/` — dokumen pendukung seperti blueprint aplikasi
-
-## Menjalankan project secara lokal
+## Quick start ⚡
 
 ### 1. Install dependency
 
-Jalankan install package terlebih dahulu menggunakan package manager yang sesuai dengan lockfile project ini.
+Gunakan package manager yang sesuai dengan `package-lock.json` yang ada di project.
+
+```bash
+npm install
+```
 
 ### 2. Siapkan environment
 
-File `.env` sudah tersedia di root project. Pastikan nilai environment yang dibutuhkan sudah terisi dengan benar, terutama untuk:
+File `.env` sudah tersedia di root project. Pastikan nilai berikut sudah benar:
 
-- koneksi database melalui `DATABASE_URL`,
-- kredensial atau API key yang dibutuhkan untuk fitur AI / Genkit.
+- `DATABASE_URL`
+- API key atau kredensial yang dibutuhkan untuk fitur AI / Genkit
 
-Jika nilai environment belum valid, beberapa fitur seperti koneksi database atau AI tidak akan berjalan semestinya.
+Jika environment belum valid, beberapa fitur seperti AI dan pengecekan database tidak akan berjalan dengan benar.
 
-### 3. Jalankan mode development
+### 3. Jalankan aplikasi
 
-Mode development akan menjalankan aplikasi Next.js di port **9002**.
+```bash
+npm run dev
+```
 
-## Scripts yang tersedia
+Mode development berjalan di port **9002**.
 
-Script utama di project ini:
+## Scripts yang tersedia 🧪
 
-- `npm run dev` — menjalankan aplikasi dalam mode development pada port `9002`
-- `npm run build` — build aplikasi untuk production
-- `npm run start` — menjalankan hasil build production
-- `npm run lint` — menjalankan linting
-- `npm run typecheck` — mengecek error TypeScript tanpa build
-- `npm run genkit:dev` — menjalankan environment AI Genkit
-- `npm run genkit:watch` — menjalankan Genkit dengan mode watch
+| Script | Fungsi |
+| --- | --- |
+| `npm run dev` | Menjalankan aplikasi pada port `9002` |
+| `npm run build` | Build aplikasi untuk production |
+| `npm run start` | Menjalankan hasil build production |
+| `npm run lint` | Menjalankan linting |
+| `npm run typecheck` | Mengecek error TypeScript tanpa build |
+| `npm run genkit:dev` | Menjalankan Genkit untuk AI development |
+| `npm run genkit:watch` | Menjalankan Genkit dalam mode watch |
 
-## Alur penggunaan singkat
-
-Secara umum alur penggunaan aplikasi adalah sebagai berikut:
+## Alur penggunaan singkat 🔄
 
 1. Admin atau pengelola masuk ke aplikasi.
-2. Data warga dan peran pengguna dikelola dari panel admin.
+2. Data warga dan role dikelola dari panel admin.
 3. Jadwal ronda bulanan dibuat atau diperbarui.
 4. Warga melihat jadwal masing-masing.
-5. Jika ada kendala, warga dapat mengajukan permintaan perubahan jadwal.
-6. Koordinator meninjau permintaan dan dapat menggunakan saran AI sebagai pertimbangan.
-7. Jadwal final dipantau dari dashboard utama.
+5. Jika ada kebutuhan pergantian, warga mengirim permintaan perubahan jadwal.
+6. Koordinator meninjau permintaan dan dapat menggunakan bantuan AI sebagai referensi.
+7. Jadwal final dipantau melalui dashboard utama.
 
-## Endpoint penting
+## Endpoint penting 🔍
 
-- `GET /api/health/database` — mengecek status koneksi database MySQL
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /api/health/database` | Mengecek status koneksi database MySQL |
 
-## Catatan pengembangan
+## Catatan pengembangan 🛠️
 
-- Project ini menggunakan **App Router** milik Next.js.
-- Komponen UI disusun agar bisa dipakai ulang di berbagai halaman.
-- Dokumentasi dan blueprint awal tersedia di folder `docs/`.
-- Perubahan pada README ini tidak mengubah fungsi aplikasi, hanya memperjelas dokumentasi project.
+- Project menggunakan **Next.js App Router**.
+- UI disusun dari komponen reusable agar konsisten di berbagai halaman.
+- Blueprint awal project tersedia di folder `docs/`.
+- Perubahan pada `README.md` ini hanya memodernisasi dokumentasi dan **tidak mengubah fungsi aplikasi**.
 
 ## Ringkasan
 
-Ronda Alamadani adalah aplikasi manajemen ronda warga yang dirancang untuk membantu pengaturan jadwal, koordinasi petugas, pengelolaan pergantian jadwal, dan pemantauan kegiatan ronda secara lebih modern dan efisien.
+Ronda Alamadani adalah aplikasi manajemen ronda warga yang dirancang untuk membantu pengaturan jadwal, koordinasi petugas, pengelolaan pergantian jadwal, dan pemantauan kegiatan ronda secara lebih modern, efisien, dan mudah dipahami.
