@@ -25,7 +25,22 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 
-function countConsecutiveDates(schedule: any[], startIndex: number) {
+type DashboardScheduleRow = ScheduleEntry & {
+  isEmptySchedule?: boolean;
+};
+
+
+function getUtcDateKey(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+
+function buildUtcDate(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
+
+function countConsecutiveDates(schedule: Array<{ hariTanggal: string }>, startIndex: number) {
   let count = 1;
   if (startIndex >= schedule.length) return count;
 
@@ -38,6 +53,21 @@ function countConsecutiveDates(schedule: any[], startIndex: number) {
     }
   }
   return count;
+}
+
+
+function renderEmptyScheduleCell() {
+  return (
+    <TableCell colSpan={4} className="p-3">
+      <div className="dashboard-empty-state">
+        <span className="dashboard-empty-badge">Belum Terjadwal</span>
+        <div className="dashboard-empty-title">Belum ada warga ronda pada tanggal ini.</div>
+        <div className="dashboard-empty-description">
+          Tanggal tetap ditampilkan agar periode jadwal bulanan tetap lengkap dan mudah dipantau.
+        </div>
+      </div>
+    </TableCell>
+  );
 }
 
 const InfoCard = ({
@@ -105,10 +135,11 @@ export default function DashboardPage() {
   
   const isLoading = isSchedulesLoading || isUsersLoading || isAuthLoading;
 
-  const { processedScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
+  const { processedScheduleEntries, tableScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
     if (!users || !allSchedules) {
         return {
             processedScheduleEntries: [],
+            tableScheduleEntries: [],
             backupPersons: [],
             coordinatorPersons: []
         };
@@ -123,7 +154,7 @@ export default function DashboardPage() {
 
     const usersMap = new Map(users.map((user) => [user.id, user]));
 
-    let scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
+    const scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
         const user = usersMap.get(schedule.userId);
         const scheduleDate = new Date(schedule.date);
         return {
@@ -136,13 +167,43 @@ export default function DashboardPage() {
         }
     }).sort((a, b) => a.date.getTime() - b.date.getTime());
 
+    let filteredScheduleEntries = scheduleEntries;
+
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
-        scheduleEntries = scheduleEntries.filter(entry => 
+        filteredScheduleEntries = scheduleEntries.filter(entry => 
             entry.nama.toLowerCase().includes(lowercasedQuery) ||
             (entry.pengganti && entry.pengganti.toLowerCase().includes(lowercasedQuery))
         );
     }
+
+    const tableEntries: DashboardScheduleRow[] = searchQuery
+      ? filteredScheduleEntries
+      : Array.from({ length: new Date(Date.UTC(year, month, 0)).getUTCDate() }, (_, index) => {
+          const day = index + 1;
+          const currentDate = buildUtcDate(year, month, day);
+          const currentDateKey = getUtcDateKey(currentDate);
+          const entriesForDay = filteredScheduleEntries.filter((entry) => {
+            if (!entry.date) {
+              return false;
+            }
+
+            return getUtcDateKey(entry.date) === currentDateKey;
+          });
+
+          if (entriesForDay.length > 0) {
+            return entriesForDay;
+          }
+
+          return [{
+            date: currentDate,
+            hariTanggal: format(currentDate, "EEEE, dd MMMM yyyy", { locale: id }),
+            nama: '',
+            blok: '-',
+            noHp: '-',
+            isEmptySchedule: true,
+          }];
+        }).flat();
 
 
     const backups = users
@@ -159,7 +220,12 @@ export default function DashboardPage() {
         }))
         .sort((a, b) => a.nama.localeCompare(b.nama));
 
-    return { processedScheduleEntries: scheduleEntries, backupPersons: backups, coordinatorPersons: coordinators };
+    return {
+      processedScheduleEntries: filteredScheduleEntries,
+      tableScheduleEntries: tableEntries,
+      backupPersons: backups,
+      coordinatorPersons: coordinators,
+    };
   }, [users, allSchedules, selectedMonth, searchQuery]);
 
 
@@ -350,8 +416,8 @@ export default function DashboardPage() {
                             </TableCell>
                           </TableRow>
                         ))
-                      : processedScheduleEntries.length > 0 ? (
-                        processedScheduleEntries.map((entry, index) => {
+                      : tableScheduleEntries.length > 0 ? (
+                        tableScheduleEntries.map((entry, index) => {
                           const showDate = entry.hariTanggal !== lastDate;
                           if (showDate) {
                             dateGroupIndex++;
@@ -362,7 +428,7 @@ export default function DashboardPage() {
                           if (showDate) {
                             lastDate = entry.hariTanggal;
                             const rowSpan = countConsecutiveDates(
-                              processedScheduleEntries,
+                              tableScheduleEntries,
                               index
                             );
                             return (
@@ -384,34 +450,40 @@ export default function DashboardPage() {
                                   <div className="dashboard-date-badge">Malam ronda</div>
                                   <div className="dashboard-date-value">{entry.hariTanggal}</div>
                                 </TableCell>
-                                <TableCell className="p-3">
-                                  <div className="dashboard-person-cell">
-                                    <div>
-                                      <div className="dashboard-person-name">{entry.nama}</div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="p-3">
-                                  <span className="dashboard-block-pill">{entry.blok}</span>
-                                </TableCell>
-                                <TableCell className="p-3">
-                                  <span className="dashboard-phone-text">{entry.noHp}</span>
-                                </TableCell>
-                                <TableCell
-                                  className={cn(
-                                    'p-3',
-                                    entry.pengganti && 'font-semibold text-accent-foreground'
-                                  )}
-                                >
-                                  {entry.pengganti ? (
-                                    <div className="dashboard-replacement-cell">
-                                      <span className="dashboard-replacement-badge">Pengganti</span>
-                                      <span className="dashboard-replacement-name">{entry.pengganti}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="dashboard-original-badge">-</span>
-                                  )}
-                                </TableCell>
+                                {entry.isEmptySchedule ? (
+                                  renderEmptyScheduleCell()
+                                ) : (
+                                  <>
+                                    <TableCell className="p-3">
+                                      <div className="dashboard-person-cell">
+                                        <div>
+                                          <div className="dashboard-person-name">{entry.nama}</div>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="p-3">
+                                      <span className="dashboard-block-pill">{entry.blok}</span>
+                                    </TableCell>
+                                    <TableCell className="p-3">
+                                      <span className="dashboard-phone-text">{entry.noHp}</span>
+                                    </TableCell>
+                                    <TableCell
+                                      className={cn(
+                                        'p-3',
+                                        entry.pengganti && 'font-semibold text-accent-foreground'
+                                      )}
+                                    >
+                                      {entry.pengganti ? (
+                                        <div className="dashboard-replacement-cell">
+                                          <span className="dashboard-replacement-badge">Pengganti</span>
+                                          <span className="dashboard-replacement-name">{entry.pengganti}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="dashboard-original-badge">-</span>
+                                      )}
+                                    </TableCell>
+                                  </>
+                                )}
                               </TableRow>
                             );
                           }
@@ -427,34 +499,40 @@ export default function DashboardPage() {
                                   : ""
                               )}
                             >
-                              <TableCell className="p-3">
-                                <div className="dashboard-person-cell">
-                                  <div>
-                                    <div className="dashboard-person-name">{entry.nama}</div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="p-3">
-                                <span className="dashboard-block-pill">{entry.blok}</span>
-                              </TableCell>
-                              <TableCell className="p-3">
-                                <span className="dashboard-phone-text">{entry.noHp}</span>
-                              </TableCell>
-                              <TableCell
-                                className={cn(
-                                  'p-3',
-                                  entry.pengganti && 'font-semibold text-accent-foreground'
-                                )}
-                              >
-                                {entry.pengganti ? (
-                                  <div className="dashboard-replacement-cell">
-                                    <span className="dashboard-replacement-badge">Pengganti</span>
-                                    <span className="dashboard-replacement-name">{entry.pengganti}</span>
-                                  </div>
-                                ) : (
-                                  <span className="dashboard-original-badge">-</span>
-                                )}
-                              </TableCell>
+                              {entry.isEmptySchedule ? (
+                                renderEmptyScheduleCell()
+                              ) : (
+                                <>
+                                  <TableCell className="p-3">
+                                    <div className="dashboard-person-cell">
+                                      <div>
+                                        <div className="dashboard-person-name">{entry.nama}</div>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="p-3">
+                                    <span className="dashboard-block-pill">{entry.blok}</span>
+                                  </TableCell>
+                                  <TableCell className="p-3">
+                                    <span className="dashboard-phone-text">{entry.noHp}</span>
+                                  </TableCell>
+                                  <TableCell
+                                    className={cn(
+                                      'p-3',
+                                      entry.pengganti && 'font-semibold text-accent-foreground'
+                                    )}
+                                  >
+                                    {entry.pengganti ? (
+                                      <div className="dashboard-replacement-cell">
+                                        <span className="dashboard-replacement-badge">Pengganti</span>
+                                        <span className="dashboard-replacement-name">{entry.pengganti}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="dashboard-original-badge">-</span>
+                                    )}
+                                  </TableCell>
+                                </>
+                              )}
                             </TableRow>
                           );
                         })
