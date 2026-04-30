@@ -60,11 +60,8 @@ function renderEmptyScheduleCell() {
   return (
     <TableCell colSpan={4} className="p-3">
       <div className="dashboard-empty-state">
-        <span className="dashboard-empty-badge">Belum Terjadwal</span>
+        <span className="dashboard-empty-badge">Jadwal Kosong</span>
         <div className="dashboard-empty-title">Belum ada warga ronda pada tanggal ini.</div>
-        <div className="dashboard-empty-description">
-          Tanggal tetap ditampilkan agar periode jadwal bulanan tetap lengkap dan mudah dipantau.
-        </div>
       </div>
     </TableCell>
   );
