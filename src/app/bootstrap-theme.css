@@ -351,6 +351,44 @@ body {
   font-weight: 700;
 }
 
+.dashboard-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 5.75rem;
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+}
+
+.dashboard-empty-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.8rem;
+  background: rgba(13, 110, 253, 0.1);
+  border: 1px solid rgba(13, 110, 253, 0.14);
+  color: #0b5ed7;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dashboard-empty-title {
+  color: #334155;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dashboard-empty-description {
+  max-width: 30rem;
+  color: #64748b;
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
 .dashboard-main-card .table-responsive {
   max-height: none;
   overflow: visible;
