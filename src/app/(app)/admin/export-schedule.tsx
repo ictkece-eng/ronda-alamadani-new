@@ -37,7 +37,22 @@ declare module 'jspdf' {
 }
 
 
-function countConsecutiveDates(schedule: ScheduleEntry[], startIndex: number) {
+type ExportScheduleRow = ScheduleEntry & {
+  isEmptySchedule?: boolean;
+};
+
+
+function getUtcDateKey(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+
+function buildUtcDate(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
+
+function countConsecutiveDates(schedule: Array<{ hariTanggal: string }>, startIndex: number) {
   let count = 1;
   if (startIndex >= schedule.length) return count;
 
@@ -50,6 +65,18 @@ function countConsecutiveDates(schedule: ScheduleEntry[], startIndex: number) {
     }
   }
   return count;
+}
+
+
+function renderEmptyScheduleCell() {
+  return (
+    <TableCell colSpan={4} className="p-3">
+      <div className="png-export-empty-state">
+        <span className="png-export-empty-badge">Jadwal Kosong</span>
+        <div className="png-export-empty-title">Belum ada warga ronda pada tanggal ini.</div>
+      </div>
+    </TableCell>
+  );
 }
 
 const InfoCard = ({
@@ -118,10 +145,11 @@ export function ExportSchedule() {
   
   const isLoading = isSchedulesLoading || isUsersLoading || isAuthLoading;
 
-  const { processedScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
+  const { processedScheduleEntries, tableScheduleEntries, backupPersons, coordinatorPersons } = useMemo(() => {
     if (!users || !allSchedules) {
         return {
             processedScheduleEntries: [],
+            tableScheduleEntries: [],
             backupPersons: [],
             coordinatorPersons: []
         };
@@ -136,7 +164,7 @@ export function ExportSchedule() {
 
     const usersMap = new Map(users.map((user) => [user.id, user]));
 
-    let scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
+    const scheduleEntries: ScheduleEntry[] = filteredSchedules.map(schedule => {
         const user = usersMap.get(schedule.userId);
         const scheduleDate = new Date(schedule.date);
         return {
@@ -149,13 +177,43 @@ export function ExportSchedule() {
         }
     }).sort((a, b) => a.date.getTime() - b.date.getTime());
 
+    let filteredScheduleEntries = scheduleEntries;
+
     if (searchQuery) {
         const lowercasedQuery = searchQuery.toLowerCase();
-        scheduleEntries = scheduleEntries.filter(entry => 
+        filteredScheduleEntries = scheduleEntries.filter(entry => 
             entry.nama.toLowerCase().includes(lowercasedQuery) ||
             (entry.pengganti && entry.pengganti.toLowerCase().includes(lowercasedQuery))
         );
     }
+
+    const tableEntries: ExportScheduleRow[] = searchQuery
+      ? filteredScheduleEntries
+      : Array.from({ length: new Date(Date.UTC(year, month, 0)).getUTCDate() }, (_, index) => {
+          const day = index + 1;
+          const currentDate = buildUtcDate(year, month, day);
+          const currentDateKey = getUtcDateKey(currentDate);
+          const entriesForDay = filteredScheduleEntries.filter((entry) => {
+            if (!entry.date) {
+              return false;
+            }
+
+            return getUtcDateKey(entry.date) === currentDateKey;
+          });
+
+          if (entriesForDay.length > 0) {
+            return entriesForDay;
+          }
+
+          return [{
+            date: currentDate,
+            hariTanggal: format(currentDate, "EEEE, dd MMMM yyyy", { locale: id }),
+            nama: '',
+            blok: '-',
+            noHp: '-',
+            isEmptySchedule: true,
+          }];
+        }).flat();
 
 
     const backups = users
@@ -172,7 +230,12 @@ export function ExportSchedule() {
         }))
         .sort((a, b) => a.nama.localeCompare(b.nama));
 
-    return { processedScheduleEntries: scheduleEntries, backupPersons: backups, coordinatorPersons: coordinators };
+    return {
+      processedScheduleEntries: filteredScheduleEntries,
+      tableScheduleEntries: tableEntries,
+      backupPersons: backups,
+      coordinatorPersons: coordinators,
+    };
   }, [users, allSchedules, selectedMonth, searchQuery]);
 
 
@@ -291,10 +354,10 @@ export function ExportSchedule() {
 
     // --- Main Schedule Table ---
     const mainTableBody: any[] = [];
-    const groupedByDate = processedScheduleEntries.reduce((acc, entry) => {
+    const groupedByDate = tableScheduleEntries.reduce((acc, entry) => {
         (acc[entry.hariTanggal] = acc[entry.hariTanggal] || []).push(entry);
         return acc;
-    }, {} as Record<string, ScheduleEntry[]>);
+    }, {} as Record<string, ExportScheduleRow[]>);
 
     let rowSpans: { [key: number]: number } = {};
     let pdfRowIndex = 0;
@@ -306,11 +369,14 @@ export function ExportSchedule() {
         entriesForDate.forEach((entry) => {
             const row: any = {
                 hariTanggal: date,
-                nama: entry.nama,
+            nama: entry.isEmptySchedule ? 'Jadwal Kosong' : entry.nama,
                 blok: entry.blok,
                 noHp: entry.noHp,
                 pengganti: entry.pengganti || '-',
             };
+          if (entry.isEmptySchedule) {
+            row.styles = { fillColor: [248, 250, 252], textColor: [100, 116, 139], fontStyle: 'italic' };
+          }
             if (isJumat) {
                 row.styles = { fillColor: [254, 249, 195] };
             }
@@ -550,8 +616,8 @@ export function ExportSchedule() {
                             </TableCell>
                           </TableRow>
                         ))
-                      : processedScheduleEntries.length > 0 ? (
-                        processedScheduleEntries.map((entry, index) => {
+                      : tableScheduleEntries.length > 0 ? (
+                        tableScheduleEntries.map((entry, index) => {
                           const showDate = entry.hariTanggal !== lastDate;
                           if (showDate) {
                             dateGroupIndex++;
@@ -562,7 +628,7 @@ export function ExportSchedule() {
                           if (showDate) {
                             lastDate = entry.hariTanggal;
                             const rowSpan = countConsecutiveDates(
-                              processedScheduleEntries,
+                              tableScheduleEntries,
                               index
                             );
                             return (
@@ -590,17 +656,23 @@ export function ExportSchedule() {
                                 >
                                   {entry.hariTanggal}
                                 </TableCell>
-                                <TableCell className="p-3">{entry.nama}</TableCell>
-                                <TableCell className="p-3">{entry.blok}</TableCell>
-                                <TableCell className="p-3">{entry.noHp}</TableCell>
-                                <TableCell
-                                  className={cn(
-                                    'p-3',
-                                    entry.pengganti && 'font-semibold text-accent-foreground'
-                                  )}
-                                >
-                                  {entry.pengganti || '-'}
-                                </TableCell>
+                                {entry.isEmptySchedule ? (
+                                  renderEmptyScheduleCell()
+                                ) : (
+                                  <>
+                                    <TableCell className="p-3">{entry.nama}</TableCell>
+                                    <TableCell className="p-3">{entry.blok}</TableCell>
+                                    <TableCell className="p-3">{entry.noHp}</TableCell>
+                                    <TableCell
+                                      className={cn(
+                                        'p-3',
+                                        entry.pengganti && 'font-semibold text-accent-foreground'
+                                      )}
+                                    >
+                                      {entry.pengganti || '-'}
+                                    </TableCell>
+                                  </>
+                                )}
                               </TableRow>
                             );
                           }
@@ -616,17 +688,23 @@ export function ExportSchedule() {
                                   : ""
                               )}
                             >
-                              <TableCell className="p-3">{entry.nama}</TableCell>
-                              <TableCell className="p-3">{entry.blok}</TableCell>
-                              <TableCell className="p-3">{entry.noHp}</TableCell>
-                              <TableCell
-                                className={cn(
-                                  'p-3',
-                                  entry.pengganti && 'font-semibold text-accent-foreground'
-                                )}
-                              >
-                                  {entry.pengganti || '-'}
-                              </TableCell>
+                              {entry.isEmptySchedule ? (
+                                renderEmptyScheduleCell()
+                              ) : (
+                                <>
+                                  <TableCell className="p-3">{entry.nama}</TableCell>
+                                  <TableCell className="p-3">{entry.blok}</TableCell>
+                                  <TableCell className="p-3">{entry.noHp}</TableCell>
+                                  <TableCell
+                                    className={cn(
+                                      'p-3',
+                                      entry.pengganti && 'font-semibold text-accent-foreground'
+                                    )}
+                                  >
+                                      {entry.pengganti || '-'}
+                                  </TableCell>
+                                </>
+                              )}
                             </TableRow>
                           );
                         })
